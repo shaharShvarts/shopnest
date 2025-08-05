@@ -11,76 +11,101 @@ import { revalidatePath } from "next/cache";
 
 const zodSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  image: imageSchema,
+  image: imageSchema.refine((file) => file.size > 0, {
+    message: "Image must not be empty",
+  }),
 });
 
-// const editSchema = zodSchema.extend({
-//   image: imageSchema.optional(),
-// });
-
-const editSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  image: z.instanceof(File).optional(),
+const editSchema = zodSchema.extend({
+  image: imageSchema.optional(),
 });
+
+// export type FormDataState = {
+//   success: boolean;
+//   fields?: Record<string, string>;
+//   errors?: Record<string, string[]>;
+// };
 
 // This function handles the addition of a new category
-export async function addCategory(_: any, formData: FormData) {
+export async function addCategory(
+  _: any,
+  formData: FormData
+): Promise<FormDataState> {
   const data = Object.fromEntries(formData);
   const result = zodSchema.safeParse(data);
 
   if (!result.success) {
+    const errors = result.error.flatten().fieldErrors;
+    const fields: Record<string, string> = {};
+    for (const key in data) {
+      fields[key] = data[key].toString();
+    }
+
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors,
+      fields,
+      errors,
     };
   }
 
-  let imageUrl = "";
   const { name, image } = result.data;
 
   await fs.mkdir("public/categories", { recursive: true });
-  imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
+  const imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
   await fs.writeFile(
     `public${imageUrl}`,
     Buffer.from(await image.arrayBuffer())
   );
 
   // Save category data to the database
-  try {
-    await db.insert(categories).values({ name, imageUrl });
-  } catch (error: unknown) {
-    await fs.unlink(`public${imageUrl}`);
-    let errorMessage = "Something went wrong.";
+  const queryResult = await db
+    .insert(categories)
+    .values({ name, imageUrl })
+    .onConflictDoNothing({ target: [categories.name] })
+    .returning();
 
-    if (error instanceof Error) {
-      const err = error as any;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
-        errorMessage = `A category with this name (${name}) already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
-      }
-    }
-
+  if (queryResult.length === 0) {
+    // No row was inserted — name already exists
     return {
       success: false,
+      fields: {
+        name,
+        image: image.name,
+      },
       errors: {
-        name: [errorMessage],
+        name: [
+          `A category with this name (${name}) already exists. Try a different name!`,
+        ],
       },
     };
   }
+
+  // Redirect to the categories page after successful addition
+  revalidatePath("/");
+  revalidatePath("/admin/categories");
   redirect("/admin/categories");
 }
 
 // This function handles the editing of an existing category
-export async function editCategory(id: number, _: any, formData: FormData) {
+export async function editCategory(
+  id: number,
+  prevState: FormDataState,
+  formData: FormData
+): Promise<FormDataState> {
   const data = Object.fromEntries(formData);
   const result = editSchema.safeParse(data);
 
   if (!result.success) {
+    const errors = result.error.flatten().fieldErrors;
+    const fields: Record<string, string> = {};
+    for (const key in data) {
+      fields[key] = data[key].toString();
+    }
+
     return {
       success: false,
-      errors: result.error.flatten().fieldErrors,
+      fields,
+      errors,
     };
   }
 
@@ -106,35 +131,17 @@ export async function editCategory(id: number, _: any, formData: FormData) {
   }
 
   // Update category data to the database
-  try {
-    await db
-      .update(categories)
-      .set({
-        name,
-        imageUrl: imageUrl,
-      })
-      .where(eq(categories.id, Number(id)));
-  } catch (error: unknown) {
-    await fs.unlink(`public${imageUrl}`);
-    let errorMessage = "Something went wrong.";
+  await db
+    .update(categories)
+    .set({
+      name,
+      imageUrl: imageUrl,
+    })
+    .where(eq(categories.id, Number(id)));
 
-    if (error instanceof Error) {
-      const err = error as any;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
-        errorMessage = `A category with this name (${name}) already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
-      }
-    }
-
-    return {
-      success: false,
-      errors: {
-        name: [errorMessage],
-      },
-    };
-  }
+  // Redirect to the categories page after successful addition
+  revalidatePath("/");
+  revalidatePath("/admin/categories");
   redirect("/admin/categories");
 }
 

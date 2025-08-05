@@ -4,11 +4,13 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { addCategory, editCategory } from "../../_actions/categories";
 import { Category } from "@/drizzle/schema/category";
 import prettyBytes from "pretty-bytes";
-
+import { isValidImage } from "@/lib/isValidImage";
+import { set } from "zod";
+// category == null ? addCategory : editCategory.bind(null, category.id)
 export default function CategoryForm({
   category,
 }: {
@@ -18,14 +20,22 @@ export default function CategoryForm({
     category == null ? addCategory : editCategory.bind(null, category.id),
     {
       success: false,
-      fields: {},
       errors: {},
     }
   );
 
   const [name, setName] = useState<string>(category?.name || "");
-  const [image, setImage] = useState<File | null>(null);
-  const maxFileSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? 0);
+  const [image, setImage] = useState<string | null>(category?.imageUrl || null);
+  const [preview, setPreview] = useState<string | null>(
+    category?.imageUrl || null
+  );
+
+  useEffect(() => {
+    if (state?.errors?.name) {
+      setPreview(null);
+      console.info("Error in name field:", state.errors.name);
+    }
+  }, [state?.errors?.name]);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -39,8 +49,8 @@ export default function CategoryForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        {state.errors?.name && (
-          <div className="text-destructive">{state.errors.name.join(", ")}</div>
+        {state?.errors?.name && (
+          <div className="text-destructive">{state.errors.name}</div>
         )}
       </div>
 
@@ -49,36 +59,32 @@ export default function CategoryForm({
         <Input
           type="file"
           id="image"
+          name="image"
           accept="image/*"
+          required={category == null}
           onChange={(e) => {
-            const file = e.target.files?.[0] ?? null;
-
-            if (file && file.size > maxFileSize) {
-              alert(
-                `File size exceeds ${maxFileSize}, Please choose a smaller image.`
-              );
-              e.target.value = "";
+            const file = e.target.files?.[0] || null;
+            if (!isValidImage(file)) {
+              setPreview(null);
+              e.target.value = ""; // Clear the input if the file is invalid
               return;
             }
-
-            // setImage(file);
+            setImage(file ? file.name : null);
+            setPreview(URL.createObjectURL(file as Blob));
           }}
-          required={category == null}
-          name="image"
         />
-        {category != null && (
+
+        {state?.errors?.image && (
+          <div className="text-destructive">{state.errors.image}</div>
+        )}
+        {preview && (
           <Image
-            src={category.imageUrl}
+            src={preview}
             width={400}
             height={400}
-            alt={category.name}
+            title={image || "Category Image Preview"}
+            alt="Preview"
           />
-        )}
-
-        {state.errors?.image && (
-          <div className="text-destructive">
-            {state.errors.image.join(", ")}
-          </div>
         )}
       </div>
       <Button type="submit" disabled={isPending}>
