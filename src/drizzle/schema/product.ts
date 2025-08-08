@@ -40,11 +40,11 @@ export const products = pgTable(
     status: productStatusEnum().notNull().default("available"),
     isAvailable: isAvailableEnum("is_available").notNull().default("active"),
     categoryId: integer("category_id")
-      .references(() => categories.id, { onDelete: "cascade" })
+      .references(() => categories.id, { onDelete: "restrict" })
       .notNull(),
     subcategoryId: integer("subcategory_id").references(
       () => subcategories.id,
-      { onDelete: "cascade" }
+      { onDelete: "restrict" }
     ),
     deletedAt,
     createdAt,

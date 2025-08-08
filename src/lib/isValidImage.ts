@@ -2,7 +2,7 @@ export function isValidImage(file: File | null): boolean {
   const maxFileSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? 0);
   const validImageTypes = [
     "image/jpeg",
-    // "image/png",
+    "image/png",
     "image/gif",
     "image/webp",
   ];

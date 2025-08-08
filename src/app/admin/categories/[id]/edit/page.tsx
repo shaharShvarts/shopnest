@@ -1,17 +1,17 @@
-import { PageHeader } from "@/app/admin/_components/PageHeader";
+import { eq } from "drizzle-orm";
 import { db } from "@/drizzle/db";
 import { categories } from "@/drizzle/schema";
-import { eq } from "drizzle-orm";
 import CategoryForm from "../../_components/CategoryForm";
+import { PageHeader } from "@/app/admin/_components/PageHeader";
 
-export default async function EditCategoryPage({
-  params,
-}: {
+type EditCategoryProps = {
   params: { id: number };
-}) {
-  const { id } = await params;
+};
 
-  const category = await db
+export default async function EditCategoryPage({ params }: EditCategoryProps) {
+  const { id } = params;
+
+  const [category] = await db
     .select()
     .from(categories)
     .where(eq(categories.id, Number(id)))
@@ -20,7 +20,7 @@ export default async function EditCategoryPage({
   return (
     <>
       <PageHeader>Edit Category</PageHeader>
-      <CategoryForm category={category[0]} />
+      <CategoryForm category={category} />
     </>
   );
 }

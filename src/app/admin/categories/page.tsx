@@ -1,10 +1,36 @@
 import Link from "next/link";
+import { db } from "@/drizzle/db";
+import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "../_components/PageHeader";
 import { CategoryTable } from "./_components/CategoryTable";
-import { PageTitle } from "../_components/PageTitle";
+import { categories, products, subcategories } from "@/drizzle/schema";
+import { Suspense } from "react";
+import AdminLoading from "../loading";
+
+type CategoriesData = {
+  isActive: boolean;
+  categoryId: number;
+  name: string;
+  productsCount: number;
+  subcategoriesCount: number;
+};
 
 export default async function AdminCategoriesPage() {
+  const categoriesData: CategoriesData[] = await db
+    .select({
+      isActive: categories.isActive,
+      categoryId: categories.id,
+      name: categories.name,
+      productsCount: count(products.id).as("productsCount"),
+      subcategoriesCount: count(subcategories.id).as("subcategoriesCount"),
+    })
+    .from(categories)
+    .leftJoin(products, eq(categories.id, products.categoryId))
+    .leftJoin(subcategories, eq(categories.id, subcategories.categoryId))
+    .groupBy(categories.id, categories.name, categories.isActive)
+    .orderBy(categories.name);
+
   return (
     <>
       <div className="flex justify-between items-center gap-4">
@@ -13,7 +39,9 @@ export default async function AdminCategoriesPage() {
           <Link href="/admin/categories/new">Add Category</Link>
         </Button>
       </div>
-      <CategoryTable />
+      <Suspense fallback={<AdminLoading />}>
+        <CategoryTable categoriesData={categoriesData} />
+      </Suspense>
     </>
   );
 }

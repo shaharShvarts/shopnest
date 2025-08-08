@@ -6,13 +6,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/drizzle/db";
 import { imageSchema } from "./zod";
 import { revalidatePath } from "next/cache";
-import { categories } from "@/drizzle/schema";
+import { subcategories } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
 
 //   image: z.instanceof(File).optional(),
 const zodSchema = z.object({
   name: z.string().min(1, "Name is required"),
   image: imageSchema,
+  categoryId: z.coerce.number().int().positive("Category ID is required"),
 });
 
 const editSchema = zodSchema.extend({
@@ -20,7 +21,7 @@ const editSchema = zodSchema.extend({
 });
 
 // This function handles the addition of a new category
-export async function addCategory(_: any, formData: FormData) {
+export async function addSubcategory(_: any, formData: FormData) {
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -31,10 +32,10 @@ export async function addCategory(_: any, formData: FormData) {
   }
 
   let imageUrl = "";
-  const { name, image } = result.data;
+  const { name, image, categoryId } = result.data;
 
-  await fs.mkdir("public/categories", { recursive: true });
-  imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
+  await fs.mkdir("public/subcategories", { recursive: true });
+  imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
   await fs.writeFile(
     `public${imageUrl}`,
     Buffer.from(await image.arrayBuffer())
@@ -42,7 +43,7 @@ export async function addCategory(_: any, formData: FormData) {
 
   // Save category data to the database
   try {
-    await db.insert(categories).values({ name, imageUrl });
+    await db.insert(subcategories).values({ name, imageUrl, categoryId });
   } catch (error: unknown) {
     await fs.unlink(`public${imageUrl}`);
     let errorMessage = "Something went wrong.";
@@ -51,7 +52,7 @@ export async function addCategory(_: any, formData: FormData) {
       const err = error as any;
       // Unique constraint violation and clean up the uploaded image
       if (err.cause.code === "23505") {
-        errorMessage = `A category with this name (${name}) already exists. Try a different name!`;
+        errorMessage = `A subcategory with this name (${name}) already exists. Try a different name!`;
       } else {
         errorMessage = error.message || "An unexpected error occurred.";
       }
@@ -64,11 +65,11 @@ export async function addCategory(_: any, formData: FormData) {
       },
     };
   }
-  redirect("/admin/categories");
+  redirect("/admin/subcategories");
 }
 
-// This function handles the editing of an existing category
-export async function editCategory(id: number, _: any, formData: FormData) {
+// // This function handles the editing of an existing category
+export async function editSubcategory(id: number, _: any, formData: FormData) {
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -78,38 +79,38 @@ export async function editCategory(id: number, _: any, formData: FormData) {
     };
   }
 
-  const { name, image } = result.data;
+  const { name, image, categoryId } = result.data;
 
   // Fetch the existing category from the database
-  const [category] = await db
+  const [subcategory] = await db
     .select()
-    .from(categories)
-    .where(eq(categories.id, Number(id)))
+    .from(subcategories)
+    .where(eq(subcategories.id, Number(id)))
     .limit(1);
 
-  if (!category) notFound();
+  if (!subcategory) notFound();
 
-  let imageUrl = category.imageUrl;
+  let imageUrl = subcategory.imageUrl;
   if (image != null && image.size > 0) {
-    await fs.unlink(`public${category.imageUrl}`);
-    imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
+    await fs.unlink(`public${subcategory.imageUrl}`);
+    imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
     await fs.writeFile(
       `public${imageUrl}`,
       Buffer.from(await image.arrayBuffer())
     );
   }
 
-  // Update category data to the database
+  // Update subcategory data to the database
   try {
     await db
-      .update(categories)
+      .update(subcategories)
       .set({
         name,
+        categoryId,
         imageUrl: imageUrl,
       })
-      .where(eq(categories.id, Number(id)));
+      .where(eq(subcategories.id, Number(id)));
   } catch (error: unknown) {
-    await fs.unlink(`public${imageUrl}`);
     let errorMessage = "Something went wrong.";
 
     if (error instanceof Error) {
@@ -129,32 +130,32 @@ export async function editCategory(id: number, _: any, formData: FormData) {
       },
     };
   }
-  redirect("/admin/categories");
+  redirect("/admin/subcategories");
 }
 
 // This function handles the editing of an existing category
-export async function ToggleCategoryActive(id: number, active: boolean) {
+export async function ToggleSubcategoryActive(id: number, active: boolean) {
   // Update the category's active status in the database
   await db
-    .update(categories)
+    .update(subcategories)
     .set({ isActive: active })
-    .where(eq(categories.id, Number(id)));
+    .where(eq(subcategories.id, Number(id)));
 
   // Redirect to the categories page after successful update
   revalidatePath("/");
-  revalidatePath("/admin/categories");
-  redirect("/admin/categories");
+  revalidatePath("/admin/subcategories");
+  redirect("/admin/subcategories");
 }
 
-// This function handles the deletion of a category
-export async function deleteCategory(id: number): Promise<string> {
-  const [category] = await db
-    .delete(categories)
-    .where(eq(categories.id, Number(id)))
+// This function handles the deletion of a subcategory
+export async function deleteSubcategory(id: number): Promise<string> {
+  const [subcategory] = await db
+    .delete(subcategories)
+    .where(eq(subcategories.id, Number(id)))
     .returning();
 
   // Delete the image file from the server
-  await fs.unlink(`public/${category.imageUrl}`);
-  revalidatePath("/admin/categories");
-  return `Category ${category.name} was successfully deleted.`;
+  await fs.unlink(`public/${subcategory.imageUrl}`);
+  revalidatePath("/admin/subcategories");
+  return `Subcategory ${subcategory.name} was successfully deleted.`;
 }

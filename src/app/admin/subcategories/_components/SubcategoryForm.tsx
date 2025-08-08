@@ -5,29 +5,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionState, useEffect, useState } from "react";
-import { addCategory, editCategory } from "../../_actions/categories";
-import { Category } from "@/drizzle/schema";
-import prettyBytes from "pretty-bytes";
+
 import { isValidImage } from "@/lib/isValidImage";
+import { Subcategory, Category } from "@/drizzle/schema";
+import { Combobox } from "../../_components/Combobox";
+import { addSubcategory, editSubcategory } from "../../_actions/subcategories";
+import { ScissorsLineDashedIcon } from "lucide-react";
 
-export default function CategoryForm({
-  category,
-}: {
-  category?: Category | null;
-}) {
-  const [state, formAction, isPending] = useActionState(
-    category == null ? addCategory : editCategory.bind(null, category.id),
-    {
-      success: false,
-      errors: {},
-    }
+type SubcategoryFormProps = {
+  subcategory?: Subcategory | null;
+  categoryList: Category[];
+};
+
+export default function SubcategoryForm({
+  subcategory,
+  categoryList,
+}: SubcategoryFormProps) {
+  const action = !subcategory
+    ? addSubcategory
+    : editSubcategory.bind(null, subcategory.id);
+  const [state, formAction, isPending] = useActionState(action, {
+    success: false,
+    errors: {},
+  });
+
+  const [name, setName] = useState<string>(subcategory?.name || "");
+  const [image, setImage] = useState<string | null>(
+    subcategory?.imageUrl || null
   );
-
-  const [name, setName] = useState<string>(category?.name || "");
-  const [image, setImage] = useState<string | null>(category?.imageUrl || null);
   const [preview, setPreview] = useState<string | null>(
-    category?.imageUrl || null
+    subcategory?.imageUrl || null
   );
+  const [categoryId, setCategoryId] = useState<number>(
+    subcategory?.categoryId || 0
+  );
+
+  const categoryName = categoryList.find((c) => c.id === categoryId)?.name;
 
   useEffect(() => {
     if (state?.errors?.name) {
@@ -53,18 +66,28 @@ export default function CategoryForm({
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="categoryId">Category</Label>
+        <Input type="hidden" name="categoryId" value={categoryId}></Input>
+        <Combobox
+          setCategoryId={setCategoryId}
+          list={categoryList}
+          selected={categoryName}
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="image">Image</Label>
         <Input
           type="file"
           id="image"
           name="image"
           accept="image/*"
-          required={category == null}
+          required={subcategory == null}
           onChange={(e) => {
             const file = e.target.files?.[0] || null;
             if (!isValidImage(file)) {
               setPreview(null);
-              e.target.value = ""; // Clear the input if the file is invalid
+              e.target.value = "";
               return;
             }
             setImage(file ? file.name : null);
@@ -80,7 +103,7 @@ export default function CategoryForm({
             src={preview}
             width={400}
             height={400}
-            title={image || "Category Image Preview"}
+            title={image || "subcategory Image Preview"}
             alt="Preview"
           />
         )}

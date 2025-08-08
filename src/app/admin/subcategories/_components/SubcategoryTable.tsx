@@ -20,29 +20,27 @@ import {
   DeleteDropdownItem,
 } from "../../_components/PageActions";
 import {
-  deleteCategory,
-  ToggleCategoryActive,
-} from "../../_actions/categories";
-import { Suspense } from "react";
-import AdminLoading from "../../loading";
+  deleteSubcategory,
+  ToggleSubcategoryActive,
+} from "../../_actions/subcategories";
 
-type CategoriesData = {
+type SubcategoriesData = {
   isActive: boolean;
-  categoryId: number;
+  subcategoryId: number;
   name: string;
   productsCount: number;
-  subcategoriesCount: number;
+  categoryName: string;
 };
 
-type CategoryTableProps = {
-  categoriesData: CategoriesData[];
+type SubcategoryTableProps = {
+  subcategoriesData: SubcategoriesData[];
 };
 
-export function CategoryTable({ categoriesData }: CategoryTableProps) {
-  if (categoriesData.length === 0)
+export function SubcategoryTable({ subcategoriesData }: SubcategoryTableProps) {
+  if (subcategoriesData.length === 0)
     return (
       <p className="text-muted-foreground">
-        No categories found. Please add a category.
+        No subcategories found. Please add a subcategory.
       </p>
     );
 
@@ -54,7 +52,7 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
             <span className="sr-only">Status</span>
           </TableHead>
           <TableHead>Name</TableHead>
-          <TableHead>Subcategories</TableHead>
+          <TableHead>category</TableHead>
           <TableHead>Products</TableHead>
           <TableHead className="w-0">
             <span className="sr-only">Actions</span>
@@ -63,15 +61,9 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
       </TableHeader>
 
       <TableBody>
-        {categoriesData.map(
-          ({
-            isActive,
-            categoryId,
-            name,
-            productsCount,
-            subcategoriesCount,
-          }) => (
-            <TableRow key={categoryId}>
+        {subcategoriesData.map(
+          ({ isActive, subcategoryId, name, productsCount, categoryName }) => (
+            <TableRow key={subcategoryId}>
               <TableCell>
                 <span className="sr-only">
                   {isActive ? "Active" : "Inactive"}
@@ -80,7 +72,7 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
               </TableCell>
 
               <TableCell>{name}</TableCell>
-              <TableCell>{subcategoriesCount}</TableCell>
+              <TableCell>{categoryName}</TableCell>
               <TableCell>{productsCount}</TableCell>
 
               <TableCell>
@@ -93,25 +85,25 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
                   <DropdownMenuContent>
                     <DropdownMenuItem asChild>
                       <Link
-                        href={`/admin/categories/${categoryId}/edit`}
-                        className="text-foreground w-full text-left px-2 py-1.5 hover:bg-gray-100 text-sm cursor-pointer outline-none transition-colors"
+                        href={`/admin/subcategories/${subcategoryId}/edit`}
+                        className="rounded-sm text-foreground w-full text-left px-2 py-1.5 hover:bg-gray-100 text-sm cursor-pointer outline-none transition-colors"
                       >
                         Edit
                       </Link>
                     </DropdownMenuItem>
 
                     <ActiveToggleDropdownItem
-                      id={categoryId}
+                      id={subcategoryId}
                       active={isActive}
-                      f={ToggleCategoryActive}
+                      f={ToggleSubcategoryActive}
                     />
 
                     <DropdownMenuSeparator />
 
                     <DeleteDropdownItem
-                      id={categoryId}
-                      f={deleteCategory}
-                      disabled={subcategoriesCount > 0 || productsCount > 0}
+                      id={subcategoryId}
+                      f={deleteSubcategory}
+                      disabled={productsCount > 0}
                     />
                   </DropdownMenuContent>
                 </DropdownMenu>

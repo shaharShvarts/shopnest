@@ -1,19 +1,17 @@
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { db } from "@/drizzle/db";
 import { orders, products, users } from "@/drizzle/schema";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
-import { count, sum, eq } from "drizzle-orm/sql";
+import { count, sum, eq } from "drizzle-orm";
 
 async function getSalesData() {
-  const data = await db
+  const [data] = await db
     .select({
       orderCount: count().as("order_count"),
       totalPrice: sum(orders.totalPrice).mapWith(Number).as("total_price"),
@@ -21,13 +19,13 @@ async function getSalesData() {
     .from(orders);
 
   return {
-    amount: data[0].orderCount || 0,
-    numberOfSales: Number(data[0].totalPrice) || 0,
+    amount: data.orderCount || 0,
+    numberOfSales: Number(data.totalPrice) || 0,
   };
 }
 
 async function getUserData() {
-  const [userCount, orderData] = await Promise.all([
+  const [[userCount], [orderData]] = await Promise.all([
     db
       .select({
         userCount: count().as("user_count"),
@@ -40,8 +38,8 @@ async function getUserData() {
       .from(orders),
   ]);
 
-  const totalPrice = orderData[0].totalPrice || 0;
-  const userCountValue = userCount[0].userCount;
+  const totalPrice = orderData.totalPrice || 0;
+  const userCountValue = userCount.userCount;
 
   return {
     userCount: userCountValue || 0,
@@ -51,7 +49,7 @@ async function getUserData() {
 }
 
 async function getProductsData() {
-  const [activeCount, inactiveCount] = await Promise.all([
+  const [[activeCount], [inactiveCount]] = await Promise.all([
     db
       .select({ activeCount: count(products.isAvailable).as("active_count") })
       .from(products)
@@ -63,8 +61,8 @@ async function getProductsData() {
   ]);
 
   return {
-    activeCount: activeCount[0].activeCount,
-    inactiveCount: inactiveCount[0].inactiveCount,
+    activeCount: activeCount.activeCount,
+    inactiveCount: inactiveCount.inactiveCount,
   };
 }
 

@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+
+import { Roboto, Montserrat, Lato } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import ToastProvider from "./components/ToastProvider";
 
-const geistSans = Geist({
+const roboto = Roboto({
   variable: "--font-sans",
+  weight: ["400", "700"],
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const lato = Lato({
   variable: "--font-sans",
+  weight: ["400", "700"],
+  subsets: ["latin"],
+});
+
+const montserrat = Montserrat({
+  variable: "--font-sans",
+  weight: ["400", "700"],
   subsets: ["latin"],
 });
 
@@ -28,11 +38,11 @@ export default function RootLayout({
       <body
         className={cn(
           "bg-background min-h-screen font-sans antialiased",
-          geistSans.variable,
-          geistMono.variable
+          montserrat.variable
         )}
       >
         {children}
+        <ToastProvider />
       </body>
     </html>
   );

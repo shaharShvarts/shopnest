@@ -2,6 +2,11 @@ import { Nav, NavLink } from "../components/Nav";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Admin",
+  description: "Admin",
+};
+
 export default function AdminLayout({
   children,
 }: Readonly<{
@@ -12,7 +17,7 @@ export default function AdminLayout({
       <Nav>
         <NavLink href="/admin">Dashboard</NavLink>
         <NavLink href="/admin/categories">Categories</NavLink>
-        <NavLink href="/admin/subcategory">Subcategory</NavLink>
+        <NavLink href="/admin/subcategories">Subcategories</NavLink>
         <NavLink href="/admin/products">Products</NavLink>
         <NavLink href="/admin/users">Customers</NavLink>
         <NavLink href="/admin/orders">Sales</NavLink>
@@ -21,8 +26,3 @@ export default function AdminLayout({
     </>
   );
 }
-
-export const metadata = {
-  title: "Admin",
-  description: "Admin",
-};
