@@ -5,11 +5,11 @@ import CategoryForm from "../../_components/CategoryForm";
 import { PageHeader } from "@/app/admin/_components/PageHeader";
 
 type EditCategoryProps = {
-  params: { id: number };
+  params: Promise<{ id: number }>;
 };
 
 export default async function EditCategoryPage({ params }: EditCategoryProps) {
-  const { id } = params;
+  const { id } = await params;
 
   const [category] = await db
     .select()

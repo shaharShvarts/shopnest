@@ -5,13 +5,13 @@ import SubcategoryForm from "../../_components/SubcategoryForm";
 import { PageHeader } from "@/app/admin/_components/PageHeader";
 
 type EditSubcategoryProps = {
-  params: { id: number };
+  params: Promise<{ id: number }>;
 };
 
 export default async function EditSubcategoryPage({
   params,
 }: EditSubcategoryProps) {
-  const { id } = params;
+  const { id } = await params;
 
   const [subcategoryResult, categoryList] = await Promise.all([
     db

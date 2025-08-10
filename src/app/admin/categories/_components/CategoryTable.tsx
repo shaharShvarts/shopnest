@@ -23,8 +23,6 @@ import {
   deleteCategory,
   ToggleCategoryActive,
 } from "../../_actions/categories";
-import { Suspense } from "react";
-import AdminLoading from "../../loading";
 
 type CategoriesData = {
   isActive: boolean;
