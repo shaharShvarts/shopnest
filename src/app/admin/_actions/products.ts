@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/drizzle/db";
 import { products } from "@/drizzle/schema";
 import { imageSchema } from "./zod";
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -65,4 +67,27 @@ export async function addProduct(
 
   // Redirect to the products page after successful addition
   redirect("/admin/products");
+}
+
+export async function ToggleProductActive(id: number, active: boolean) {
+  await db
+    .update(products)
+    .set({ isActive: active })
+    .where(eq(products.id, Number(id)));
+
+  revalidatePath("/");
+  revalidatePath("/admin/products");
+  redirect("/admin/products");
+}
+
+export async function deleteProduct(id: number): Promise<string> {
+  const [product] = await db
+    .delete(products)
+    .where(eq(products.id, Number(id)))
+    .returning();
+
+  // Delete the image file from the server
+  await fs.unlink(`public/${product.imageUrl}`);
+  revalidatePath("/admin/products");
+  return `product ${product.name} was successfully deleted.`;
 }

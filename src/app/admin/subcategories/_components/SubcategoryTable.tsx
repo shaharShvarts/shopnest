@@ -23,14 +23,7 @@ import {
   deleteSubcategory,
   ToggleSubcategoryActive,
 } from "../../_actions/subcategories";
-
-type SubcategoriesData = {
-  isActive: boolean;
-  subcategoryId: number;
-  name: string;
-  productsCount: number;
-  categoryName: string;
-};
+import { SubcategoriesData } from "../page";
 
 type SubcategoryTableProps = {
   subcategoriesData: SubcategoriesData[];

@@ -1,14 +1,14 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { db } from "@/drizzle/db";
+import AdminLoading from "../loading";
 import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "../_components/PageHeader";
 import { CategoryTable } from "./_components/CategoryTable";
 import { categories, products, subcategories } from "@/drizzle/schema";
-import { Suspense } from "react";
-import AdminLoading from "../loading";
 
-type CategoriesData = {
+export type CategoriesData = {
   isActive: boolean;
   categoryId: number;
   name: string;
@@ -39,6 +39,7 @@ export default async function AdminCategoriesPage() {
           <Link href="/admin/categories/new">Add Category</Link>
         </Button>
       </div>
+
       <Suspense fallback={<AdminLoading />}>
         <CategoryTable categoriesData={categoriesData} />
       </Suspense>

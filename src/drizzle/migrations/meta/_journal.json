@@ -5,85 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1753361467886,
-      "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1753470228693,
-      "tag": "0001_married_old_lace",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1753482667187,
-      "tag": "0002_little_richard_fisk",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1753490686791,
-      "tag": "0003_eminent_trish_tilby",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1753578350678,
-      "tag": "0004_productive_misty_knight",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1754401974683,
-      "tag": "0005_shiny_slayback",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1754478168963,
-      "tag": "0006_jittery_magik",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1754484997157,
-      "tag": "0007_loud_dakota_north",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1754487991592,
-      "tag": "0008_hesitant_bishop",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1754488192805,
-      "tag": "0009_big_fenris",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1754488567275,
-      "tag": "0010_bright_wolfpack",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1754489662574,
-      "tag": "0011_red_the_fallen",
+      "when": 1754861575023,
+      "tag": "0000_parallel_stark_industries",
       "breakpoints": true
     }
   ]

@@ -8,7 +8,7 @@ import { categories, products, subcategories } from "@/drizzle/schema";
 import { Suspense } from "react";
 import AdminLoading from "../loading";
 
-type SubcategoriesData = {
+export type SubcategoriesData = {
   isActive: boolean;
   subcategoryId: number;
   name: string;

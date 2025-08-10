@@ -1,15 +1,35 @@
+import Link from "next/link";
+import { Suspense } from "react";
+import { db } from "@/drizzle/db";
+import AdminLoading from "../loading";
+import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "../_components/PageHeader";
-import Link from "next/link";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ProductTable } from "./_components/ProductTable";
+import { orders, products } from "@/drizzle/schema";
 
-export default function AdminProductsPage() {
+export type ProductData = {
+  productsId: number;
+  isActive: boolean;
+  name: string;
+  price: number;
+  ordersCount: number;
+};
+
+export default async function AdminProductsPage() {
+  const productData: ProductData[] = await db
+    .select({
+      name: products.name,
+      price: products.price,
+      productsId: products.id,
+      isActive: products.isActive,
+      ordersCount: count(orders.id).as("ordersCount"),
+    })
+    .from(products)
+    .leftJoin(orders, eq(orders.id, products.id))
+    .groupBy(products.name, products.price, products.id, products.isActive)
+    .orderBy(products.name);
+
   return (
     <>
       <div className="flex justify-between items-center gap-4">
@@ -18,22 +38,9 @@ export default function AdminProductsPage() {
           <Link href="/admin/products/new">Add Product</Link>
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-0">
-              <span className="sr-only">Available for Purchase</span>
-            </TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Price</TableHead>
-            <TableHead>Orders</TableHead>
-            <TableHead className="w-0">
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody></TableBody>
-      </Table>
+      <Suspense fallback={<AdminLoading />}>
+        <ProductTable productData={productData} />
+      </Suspense>
     </>
   );
 }

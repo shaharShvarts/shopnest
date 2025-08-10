@@ -19,21 +19,18 @@ import {
   ActiveToggleDropdownItem,
   DeleteDropdownItem,
 } from "../../_components/PageActions";
-import {
-  deleteCategory,
-  ToggleCategoryActive,
-} from "../../_actions/categories";
-import { CategoriesData } from "../page";
+import { ProductData } from "../page";
+import { deleteProduct, ToggleProductActive } from "../../_actions/products";
 
-type CategoryTableProps = {
-  categoriesData: CategoriesData[];
+type ProductTableProps = {
+  productData: ProductData[];
 };
 
-export function CategoryTable({ categoriesData }: CategoryTableProps) {
-  if (categoriesData.length === 0)
+export function ProductTable({ productData }: ProductTableProps) {
+  if (productData.length === 0)
     return (
       <p className="text-muted-foreground">
-        No categories found. Please add a category.
+        No products found. Please add a product.
       </p>
     );
 
@@ -42,38 +39,29 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
       <TableHeader>
         <TableRow>
           <TableHead className="w-0">
-            <span className="sr-only">Status</span>
+            <span className="sr-only">Available for Purchase</span>
           </TableHead>
           <TableHead>Name</TableHead>
-          <TableHead>Subcategories</TableHead>
-          <TableHead>Products</TableHead>
+          <TableHead>Price</TableHead>
+          <TableHead>Orders</TableHead>
           <TableHead className="w-0">
             <span className="sr-only">Actions</span>
           </TableHead>
         </TableRow>
       </TableHeader>
-
       <TableBody>
-        {categoriesData.map(
-          ({
-            isActive,
-            categoryId,
-            name,
-            productsCount,
-            subcategoriesCount,
-          }) => (
-            <TableRow key={categoryId}>
+        {productData.map(
+          ({ productsId, name, price, ordersCount, isActive }) => (
+            <TableRow key={productsId}>
               <TableCell>
                 <span className="sr-only">
                   {isActive ? "Active" : "Inactive"}
                 </span>
                 <StatusIcon isActive={isActive} />
               </TableCell>
-
               <TableCell>{name}</TableCell>
-              <TableCell>{subcategoriesCount}</TableCell>
-              <TableCell>{productsCount}</TableCell>
-
+              <TableCell>{price}</TableCell>
+              <TableCell>{ordersCount}</TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger className="focus:outline-none">
@@ -84,7 +72,7 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
                   <DropdownMenuContent>
                     <DropdownMenuItem asChild>
                       <Link
-                        href={`/admin/categories/${categoryId}/edit`}
+                        href={`/admin/products/${productsId}/edit`}
                         className="text-foreground w-full text-left px-2 py-1.5 hover:bg-gray-100 text-sm cursor-pointer outline-none transition-colors"
                       >
                         Edit
@@ -92,17 +80,17 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
                     </DropdownMenuItem>
 
                     <ActiveToggleDropdownItem
-                      id={categoryId}
+                      id={productsId}
                       active={isActive}
-                      f={ToggleCategoryActive}
+                      f={ToggleProductActive}
                     />
 
                     <DropdownMenuSeparator />
 
                     <DeleteDropdownItem
-                      id={categoryId}
-                      f={deleteCategory}
-                      disabled={subcategoriesCount > 0 || productsCount > 0}
+                      id={productsId}
+                      f={deleteProduct}
+                      disabled={ordersCount > 0}
                     />
                   </DropdownMenuContent>
                 </DropdownMenu>

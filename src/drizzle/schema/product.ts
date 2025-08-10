@@ -5,7 +5,7 @@ import {
   integer,
   varchar,
   check,
-  pgEnum,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { createdAt, deletedAt, updatedAt } from "../schemaHelpers";
@@ -15,17 +15,6 @@ import { cartProducts } from "./cartProduct";
 import { likes } from "./like";
 import { orderProducts } from "./orderProduct";
 import { productTags } from "./productTag";
-import { boolean } from "drizzle-orm/gel-core";
-
-// Product Status Enum
-export const productStatus = ["available", "unavailable"] as const;
-export type ProductStatus = (typeof productStatus)[number];
-export const productStatusEnum = pgEnum("product_status", productStatus);
-
-// Product Status Enum for availability
-export const isAvailable = ["active", "inactive"] as const;
-export type IsAvailable = (typeof isAvailable)[number];
-export const isAvailableEnum = pgEnum("is_Available", isAvailable);
 
 // PRODUCTS
 export const products = pgTable(
@@ -37,8 +26,8 @@ export const products = pgTable(
     quantity: integer("quantity").notNull(),
     description: text("description"),
     imageUrl: text("image_url").notNull(),
-    status: productStatusEnum().notNull().default("available"),
-    isAvailable: isAvailableEnum("is_available").notNull().default("active"),
+    isActive: boolean("is_active").notNull().default(true),
+    isAvailable: boolean("is_available").notNull().default(true),
     categoryId: integer("category_id")
       .references(() => categories.id, { onDelete: "restrict" })
       .notNull(),
@@ -52,6 +41,8 @@ export const products = pgTable(
   },
   (table) => [check("quantity_positive", sql`${table.quantity} > 0`)]
 );
+
+export type Products = typeof products.$inferSelect;
 
 // Product Relations
 export const productsRelations = relations(products, ({ one, many }) => ({
