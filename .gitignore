@@ -40,5 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/public/categories
 /public/products
+/public/categories
+/public/subcategories
