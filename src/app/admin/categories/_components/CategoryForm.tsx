@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { addCategory, editCategory } from "../../_actions/categories";
 import { Category } from "@/drizzle/schema";
 import { ImageUpload } from "../../_components/ImageUpload";
@@ -20,8 +20,6 @@ export default function CategoryForm({ category }: CategoryFormProps) {
     }
   );
 
-  const [name, setName] = useState<string>(category?.name || "");
-
   return (
     <form action={formAction} className="space-y-8">
       <div className="space-y-2">
@@ -31,8 +29,7 @@ export default function CategoryForm({ category }: CategoryFormProps) {
           id="name"
           required
           name="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          defaultValue={category?.name || ""}
         />
         {state?.errors?.name && (
           <div className="text-destructive">{state.errors.name}</div>

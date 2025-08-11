@@ -66,7 +66,7 @@
 //   };
 // }
 
-export default async function AdminDashboard() {
+export default function AdminDashboard() {
   return <h1>HHH</h1>;
   // const [salesData, userData, productsData] = await Promise.all([
   //   getSalesData(),

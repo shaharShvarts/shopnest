@@ -42,7 +42,7 @@ export const products = pgTable(
   (table) => [check("quantity_positive", sql`${table.quantity} > 0`)]
 );
 
-export type Products = typeof products.$inferSelect;
+export type Product = typeof products.$inferSelect;
 
 // Product Relations
 export const productsRelations = relations(products, ({ one, many }) => ({

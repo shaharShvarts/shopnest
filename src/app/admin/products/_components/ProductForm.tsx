@@ -1,78 +1,112 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useActionState, useState } from "react";
-import { addProduct } from "@/_actions/products";
-import { useFormStatus } from "react-dom";
+import { Textarea } from "@/components/ui/textarea";
+import { Category, Product } from "@/drizzle/schema";
+import { Combobox } from "../../_components/Combobox";
+import { ImageUpload } from "../../_components/ImageUpload";
+import { addProduct, editProduct } from "@/_actions/products";
 
-export default function ProductForm() {
-  const [price, setPrice] = useState<number>(0);
-  const [quantity, setQuantity] = useState<number>(0);
+type ProductFormProps = {
+  product?: Product | null;
+  categoryList: Category[];
+};
 
-  const [state, formAction] = useActionState(addProduct, {
+export default function ProductForm({
+  product,
+  categoryList,
+}: ProductFormProps) {
+  const action = !product ? addProduct : editProduct.bind(null, product.id);
+
+  const [state, formAction, isPending] = useActionState(action, {
     success: false,
+    errors: {},
   });
+
+  // const [categoryList, setCategoryList] = useState([]);
+  // const [subcategoriesList, setSubcategoriesList] = useState([]);
+
+  const [categoryId, setCategoryId] = useState<number>(
+    product?.categoryId || 0
+  );
+
+  const categoryName = categoryList.find((c) => c.id === categoryId)?.name;
 
   return (
     <form action={formAction} className="space-y-8">
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
-        <Input type="text" id="name" required name="name" />
-        {state.errors?.name && <p>{state.errors.name.join(", ")}</p>}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="price">Price</Label>
         <Input
-          type="number"
-          name="price"
-          id="price"
+          type="text"
+          id="name"
           required
-          value={price}
-          onChange={(e) => setPrice(Number(e.target.value))}
+          name="name"
+          autoComplete="name"
+          autoFocus
+          defaultValue={product?.name || ""}
         />
-        {state.errors?.price && <p>{state.errors.price.join(", ")}</p>}
+        {state.errors?.name && (
+          <div className="text-destructive">{state.errors.name}</div>
+        )}
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="quantity">Quantity</Label>
-        <Input
-          type="number"
-          id="quantity"
-          required
-          name="quantity"
-          value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-        />
-        {state.errors?.quantity && <p>{state.errors.quantity.join(", ")}</p>}
-      </div>
+
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <Textarea
+          id="description"
           name="description"
-          placeholder="Description"
-          defaultValue={state.fields?.description}
+          defaultValue={product?.description || ""}
         />
-        {state.errors?.description && (
-          <p>{state.errors.description.join(", ")}</p>
+      </div>
+
+      <div className="space-y-2">
+        <p>Category</p>
+        <Input type="hidden" name="categoryId" value={categoryId}></Input>
+        <Combobox
+          setCategoryId={setCategoryId}
+          list={categoryList}
+          selected={categoryName}
+        />
+      </div>
+
+      <div className="flex justify-items-start items-center gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="price">Price</Label>
+          <Input
+            type="number"
+            name="price"
+            id="price"
+            required
+            defaultValue={product?.price.toString() || ""}
+          />
+          {state.errors?.price && <div>{state.errors.price}</div>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="quantity">Quantity</Label>
+          <Input
+            type="number"
+            id="quantity"
+            required
+            name="quantity"
+            defaultValue={product?.quantity.toString() || ""}
+            min="0"
+          />
+          {state.errors?.quantity && <p>{state.errors.quantity.join(", ")}</p>}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <ImageUpload initialImage={product?.imageUrl} />
+        {state?.errors?.image && (
+          <div className="text-destructive">{state.errors.image}</div>
         )}
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="image">Image</Label>
-        <Input type="file" id="image" required name="image" />
-        {state.errors?.image && <p>{state.errors.image.join(", ")}</p>}
-      </div>
-      <SubmitButton />
+      <Button type="submit" disabled={isPending}>
+        {isPending ? "Saving..." : "Save"}
+      </Button>
     </form>
-  );
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Saving..." : "Save"}
-    </Button>
   );
 }

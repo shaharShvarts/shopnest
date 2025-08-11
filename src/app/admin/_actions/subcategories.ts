@@ -92,7 +92,7 @@ export async function editSubcategory(id: number, _: any, formData: FormData) {
 
   let imageUrl = subcategory.imageUrl;
   if (image != null && image.size > 0) {
-    await fs.unlink(`public${subcategory.imageUrl}`);
+    await fs.unlink(`public${imageUrl}`);
     imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
     await fs.writeFile(
       `public${imageUrl}`,

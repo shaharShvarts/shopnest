@@ -3,11 +3,11 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useActionState, useState } from "react";
 import { Combobox } from "../../_components/Combobox";
 import { Subcategory, Category } from "@/drizzle/schema";
-import { useActionState, useState } from "react";
-import { addSubcategory, editSubcategory } from "../../_actions/subcategories";
 import { ImageUpload } from "../../_components/ImageUpload";
+import { addSubcategory, editSubcategory } from "../../_actions/subcategories";
 
 type SubcategoryFormProps = {
   subcategory?: Subcategory | null;
@@ -26,7 +26,6 @@ export default function SubcategoryForm({
     errors: {},
   });
 
-  const [name, setName] = useState<string>(subcategory?.name || "");
   const [categoryId, setCategoryId] = useState<number>(
     subcategory?.categoryId || 0
   );
@@ -42,8 +41,7 @@ export default function SubcategoryForm({
           id="name"
           required
           name="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          defaultValue={subcategory?.name || ""}
         />
         {state?.errors?.name && (
           <div className="text-destructive">{state.errors.name}</div>
