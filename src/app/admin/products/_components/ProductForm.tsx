@@ -3,9 +3,9 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Category, Product } from "@/drizzle/schema";
+import { Category, Product, Subcategory } from "@/drizzle/schema";
 import { Combobox } from "../../_components/Combobox";
 import { ImageUpload } from "../../_components/ImageUpload";
 import { addProduct, editProduct } from "@/_actions/products";
@@ -26,14 +26,45 @@ export default function ProductForm({
     errors: {},
   });
 
-  // const [categoryList, setCategoryList] = useState([]);
-  // const [subcategoriesList, setSubcategoriesList] = useState([]);
-
-  const [categoryId, setCategoryId] = useState<number>(
-    product?.categoryId || 0
+  const prevCategoryId = useRef<string | null>(
+    product?.categoryId.toString() || null
   );
 
-  const categoryName = categoryList.find((c) => c.id === categoryId)?.name;
+  const [categoryId, setCategoryId] = useState<string | null>(
+    product?.categoryId.toString() || null
+  );
+
+  const [subcategoryId, setSubcategoryId] = useState<string | null>(
+    product?.subcategoryId?.toString() || null
+  );
+
+  const [subcategoryList, setSubcategoryList] = useState<Subcategory[]>([]);
+
+  useEffect(() => {
+    if (categoryId === "") {
+      setSubcategoryId("");
+      setSubcategoryList([]);
+      console.log("Category ID is empty, resetting subcategory ID and list.");
+      return; // Exit early
+    }
+
+    if (categoryId) {
+      (async () => {
+        const res = await fetch(
+          `/admin/api/subcategories?categoryId=${categoryId}`
+        );
+        const data: Subcategory[] = await res.json();
+        setSubcategoryList(data);
+
+        if (prevCategoryId.current !== categoryId) {
+          setSubcategoryId("");
+        }
+
+        prevCategoryId.current = categoryId;
+        console.log("Subcategories:", data);
+      })();
+    }
+  }, [categoryId]);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -62,14 +93,43 @@ export default function ProductForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <p>Category</p>
-        <Input type="hidden" name="categoryId" value={categoryId}></Input>
-        <Combobox
-          setCategoryId={setCategoryId}
-          list={categoryList}
-          selected={categoryName}
-        />
+      <div className="flex justify-items-start items-center gap-4">
+        <div className="space-y-2">
+          <p>Category</p>
+          <Input
+            type="hidden"
+            name="categoryId"
+            value={categoryId || ""}
+          ></Input>
+          <Combobox
+            list={categoryList}
+            setId={setCategoryId}
+            selected={categoryId}
+          />
+          {state.errors?.categoryId && (
+            <div className="text-sm text-red-500">
+              {state.errors.categoryId}
+            </div>
+          )}
+        </div>
+        <div className="space-y-2">
+          <p>Subcategory</p>
+          <Input
+            type="hidden"
+            name="subcategoryId"
+            value={subcategoryId || ""}
+          ></Input>
+          <Combobox
+            list={subcategoryList}
+            setId={setSubcategoryId}
+            selected={subcategoryId}
+          />
+          {state.errors?.subcategoryId && (
+            <div className="text-sm text-red-500">
+              {state.errors.subcategoryId}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex justify-items-start items-center gap-4">
@@ -77,6 +137,7 @@ export default function ProductForm({
           <Label htmlFor="price">Price</Label>
           <Input
             type="number"
+            className="w-[200px]"
             name="price"
             id="price"
             required
@@ -88,6 +149,7 @@ export default function ProductForm({
           <Label htmlFor="quantity">Quantity</Label>
           <Input
             type="number"
+            className="w-[200px]"
             id="quantity"
             required
             name="quantity"

@@ -1,0 +1,23 @@
+{
+  "sqltools.connections": [
+    {
+      "name": "Shluvim DB",
+      "driver": "MySQL",
+      "server": "192.168.0.155",
+      "port": 3306,
+      "username": "shahar_root",
+      "password": "Hr1976@2025",
+      "database": "excelapp_shluvim"
+    },
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "shopnest",
+      "database": "dvorikCollection",
+      "username": "postgres",
+      "password": "DvorikCollection2025"
+    }
+  ]
+}

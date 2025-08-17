@@ -26,14 +26,14 @@ type List = {
 
 type ComboboxProps = {
   list: List;
-  selected?: string | null;
-  setId: (value: SetStateAction<string | null>) => void;
+  selected?: string;
+  setId: (value: SetStateAction<string>) => void;
 };
 
 export function Combobox({ list, setId, selected }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(selected || "");
-  const current = list.find((item) => item.id.toString() === value);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -44,7 +44,9 @@ export function Combobox({ list, setId, selected }: ComboboxProps) {
           className="w-[200px] justify-between"
           disabled={list.length === 0}
         >
-          {current ? current.name : "Select item..."}
+          {value
+            ? list.find((item) => item.name === value)?.name
+            : "Select item..."}
           <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -57,18 +59,17 @@ export function Combobox({ list, setId, selected }: ComboboxProps) {
               {list.map((item) => (
                 <CommandItem
                   key={item.id}
-                  value={item.id.toString()}
+                  value={item.name}
                   onSelect={(currentValue) => {
-                    const newValue = currentValue === value ? "" : currentValue;
+                    setValue(currentValue === value ? "" : currentValue);
                     setOpen(false);
-                    setValue(newValue);
-                    setId(newValue);
+                    setId(item.id.toString());
                   }}
                 >
                   <CheckIcon
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === String(item.id) ? "opacity-100" : "opacity-0"
+                      value === item.name ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {item.name}

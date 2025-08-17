@@ -8,7 +8,7 @@ type EditCategoryProps = {
   params: Promise<{ id: number }>;
 };
 
-export default async function NewProductPage({ params }: EditCategoryProps) {
+export default async function EditProductPage({ params }: EditCategoryProps) {
   const { id } = await params;
 
   const [productResult, categoryList] = await Promise.all([

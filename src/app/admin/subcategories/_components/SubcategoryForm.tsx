@@ -3,7 +3,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { Combobox } from "../../_components/Combobox";
 import { Subcategory, Category } from "@/drizzle/schema";
 import { ImageUpload } from "../../_components/ImageUpload";
@@ -26,11 +26,9 @@ export default function SubcategoryForm({
     errors: {},
   });
 
-  const [categoryId, setCategoryId] = useState<number>(
-    subcategory?.categoryId || 0
+  const [categoryId, setCategoryId] = useState<string | null>(
+    subcategory?.categoryId.toString() || null
   );
-
-  const categoryName = categoryList.find((c) => c.id === categoryId)?.name;
 
   return (
     <form action={formAction} className="space-y-8">
@@ -50,11 +48,11 @@ export default function SubcategoryForm({
 
       <div className="space-y-2">
         <Label htmlFor="categoryId">Category</Label>
-        <Input type="hidden" name="categoryId" value={categoryId}></Input>
+        <Input type="hidden" name="categoryId" value={categoryId || ""}></Input>
         <Combobox
-          setCategoryId={setCategoryId}
+          setId={setCategoryId}
           list={categoryList}
-          selected={categoryName}
+          selected={categoryId}
         />
       </div>
 

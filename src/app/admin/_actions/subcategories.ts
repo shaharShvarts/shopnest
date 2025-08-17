@@ -8,6 +8,7 @@ import { imageSchema } from "./zod";
 import { revalidatePath } from "next/cache";
 import { subcategories } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
+import { fileExists } from "@/lib/fileExists";
 
 //   image: z.instanceof(File).optional(),
 const zodSchema = z.object({
@@ -31,28 +32,28 @@ export async function addSubcategory(_: any, formData: FormData) {
     };
   }
 
-  let imageUrl = "";
-  const { name, image, categoryId } = result.data;
+  const { image, ...rawData } = result.data;
 
   await fs.mkdir("public/subcategories", { recursive: true });
-  imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
-  await fs.writeFile(
-    `public${imageUrl}`,
-    Buffer.from(await image.arrayBuffer())
-  );
+  const imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
+  const fullFilePath = `public${imageUrl}`;
+  await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
 
   // Save category data to the database
   try {
-    await db.insert(subcategories).values({ name, imageUrl, categoryId });
+    await db.insert(subcategories).values({ ...rawData, imageUrl });
   } catch (error: unknown) {
-    await fs.unlink(`public${imageUrl}`);
+    if (await fileExists(fullFilePath)) {
+      await fs.unlink(fullFilePath);
+    }
+
     let errorMessage = "Something went wrong.";
 
     if (error instanceof Error) {
       const err = error as any;
       // Unique constraint violation and clean up the uploaded image
       if (err.cause.code === "23505") {
-        errorMessage = `A subcategory with this name (${name}) already exists. Try a different name!`;
+        errorMessage = `A subcategory with this name already exists. Try a different name!`;
       } else {
         errorMessage = error.message || "An unexpected error occurred.";
       }
@@ -65,6 +66,7 @@ export async function addSubcategory(_: any, formData: FormData) {
       },
     };
   }
+  revalidatePath("/admin/subcategories");
   redirect("/admin/subcategories");
 }
 
@@ -79,7 +81,7 @@ export async function editSubcategory(id: number, _: any, formData: FormData) {
     };
   }
 
-  const { name, image, categoryId } = result.data;
+  const { image, ...rawData } = result.data;
 
   // Fetch the existing category from the database
   const [subcategory] = await db
@@ -88,36 +90,38 @@ export async function editSubcategory(id: number, _: any, formData: FormData) {
     .where(eq(subcategories.id, Number(id)))
     .limit(1);
 
-  if (!subcategory) notFound();
+  let imageUrl = subcategory?.imageUrl ?? "";
+  const fullFilePath = `public${imageUrl}`;
 
-  let imageUrl = subcategory.imageUrl;
   if (image != null && image.size > 0) {
-    await fs.unlink(`public${imageUrl}`);
+    if (await fileExists(fullFilePath)) {
+      await fs.unlink(fullFilePath);
+    }
+
     imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
-    await fs.writeFile(
-      `public${imageUrl}`,
-      Buffer.from(await image.arrayBuffer())
-    );
+    const newFilePath = `public${imageUrl}`; // recompute path
+    await fs.writeFile(newFilePath, Buffer.from(await image.arrayBuffer()));
   }
 
   // Update subcategory data to the database
   try {
     await db
       .update(subcategories)
-      .set({
-        name,
-        categoryId,
-        imageUrl: imageUrl,
-      })
+      .set({ ...rawData, imageUrl })
       .where(eq(subcategories.id, Number(id)));
   } catch (error: unknown) {
+    const newFilePath = `public${imageUrl}`; // recompute path
+    if (await fileExists(newFilePath)) {
+      await fs.unlink(newFilePath);
+    }
+
     let errorMessage = "Something went wrong.";
 
     if (error instanceof Error) {
       const err = error as any;
       // Unique constraint violation and clean up the uploaded image
       if (err.cause.code === "23505") {
-        errorMessage = `A category with this name (${name}) already exists. Try a different name!`;
+        errorMessage = `A subcategory with this name already exists. Try a different name!`;
       } else {
         errorMessage = error.message || "An unexpected error occurred.";
       }
@@ -130,21 +134,19 @@ export async function editSubcategory(id: number, _: any, formData: FormData) {
       },
     };
   }
+  revalidatePath("/admin/subcategories");
   redirect("/admin/subcategories");
 }
 
 // This function handles the editing of an existing category
 export async function ToggleSubcategoryActive(id: number, active: boolean) {
-  // Update the category's active status in the database
   await db
     .update(subcategories)
     .set({ isActive: active })
     .where(eq(subcategories.id, Number(id)));
 
   // Redirect to the categories page after successful update
-  revalidatePath("/");
   revalidatePath("/admin/subcategories");
-  redirect("/admin/subcategories");
 }
 
 // This function handles the deletion of a subcategory
@@ -154,8 +156,17 @@ export async function deleteSubcategory(id: number): Promise<string> {
     .where(eq(subcategories.id, Number(id)))
     .returning();
 
+  if (!subcategory) notFound();
+
+  const imageUrl = subcategory?.imageUrl ?? "";
+
+  const fullFilePath = `public${imageUrl}`;
+
   // Delete the image file from the server
-  await fs.unlink(`public/${subcategory.imageUrl}`);
+  if (await fileExists(fullFilePath)) {
+    await fs.unlink(fullFilePath);
+  }
+
   revalidatePath("/admin/subcategories");
   return `Subcategory ${subcategory.name} was successfully deleted.`;
 }
