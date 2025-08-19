@@ -5,11 +5,10 @@ import fs from "fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "@/drizzle/db";
 import { imageSchema } from "./zod";
-import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { products } from "@/drizzle/schema";
-
 import { fileExists } from "@/lib/fileExists";
+import { notFound, redirect } from "next/navigation";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -71,7 +70,8 @@ export async function addProduct(_: any, formData: FormData) {
     };
   }
 
-  revalidatePath("/admin/products");
+  revalidatePath("/");
+  revalidatePath("/products");
   redirect("/admin/products");
 }
 
@@ -135,7 +135,9 @@ export async function editProduct(id: number, _: any, formData: FormData) {
       errors: { name: [errorMessage] },
     };
   }
-  revalidatePath("/admin/products");
+
+  revalidatePath("/");
+  revalidatePath("/products");
   redirect("/admin/products");
 }
 
@@ -145,7 +147,8 @@ export async function ToggleProductActive(id: number, active: boolean) {
     .set({ isActive: active })
     .where(eq(products.id, Number(id)));
 
-  revalidatePath("/admin/products");
+  revalidatePath("/");
+  revalidatePath("/products");
 }
 
 export async function deleteProduct(id: number): Promise<string> {
@@ -164,7 +167,7 @@ export async function deleteProduct(id: number): Promise<string> {
     await fs.unlink(fullFilePath);
   }
 
-  // Delete the image file from the server
-  revalidatePath("/admin/products");
+  revalidatePath("/");
+  revalidatePath("/products");
   return `product ${productRow.name} was successfully deleted.`;
 }

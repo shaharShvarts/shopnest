@@ -6,11 +6,10 @@ import { eq } from "drizzle-orm";
 import { db } from "@/drizzle/db";
 import { imageSchema } from "./zod";
 import { revalidatePath } from "next/cache";
+import { fileExists } from "@/lib/fileExists";
 import { subcategories } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
-import { fileExists } from "@/lib/fileExists";
 
-//   image: z.instanceof(File).optional(),
 const zodSchema = z.object({
   name: z.string().min(1, "Name is required"),
   image: imageSchema,
@@ -66,7 +65,9 @@ export async function addSubcategory(_: any, formData: FormData) {
       },
     };
   }
-  revalidatePath("/admin/subcategories");
+
+  revalidatePath("/");
+  revalidatePath("/subcategories");
   redirect("/admin/subcategories");
 }
 
@@ -134,7 +135,9 @@ export async function editSubcategory(id: number, _: any, formData: FormData) {
       },
     };
   }
-  revalidatePath("/admin/subcategories");
+
+  revalidatePath("/");
+  revalidatePath("/subcategories");
   redirect("/admin/subcategories");
 }
 
@@ -145,8 +148,8 @@ export async function ToggleSubcategoryActive(id: number, active: boolean) {
     .set({ isActive: active })
     .where(eq(subcategories.id, Number(id)));
 
-  // Redirect to the categories page after successful update
-  revalidatePath("/admin/subcategories");
+  revalidatePath("/");
+  revalidatePath("/subcategories");
 }
 
 // This function handles the deletion of a subcategory
@@ -167,6 +170,7 @@ export async function deleteSubcategory(id: number): Promise<string> {
     await fs.unlink(fullFilePath);
   }
 
-  revalidatePath("/admin/subcategories");
+  revalidatePath("/");
+  revalidatePath("/subcategories");
   return `Subcategory ${subcategory.name} was successfully deleted.`;
 }

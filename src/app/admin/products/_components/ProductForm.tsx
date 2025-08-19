@@ -41,10 +41,10 @@ export default function ProductForm({
   const [subcategoryList, setSubcategoryList] = useState<Subcategory[]>([]);
 
   useEffect(() => {
+    // Reset subcategory list when categoryId changes
     if (categoryId === "") {
       setSubcategoryId("");
       setSubcategoryList([]);
-      console.log("Category ID is empty, resetting subcategory ID and list.");
       return; // Exit early
     }
 
@@ -61,7 +61,6 @@ export default function ProductForm({
         }
 
         prevCategoryId.current = categoryId;
-        console.log("Subcategories:", data);
       })();
     }
   }, [categoryId]);

@@ -6,11 +6,10 @@ import { eq } from "drizzle-orm";
 import { db } from "@/drizzle/db";
 import { imageSchema } from "./zod";
 import { revalidatePath } from "next/cache";
+import { fileExists } from "@/lib/fileExists";
 import { categories } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
-import { fileExists } from "@/lib/fileExists";
 
-//   image: z.instanceof(File).optional(),
 const zodSchema = z.object({
   name: z.string().min(1, "Name is required"),
   image: imageSchema,
@@ -65,7 +64,9 @@ export async function addCategory(_: any, formData: FormData) {
       },
     };
   }
-  revalidatePath("/admin/categories");
+
+  revalidatePath("/");
+  revalidatePath("/categories");
   redirect("/admin/categories");
 }
 
@@ -133,7 +134,8 @@ export async function editCategory(id: number, _: any, formData: FormData) {
       },
     };
   }
-  revalidatePath("/admin/categories");
+  revalidatePath("/");
+  revalidatePath("/categories");
   redirect("/admin/categories");
 }
 
@@ -144,7 +146,8 @@ export async function ToggleCategoryActive(id: number, active: boolean) {
     .where(eq(categories.id, Number(id)));
 
   // Redirect to the categories page after successful update
-  revalidatePath("/admin/categories");
+  revalidatePath("/");
+  revalidatePath("/categories");
 }
 
 // This function handles the deletion of a category
@@ -165,6 +168,7 @@ export async function deleteCategory(id: number): Promise<string> {
     await fs.unlink(fullFilePath);
   }
 
-  revalidatePath("/admin/categories");
+  revalidatePath("/");
+  revalidatePath("/categories");
   return `Category ${category.name} was successfully deleted.`;
 }
