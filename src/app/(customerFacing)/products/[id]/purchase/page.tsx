@@ -18,12 +18,11 @@ export default async function PurchasePage({
       description: products.description,
       price: products.price,
       imageUrl: products.imageUrl,
+      quantity: products.quantity,
     })
     .from(products)
     .where(eq(products.id, Number(id)))
     .limit(1);
-
-  console.log("Product:", product);
 
   return <ProductDetails product={product} />;
 }

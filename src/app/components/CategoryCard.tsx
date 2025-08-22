@@ -19,16 +19,13 @@ export function CategoryCard({ id, name, imageUrl }: CategoryPreview) {
           src={imageUrl}
           alt={name}
           fill
-          className="object-cover"
+          className="object-cover transition-transform duration-300 hover:scale-105"
           sizes="100vw"
         />
       </div>
       <CardHeader className="text-lg font-semibold">
         <CardTitle className="flex justify-center">{name}</CardTitle>
       </CardHeader>
-      {/* <CardContent className="flex-grow">
-        <p className="line-clamp-4">{description}</p>
-      </CardContent> */}
       <CardFooter>
         <Button asChild size="lg" className="w-full">
           <Link href={`/categories/${id}/products`}>Purchase</Link>

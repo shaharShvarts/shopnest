@@ -24,6 +24,7 @@ export default async function ProductsPage({
         description: products.description,
         price: products.price,
         imageUrl: products.imageUrl,
+        quantity: products.quantity,
       })
       .from(products)
       .where(eq(products.categoryId, Number(id)))

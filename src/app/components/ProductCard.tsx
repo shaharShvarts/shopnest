@@ -11,7 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/formatters";
 import { ProductPreview } from "../(customerFacing)/types";
-
+// relative w-full aspect-video
 export function ProductCard({
   id,
   name,
@@ -26,7 +26,7 @@ export function ProductCard({
           src={imageUrl}
           alt={name}
           fill
-          className="object-cover"
+          className="object-cover transition-transform duration-300 hover:scale-105"
           sizes="100vw"
         />
       </div>

@@ -1,13 +1,10 @@
 import { db } from "@/drizzle/db";
 import { Product, products } from "@/drizzle/schema";
 import { eq, desc } from "drizzle-orm";
-import {
-  ProductCard,
-  ProductCardSkeleton,
-  ProductPreview,
-} from "../components/ProductCard";
+import { ProductCard, ProductCardSkeleton } from "../components/ProductCard";
 import { Suspense } from "react";
 import { cache } from "@/lib/cache";
+import { ProductPreview } from "./types";
 
 const getMostPopularProducts = cache(
   () => {
@@ -18,6 +15,7 @@ const getMostPopularProducts = cache(
         description: products.description,
         price: products.price,
         imageUrl: products.imageUrl,
+        quantity: products.quantity,
       })
       .from(products)
       .where(eq(products.isActive, true))

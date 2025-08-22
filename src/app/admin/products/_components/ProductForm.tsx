@@ -155,15 +155,21 @@ export default function ProductForm({
             defaultValue={product?.quantity.toString() || ""}
             min="0"
           />
-          {state.errors?.quantity && <p>{state.errors.quantity.join(", ")}</p>}
+          {state.errors?.quantity && <p>{state.errors.quantity}</p>}
         </div>
       </div>
 
-      <div className="space-y-2">
-        <ImageUpload initialImage={product?.imageUrl} />
-        {state?.errors?.image && (
-          <div className="text-destructive">{state.errors.image}</div>
-        )}
+      <div className="grid grid-cols-2 gap-4 w-full">
+        <div className="space-y-2 w-full">
+          <ImageUpload initialImage={product?.imageUrl} />
+          {state?.errors?.image && (
+            <div className="text-destructive">{state.errors.image}</div>
+          )}
+        </div>
+        <div className="space-y-2 w-full flex flex-col items-center justify-center">
+          <p>Admin use only</p>
+          <div className="border-2 w-full max-w-3xl border-dashed rounded-md p-3 cursor-pointer flex items-center justify-center transition-colors"></div>
+        </div>
       </div>
       <Button type="submit" disabled={isPending}>
         {isPending ? "Saving..." : "Save"}

@@ -64,7 +64,7 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
   return (
     <div
       {...getRootProps()}
-      className={`relative border-2 h-[400px] w-3xl border-dashed rounded-md p-3 cursor-pointer flex items-center justify-center transition-colors ${
+      className={`relative border-2 h-[400px] w-full max-w-3xl border-dashed rounded-md p-3 cursor-pointer flex items-center justify-center transition-colors ${
         isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
       }`}
     >
@@ -97,7 +97,7 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
           <img
             src={previewUrl}
             alt="Selected preview"
-            className="max-w-full max-h-full rounded-md object-contain"
+            className="object-contain w-full h-full rounded"
           />
         </div>
       )}
