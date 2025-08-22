@@ -1,13 +1,13 @@
 "use client";
 
+import Image from "next/image";
+import { useActionState, useEffect } from "react";
+import { ProductPreview } from "../../types";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ProductPreview } from "../../types";
-import Image from "next/image";
-import Link from "next/link";
-import { useActionState } from "react";
 import { addToCart } from "../../_actions/carts";
+import { toast } from "react-toastify";
 
 type ProductDetailsProps = {
   product: ProductPreview;
@@ -18,9 +18,19 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
     addToCart.bind(null, product.id),
     {
       success: false,
+      type: "addToCart",
       errors: {},
     }
   );
+
+  useEffect(() => {
+    if (state?.success) {
+      toast.success(state.message || "Product added to cart!");
+    } else if (state?.message) {
+      toast.error(state.message);
+    }
+  }, [state]);
+
   return (
     <form action={formAction} className="space-y-8">
       <div className="max-w-4xl mx-auto p-6">
@@ -63,7 +73,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
                 required
                 name="quantity"
                 defaultValue={1}
-                min="0"
+                min="1"
                 max={product.quantity}
               />
               {state.errors?.quantity && <p>{state.errors.quantity}</p>}
