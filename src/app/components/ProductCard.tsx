@@ -10,7 +10,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/formatters";
-import { ProductPreview } from "../(customr)/types";
+import { ProductPreview } from "../(customer)/types";
 // relative w-full aspect-video
 export function ProductCard({
   id,

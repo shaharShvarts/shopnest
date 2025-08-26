@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
-import { CategoryPreview } from "../(customr)/categories/page";
+import { CategoryPreview } from "../(customer)/categories/page";
 
 export function CategoryCard({ id, name, imageUrl }: CategoryPreview) {
   return (

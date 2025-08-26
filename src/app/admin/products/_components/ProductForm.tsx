@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -50,9 +51,7 @@ export default function ProductForm({
 
     if (categoryId) {
       (async () => {
-        const res = await fetch(
-          `/admin/api/subcategories?categoryId=${categoryId}`
-        );
+        const res = await fetch(`/api/subcategories?categoryId=${categoryId}`);
         const data: Subcategory[] = await res.json();
         setSubcategoryList(data);
 

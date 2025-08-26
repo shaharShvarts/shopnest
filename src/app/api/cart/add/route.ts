@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/drizzle/db";
 import { carts, cartProducts, products } from "@/drizzle/schema";
-import { or, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 
 export async function POST(req: NextRequest) {
@@ -73,3 +73,23 @@ export async function POST(req: NextRequest) {
     { status: 200 }
   );
 }
+
+// export async function GET(req: Request) {
+//   const { searchParams } = new URL(req.url);
+//   const userId = searchParams.get("userId");
+//   const sessionId = searchParams.get("sessionId");
+
+//   const cartBy = userId
+//     ? eq(carts.userId, Number(userId))
+//     : eq(carts.sessionId, sessionId!);
+
+//   const [cart] = await db
+//     .select()
+//     .from(carts)
+//     .where(and(cartBy, eq(carts.isActive, true)))
+//     .limit(1);
+
+//   const count = cart ? cart.items.length : 0;
+
+//   return NextResponse.json({ count });
+// }

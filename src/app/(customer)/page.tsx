@@ -5,6 +5,7 @@ import { ProductCard, ProductCardSkeleton } from "../components/ProductCard";
 import { Suspense } from "react";
 import { cache } from "@/lib/cache";
 import { ProductPreview } from "./types";
+import { ProductSuspense } from "./components/ProductSuspense";
 
 const getMostPopularProducts = cache(
   () => {
@@ -52,10 +53,6 @@ export default function HomePage() {
         title={"Most Popular"}
         productsFetcher={getMostPopularProducts}
       />
-      {/* <ProductGridSection
-        title={"Newest"}
-        productsFetcher={getMostNewestProducts}
-      /> */}
     </main>
   );
 }
@@ -75,24 +72,14 @@ function ProductGridSection({
         <h2 className="text-3xl font-bold">{title}</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Suspense
+        {/* <Suspense
           fallback={Array.from({ length: 6 }).map((_, index) => (
             <ProductCardSkeleton key={index} />
           ))}
         >
-          <ProductSuspense productsFetcher={productsFetcher} />
-        </Suspense>
+        </Suspense> */}
+        <ProductSuspense productsFetcher={productsFetcher} />
       </div>
     </div>
   );
-}
-
-async function ProductSuspense({
-  productsFetcher,
-}: {
-  productsFetcher: () => Promise<ProductPreview[]>;
-}) {
-  return (await productsFetcher()).map((product) => (
-    <ProductCard key={product.id} {...product} />
-  ));
 }

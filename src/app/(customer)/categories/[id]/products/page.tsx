@@ -2,7 +2,7 @@ import { db } from "@/drizzle/db";
 import { desc, eq } from "drizzle-orm";
 import { categories, Product, products } from "@/drizzle/schema";
 import { ProductCard } from "@/app/components/ProductCard";
-import { ProductPreview } from "@/app/(customr)/types";
+import { ProductPreview } from "@/app/(customer)/types";
 
 export default async function ProductsPage({
   params,

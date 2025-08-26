@@ -1,38 +1,56 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useEffect } from "react";
+import { toast } from "react-toastify";
 import { ProductPreview } from "../../types";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { addToCart } from "../../_actions/carts";
-import { toast } from "react-toastify";
+import { startTransition, useActionState, useEffect } from "react";
+import { useCart } from "@/context/CartContext";
+import { useRouter } from "next/navigation";
 
 type ProductDetailsProps = {
   product: ProductPreview;
 };
-//aspect-video
+
+export type AddToCartState = {
+  success: boolean;
+  errors?: string | Record<string, string[]>;
+};
+
 export default function ProductDetails({ product }: ProductDetailsProps) {
-  const [state, formAction, isPending] = useActionState(
-    addToCart.bind(null, product.id),
-    {
-      success: false,
-      type: "addToCart",
-      errors: {},
-    }
-  );
+  const [state, formAction, isPending] = useActionState<
+    AddToCartState,
+    FormData
+  >(addToCart, {
+    success: false,
+    errors: {},
+  });
+
+  const { setCartCount } = useCart();
+  const router = useRouter();
 
   useEffect(() => {
-    if (state?.success) {
-      toast.success(state.message || "Product added to cart!");
-    } else if (state?.message) {
-      toast.error(state.message);
+    if (state.success) {
+      // toast.success("Product added to cart!");
+      startTransition(() => {
+        setCartCount((count) => Number(count) + 1);
+        router.push("/categories");
+      });
+    } else if (state.errors && Object.keys(state.errors).length > 0) {
+      toast.error(
+        typeof state.errors === "string"
+          ? state.errors
+          : Object.values(state.errors).flat().join(", ")
+      );
     }
   }, [state]);
 
   return (
     <form action={formAction} className="space-y-8">
+      <input type="hidden" name="productId" value={product.id.toString()} />
       <div className="max-w-4xl mx-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           {/* <!-- Left Column: Image --> */}
@@ -76,7 +94,6 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
                 min="1"
                 max={product.quantity}
               />
-              {state.errors?.quantity && <p>{state.errors.quantity}</p>}
             </div>
 
             <Button type="submit" disabled={isPending}>

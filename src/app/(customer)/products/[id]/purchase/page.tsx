@@ -2,7 +2,7 @@ import { db } from "@/drizzle/db";
 import { products } from "@/drizzle/schema";
 import { desc, eq } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
-import { ProductPreview } from "@/app/(customr)/types";
+import { ProductPreview } from "@/app/(customer)/types";
 
 export default async function PurchasePage({
   params,
