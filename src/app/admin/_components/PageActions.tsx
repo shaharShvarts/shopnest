@@ -49,7 +49,6 @@ export function DeleteDropdownItem({
   disabled,
   f,
 }: DeleteDropdownItemProps) {
-  // This function will handle the delete action
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 

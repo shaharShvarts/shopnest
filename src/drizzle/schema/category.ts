@@ -1,11 +1,4 @@
-import {
-  pgTable,
-  serial,
-  text,
-  timestamp,
-  varchar,
-  boolean,
-} from "drizzle-orm/pg-core";
+import { pgTable, serial, text, varchar, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createdAt, deletedAt, updatedAt } from "../schemaHelpers";
 import { subcategories } from "./subcategory";

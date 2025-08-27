@@ -3,12 +3,13 @@ import { desc, eq } from "drizzle-orm";
 import { categories, Product, products } from "@/drizzle/schema";
 import { ProductCard } from "@/app/components/ProductCard";
 import { ProductPreview } from "@/app/(customer)/types";
+import { PageHeader } from "@/app/admin/_components/PageHeader";
 
-export default async function ProductsPage({
-  params,
-}: {
+type ProductsPageProps = {
   params: Promise<{ id: string }>;
-}) {
+};
+
+export default async function ProductsPage({ params }: ProductsPageProps) {
   const { id } = await params;
 
   const [category, productArr] = await Promise.all([
@@ -32,10 +33,11 @@ export default async function ProductsPage({
   ]);
 
   const categoryName = category[0]?.name;
+  // <p className="text-3xl font-bold flex justify-end p-5">{categoryName}</p>
 
   return (
     <>
-      <p className="text-3xl font-bold flex justify-end p-5">{categoryName}</p>
+      <PageHeader>{categoryName}</PageHeader>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <ProductsSuspense productArr={productArr} />
       </div>

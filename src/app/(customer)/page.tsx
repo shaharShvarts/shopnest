@@ -1,85 +1,38 @@
 import { db } from "@/drizzle/db";
-import { Product, products } from "@/drizzle/schema";
-import { eq, desc } from "drizzle-orm";
-import { ProductCard, ProductCardSkeleton } from "../components/ProductCard";
-import { Suspense } from "react";
 import { cache } from "@/lib/cache";
-import { ProductPreview } from "./types";
-import { ProductSuspense } from "./components/ProductSuspense";
+import { eq, desc } from "drizzle-orm";
+import { categories } from "@/drizzle/schema";
+import { CategoryCard } from "../components/CategoryCard";
+import { PageHeader } from "../admin/_components/PageHeader";
 
-const getMostPopularProducts = cache(
+const fetchActiveCategories = cache(
   () => {
     return db
       .select({
-        id: products.id,
-        name: products.name,
-        description: products.description,
-        price: products.price,
-        imageUrl: products.imageUrl,
-        quantity: products.quantity,
+        id: categories.id,
+        name: categories.name,
+        imageUrl: categories.imageUrl,
       })
-      .from(products)
-      .where(eq(products.isActive, true))
-      .orderBy(desc(products.name))
-      .limit(6);
+      .from(categories)
+      .where(eq(categories.isActive, true))
+      .orderBy(desc(categories.name));
   },
-  ["/", "getMostPopularProducts"],
+  ["/categories", "getCategories"],
   { revalidate: 60 * 60 * 24 }
 ); // 24 hours
 
-const getMostNewestProducts = cache(
-  () => {
-    return db
-      .select({
-        id: products.id,
-        name: products.name,
-        description: products.description,
-        price: products.price,
-        imageUrl: products.imageUrl,
-      })
-      .from(products)
-      .where(eq(products.isActive, true))
-      .orderBy(desc(products.name))
-      .limit(6);
-  },
-  ["/", "getMostNewestProducts"],
-  { revalidate: 60 * 60 * 24 }
-); // 24 hours
+export default async function HomePage() {
+  const categories = await fetchActiveCategories();
 
-export default function HomePage() {
   return (
     <main className="space-y-12">
-      <ProductGridSection
-        title={"Most Popular"}
-        productsFetcher={getMostPopularProducts}
-      />
-    </main>
-  );
-}
-
-type ProductGridSectionProps = {
-  title: string;
-  productsFetcher: () => Promise<ProductPreview[]>;
-};
-
-function ProductGridSection({
-  title,
-  productsFetcher,
-}: ProductGridSectionProps) {
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-4">
-        <h2 className="text-3xl font-bold">{title}</h2>
-      </div>
+      {/* <h2 className="text-3xl font-bold underline">Categories</h2> */}
+      <PageHeader>קטגוריות</PageHeader>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* <Suspense
-          fallback={Array.from({ length: 6 }).map((_, index) => (
-            <ProductCardSkeleton key={index} />
-          ))}
-        >
-        </Suspense> */}
-        <ProductSuspense productsFetcher={productsFetcher} />
+        {categories.map((category) => (
+          <CategoryCard key={category.id} {...category} />
+        ))}
       </div>
-    </div>
+    </main>
   );
 }

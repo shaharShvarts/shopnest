@@ -11,13 +11,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing categoryId" }, { status: 400 });
   }
 
-  const subcategories = await getSubcategoriesByCategoryId(categoryId);
+  const subcategories = await fetchSubcategoriesByCategoryId(categoryId);
 
   return NextResponse.json(subcategories);
 }
 
 // Example mock function
-async function getSubcategoriesByCategoryId(categoryId: string) {
+async function fetchSubcategoriesByCategoryId(categoryId: string) {
   const results = await db
     .select()
     .from(subcategories)

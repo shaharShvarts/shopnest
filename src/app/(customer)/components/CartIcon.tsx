@@ -16,16 +16,13 @@ export const CartIcon = () => {
   }, []);
 
   return (
-    <button
-      className="relative rounded-full transition-colors px-4 hover:bg-accent hover:text-accent-foreground"
-      aria-label="View shopping cart"
-    >
-      <ShoppingCart />
+    <div className="relative transition-colors" aria-label="View shopping cart">
+      <ShoppingCart className="text-gray-800 hover:text-rose-800" />
       {cartCount > 0 && (
-        <span className="absolute top-2 right-0 bg-red-500 text-white rounded-full px-2 text-xs">
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full px-2 text-xs">
           {cartCount}
         </span>
       )}
-    </button>
+    </div>
   );
 };

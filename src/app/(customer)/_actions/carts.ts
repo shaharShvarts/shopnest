@@ -5,10 +5,9 @@ import z from "zod";
 import { AddToCartState } from "../products/_components/ProductDetails";
 import {
   addProductToCart,
-  getCartId,
+  fetchCartId,
   getProductPrice,
   updateTotalPrice,
-  verifyIdentification,
 } from "./cartVerification";
 
 const productSchema = z.object({
@@ -34,13 +33,14 @@ export async function addToCart(
 
   const { productId, quantity } = result.data;
 
-  const verify = await verifyIdentification();
-  if (!verify.success) return verify;
-
-  const { userId, sessionId } = verify.identification;
-
   // 1. Find or create cart by userId or sessionId
-  const cartId = await getCartId(userId, sessionId);
+  const cartId = await fetchCartId();
+
+  if (!cartId)
+    return {
+      success: false,
+      errors: { cart: ["Unable to create or fetch cart"] },
+    };
 
   // 2. Add product to cart
   const cartProduct = await addProductToCart(productId, quantity, cartId);
@@ -56,9 +56,9 @@ export async function addToCart(
 
   if (!updataPrice.success) return updataPrice;
 
-  // redirect("/categories");
   return {
     success: true,
-    errors: undefined,
+    errors: {},
   };
+  // redirect("/categories");
 }

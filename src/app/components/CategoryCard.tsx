@@ -1,12 +1,5 @@
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
 import { CategoryPreview } from "../(customer)/categories/page";
@@ -44,11 +37,6 @@ export function CategoryCardSkeleton() {
           <div className="w-3/4 h-6 rounded-full bg-gray-300" />
         </CardTitle>
       </CardHeader>
-      {/* <CardContent className="space-y-2">
-        <div className="w-full h-4 rounded-full bg-gray-300" />
-        <div className="w-full h-4 rounded-full bg-gray-300" />
-        <div className="w-full h-4 rounded-full bg-gray-300" />
-      </CardContent> */}
       <CardFooter>
         <Button className="w-full" disabled size="lg"></Button>
       </CardFooter>

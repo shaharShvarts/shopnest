@@ -19,8 +19,22 @@ const editSchema = zodSchema.extend({
   image: z.instanceof(File).optional(),
 });
 
+type CategoryFormErrors = {
+  name?: string[];
+  image?: string[];
+};
+
+type AddCategoryResult = {
+  success: boolean;
+  errors?: CategoryFormErrors;
+  message?: string;
+};
+
 // This function handles the addition of a new category
-export async function addCategory(_: any, formData: FormData) {
+export async function addCategory(
+  _: any,
+  formData: FormData
+): Promise<AddCategoryResult> {
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -40,7 +54,7 @@ export async function addCategory(_: any, formData: FormData) {
   // Save category data to the database
   try {
     await db.insert(categories).values({ ...rawData, imageUrl });
-  } catch (error: unknown) {
+  } catch (error) {
     if (await fileExists(fullFilePath)) {
       await fs.unlink(fullFilePath);
     }
@@ -67,7 +81,12 @@ export async function addCategory(_: any, formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/categories");
-  redirect("/admin/categories");
+  return {
+    success: true,
+    errors: {},
+    message: "Category added successfully",
+  };
+  // redirect("/admin/categories");
 }
 
 // This function handles the editing of an existing category
@@ -136,7 +155,13 @@ export async function editCategory(id: number, _: any, formData: FormData) {
   }
   revalidatePath("/");
   revalidatePath("/categories");
-  redirect("/admin/categories");
+
+  return {
+    success: true,
+    errors: {},
+    message: "Category updated successfully",
+  };
+  // redirect("/admin/categories");
 }
 
 export async function ToggleCategoryActive(id: number, active: boolean) {

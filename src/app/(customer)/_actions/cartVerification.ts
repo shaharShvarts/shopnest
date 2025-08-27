@@ -5,40 +5,12 @@ import { carts, cartProducts, products } from "@/drizzle/schema";
 import { eq, sql, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-type ProductPriceResult =
-  | { success: true; price: number }
-  | { success: false; errors: string };
-
-type ProductResult =
-  | { success: true; status: number }
-  | { success: false; errors: string };
-
-type IdentificationData = {
-  userId?: string;
-  sessionId?: string;
-};
-
-type verifyResult =
-  | { success: true; identification: IdentificationData }
-  | { success: false; errors: string };
-
-export async function verifyIdentification(): Promise<verifyResult> {
+export async function fetchCartId() {
   const userId = (await cookies()).get("user_id")?.value;
   const sessionId = (await cookies()).get("session_id")?.value;
 
-  if (!userId && !sessionId) {
-    return {
-      success: false,
-      errors: "Missing session_id/user_id",
-    };
-  }
-  return { success: true, identification: { userId, sessionId } };
-}
+  if (!userId && !sessionId) return null;
 
-export async function getCartId(
-  userId: string | undefined,
-  sessionId: string | undefined
-) {
   const cartBy = userId
     ? eq(carts.userId, Number(userId))
     : eq(carts.sessionId, sessionId!);
@@ -61,6 +33,10 @@ export async function getCartId(
 
   return cart.id;
 }
+
+type ProductResult =
+  | { success: true; status: number }
+  | { success: false; errors: string };
 
 export async function addProductToCart(
   productId: number,
@@ -89,6 +65,10 @@ export async function addProductToCart(
     };
   }
 }
+
+type ProductPriceResult =
+  | { success: true; price: number }
+  | { success: false; errors: string };
 
 export async function getProductPrice(
   productId: number
