@@ -3,8 +3,9 @@ import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
 import { CategoryPreview } from "../(customer)/categories/page";
-
+import { useTranslations } from "next-intl";
 export function CategoryCard({ id, name, imageUrl }: CategoryPreview) {
+  const t = useTranslations("HomePage");
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">
@@ -21,7 +22,7 @@ export function CategoryCard({ id, name, imageUrl }: CategoryPreview) {
       </CardHeader>
       <CardFooter>
         <Button asChild size="lg" className="w-full">
-          <Link href={`/categories/${id}/products`}>Purchase</Link>
+          <Link href={`/categories/${id}/products`}>{t("button")}</Link>
         </Button>
       </CardFooter>
     </Card>

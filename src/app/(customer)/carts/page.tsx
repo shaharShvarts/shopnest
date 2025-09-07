@@ -12,7 +12,7 @@ export type CartPageProps = {
   quantity: number;
 };
 
-async function CartPage() {
+export default async function CartPage() {
   const cartId = await fetchCartId();
   if (!cartId) return null;
 
@@ -28,5 +28,5 @@ async function CartPage() {
     .innerJoin(products, eq(cartProducts.productId, products.id))
     .where(eq(cartProducts.cartId, cartId));
 
-  <CartTable cartData={cartData} />;
+  return <CartTable cartData={cartData} />;
 }

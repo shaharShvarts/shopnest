@@ -11,6 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/formatters";
 import { ProductPreview } from "../(customer)/types";
+import { useTranslations } from "next-intl";
 // relative w-full aspect-video
 export function ProductCard({
   id,
@@ -19,6 +20,7 @@ export function ProductCard({
   imageUrl,
   description,
 }: ProductPreview) {
+  const t = useTranslations("ProductsPage");
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">
@@ -39,7 +41,7 @@ export function ProductCard({
       </CardContent>
       <CardFooter>
         <Button asChild size="lg" className="w-full">
-          <Link href={`/products/${id}/purchase`}>Purchase</Link>
+          <Link href={`/products/${id}/purchase`}>{t("button")}</Link>
         </Button>
       </CardFooter>
     </Card>

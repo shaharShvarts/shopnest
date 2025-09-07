@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
+import { NextRequest, NextResponse } from "next/server";
 import { isValidPassword } from "./lib/isValidPassword";
 
 export async function middleware(req: NextRequest) {
@@ -49,5 +49,6 @@ async function isAuthenticated(req: NextRequest) {
 }
 
 export const config = {
+  // matcher: ["/admin/:path*", "/((?!api|_next|.*\\..*).*)"],
   matcher: ["/admin/:path*", "/((?!_next|api|static|favicon.ico).*)"],
 };

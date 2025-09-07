@@ -11,7 +11,7 @@ export const metadata = {
   description: "Home Page",
 };
 
-export default function HomeLayout({
+export default async function HomeLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

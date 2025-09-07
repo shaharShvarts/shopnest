@@ -1,0 +1,9 @@
+{
+  "HomePage": {
+    "title": "קטגוריות",
+    "button": "בחר מוצר"
+  },
+  "ProductsPage": {
+    "button": "פרטי המוצר"
+  }
+}

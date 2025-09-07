@@ -1,0 +1,9 @@
+{
+  "HomePage": {
+    "title": "Categories",
+    "button": "Select product"
+  },
+  "ProductsPage": {
+    "button": "Product Details"
+  }
+}

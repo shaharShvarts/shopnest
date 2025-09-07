@@ -4,6 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { categories } from "@/drizzle/schema";
 import { CategoryCard } from "../components/CategoryCard";
 import { PageHeader } from "../admin/_components/PageHeader";
+import { getTranslations } from "next-intl/server";
 
 const fetchActiveCategories = cache(
   () => {
@@ -23,11 +24,12 @@ const fetchActiveCategories = cache(
 
 export default async function HomePage() {
   const categories = await fetchActiveCategories();
-
+  // setRequestLocale(locale);
+  // const t = useTranslations("HomePage");
+  const t = await getTranslations("HomePage");
   return (
     <main className="space-y-12">
-      {/* <h2 className="text-3xl font-bold underline">Categories</h2> */}
-      <PageHeader>קטגוריות</PageHeader>
+      <PageHeader>{t("title")}</PageHeader>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {categories.map((category) => (
           <CategoryCard key={category.id} {...category} />
