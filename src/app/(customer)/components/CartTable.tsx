@@ -1,4 +1,3 @@
-import { PageHeader } from "@/app/admin/_components/PageHeader";
 import {
   Table,
   TableBody,
@@ -8,45 +7,61 @@ import {
   TableRow,
 } from "@/components/ui";
 import { CartPageProps } from "../carts/page";
+import { getTranslations } from "next-intl/server";
+import { getLocale } from "next-intl/server";
+import { CircleX, RemoveFormatting } from "lucide-react";
+import { RemoveButton } from "../carts/_components/RemoveButton";
 
 type cartDataProps = {
   cartData: CartPageProps[];
 };
 
 export default async function CartTable({ cartData }: cartDataProps) {
+  const locale = await getLocale();
+  const t = await getTranslations("CartPage");
+  const totalQuantity = cartData.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPrice = cartData.reduce((sum, item) => sum + item.price, 0);
+
+  if (cartData.length === 0)
+    return <p className="text-muted-foreground">{t("alter")}</p>;
+
   return (
-    <div>
-      <PageHeader>Shopping Cart</PageHeader>
-      {cartData && cartData.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-0">
-                <span className="sr-only">Shopping Cart</span>
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Price</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {cartData.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <span className="sr-only">Inactive</span>
-                </TableCell>
-                <TableCell>{item.name}</TableCell>
-                <TableCell>{item.description}</TableCell>
-                <TableCell>{item.quantity}</TableCell>
-                <TableCell>{item.price}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : (
-        <p>Your cart is empty.</p>
-      )}
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow className={locale === "he" ? "[&>th]:text-right" : ""}>
+          <TableHead className="w-0">
+            <span className="sr-only">Shopping Cart</span>
+          </TableHead>
+          <TableHead>{t("th_name")}</TableHead>
+          <TableHead>{t("th_description")}</TableHead>
+          <TableHead>{t("th_quantity")}</TableHead>
+          <TableHead>{t("th_price")}</TableHead>
+          <TableHead>{t("th_remove")}</TableHead>
+          <TableHead className="w-0">
+            <span className="sr-only">Remove</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {cartData.map((item) => (
+          <TableRow key={item.id}>
+            <TableCell>
+              <span className="sr-only">Shopping Cart</span>
+            </TableCell>
+            <TableCell>{item.name}</TableCell>
+            <TableCell>{item.description}</TableCell>
+            <TableCell>{item.quantity}</TableCell>
+            <TableCell>{item.price}</TableCell>
+            <RemoveButton productId={item.id} />
+          </TableRow>
+        ))}
+        <TableRow className="font-semibold border-t">
+          <TableCell />
+          <TableCell colSpan={2}>{t("summary_label")}</TableCell>
+          <TableCell>{totalQuantity}</TableCell>
+          <TableCell>{totalPrice.toFixed(2)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
   );
 }

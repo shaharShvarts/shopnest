@@ -5,7 +5,8 @@ import Link from "next/link";
 import { CategoryPreview } from "../(customer)/categories/page";
 import { useTranslations } from "next-intl";
 export function CategoryCard({ id, name, imageUrl }: CategoryPreview) {
-  const t = useTranslations("HomePage");
+  const t = useTranslations("CategoriesPage");
+
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">

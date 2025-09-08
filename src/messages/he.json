@@ -1,9 +1,25 @@
 {
-  "HomePage": {
-    "title": "קטגוריות",
-    "button": "בחר מוצר"
+  "CategoriesPage": {
+    "header": "קטגוריות",
+    "button": "בחר מוצר",
+    "Metadata": { "title": "קטגוריות", "description": "כל הקטגוריות לבחירה" }
   },
   "ProductsPage": {
-    "button": "פרטי המוצר"
+    "button": "פרטי המוצר",
+    "Metadata": { "title": "מוצרים", "description": "כל המוצרים הזמינים במלאי" }
+  },
+  "CartPage": {
+    "header": "הסל שלי",
+    "alter": "הסל שלך ריק",
+    "th_remove": "הסרה",
+    "th_name": "שם",
+    "th_description": "תיאור",
+    "th_quantity": "כמות",
+    "th_price": "מחיר",
+    "summary_label": "סה״כ",
+    "Metadata": {
+      "title": "הסל שלי",
+      "description": "תכולת הסל הממתינה לרכישה"
+    }
   }
 }

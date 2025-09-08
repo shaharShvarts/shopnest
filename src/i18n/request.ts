@@ -6,6 +6,6 @@ export default getRequestConfig(async () => {
   const locale = cookieLocale ?? "he"; // fallback to Hebrew if no cookie;
   return {
     locale,
-    messages: (await import(`../messages/${locale}.json`)).default,
+    messages: (await import(`@/messages/${locale}.json`)).default,
   };
 });

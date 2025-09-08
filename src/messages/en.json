@@ -1,9 +1,31 @@
 {
-  "HomePage": {
-    "title": "Categories",
-    "button": "Select product"
+  "CategoriesPage": {
+    "header": "Categories",
+    "button": "Select product",
+    "Metadata": {
+      "title": "Categories",
+      "description": "All categories available to choose from"
+    }
   },
   "ProductsPage": {
-    "button": "Product Details"
+    "button": "Product Details",
+    "Metadata": {
+      "title": "Categories",
+      "description": "All the available Products"
+    }
+  },
+  "CartPage": {
+    "header": "Shopping Cart",
+    "alter": "Your cart is empty.",
+    "th_remove": "remove",
+    "th_name": "Name",
+    "th_description": "Description",
+    "th_quantity": "Quantity",
+    "th_price": "Price",
+    "summary_label": "Total",
+    "Metadata": {
+      "title": "My Cart",
+      "description": "Cart contents awaiting purchase"
+    }
   }
 }

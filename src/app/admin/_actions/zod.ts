@@ -1,7 +1,8 @@
 import z from "zod";
 import prettyBytes from "pretty-bytes";
+import { env } from "@/data/env/server";
 
-const maxFileSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? 0);
+const maxFileSize = Number(env.MAX_FILE_SIZE ?? 0);
 
 export const imageSchema = z.custom<File>(
   (file) =>

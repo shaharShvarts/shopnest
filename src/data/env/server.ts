@@ -8,6 +8,8 @@ export const env = createEnv({
     DB_HOST: z.string().min(1),
     DB_PORT: z.string().min(1),
     DB_NAME: z.string().min(1),
+    MAX_FILE_SIZE: z.string().min(1),
+    VALID_IMAGE_TYPES: z.string().min(1),
     // CLERK_SECRET_KEY: z.string().min(1),
     // CLERK_WEBHOOK_SECRET: z.string().min(1),
     // UPLOADTHING_TOKEN: z.string().min(1),
@@ -18,7 +20,7 @@ export const env = createEnv({
   },
   createFinalSchema: (env) => {
     return z.object(env).transform((val) => {
-      const { DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER, ...rest } = val;
+      const { DB_PASSWORD, DB_USER, DB_HOST, DB_PORT, DB_NAME, ...rest } = val;
 
       return {
         ...rest,

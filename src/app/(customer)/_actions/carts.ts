@@ -1,14 +1,18 @@
 "use server";
 
 import z from "zod";
-// import { redirect } from "next/navigation";
-import { AddToCartState } from "../products/_components/ProductDetails";
+import type { AddToCartState } from "../products/_components/ProductDetails";
 import {
   addProductToCart,
+  deleteProductFromCart,
   fetchCartId,
   getProductPrice,
   updateTotalPrice,
 } from "./cartVerification";
+import { db } from "@/drizzle/db";
+import { cartProducts } from "@/drizzle/schema";
+import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 const productSchema = z.object({
   quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
@@ -17,6 +21,29 @@ const productSchema = z.object({
     .int()
     .positive("Product ID must be a positive integer"),
 });
+
+export async function removeProduct(productId: number) {
+  // 1. fetch the cart ID
+  const cartId = await fetchCartId();
+  if (!cartId) return;
+
+  // 2. - Delete the item and get its quantity
+  const quantity = await deleteProductFromCart(cartId, productId);
+
+  // 3. Fetch the product price
+  const product = await getProductPrice(productId);
+  if (!product.success) return;
+
+  // 4. Multiply and negate the total
+  const itemTotal = -product.price * quantity;
+
+  // 5. Update the cart’s total price
+  await updateTotalPrice(cartId, itemTotal);
+
+  revalidatePath("/");
+  revalidatePath("/carts");
+  return quantity;
+}
 
 export async function addToCart(
   prevState: AddToCartState,
@@ -60,5 +87,4 @@ export async function addToCart(
     success: true,
     errors: {},
   };
-  // redirect("/categories");
 }

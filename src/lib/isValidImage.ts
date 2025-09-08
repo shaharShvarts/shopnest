@@ -2,11 +2,11 @@
 
 import { toast } from "react-toastify";
 import prettyBytes from "pretty-bytes";
+import { env } from "@/data/env/server";
 
 export function isValidImage(file: File | null): boolean {
-  const maxFileSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? 0);
-  const validImageTypes =
-    process.env.NEXT_PUBLIC_VALID_IMAGE_TYPES?.split("|") ?? [];
+  const maxFileSize = Number(env.MAX_FILE_SIZE ?? 0);
+  const validImageTypes = env.VALID_IMAGE_TYPES?.split("|") ?? [];
 
   if (!file) {
     toast("Please select a valid image file.");

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { ProductPreview } from "../../types";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { startTransition, useActionState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import BreadcrumbComponent from "../../components/Breadcrumb";
+import type { ProductPreview } from "../../types";
 
 type ProductDetailsProps = {
   product: ProductPreview;

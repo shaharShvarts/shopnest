@@ -25,10 +25,9 @@ export type LanguageOption = {
 };
 
 export default function LanguageSelector() {
+  const [selected, setSelected] = useState<LanguageOption | null>(null);
   const [open, setOpen] = useState(false);
   const router = useRouter();
-
-  const [selected, setSelected] = useState<LanguageOption | null>(null);
 
   useEffect(() => {
     const cookieLocale = document.cookie
@@ -37,10 +36,9 @@ export default function LanguageSelector() {
       ?.split("=")[1];
 
     const initialLocale = cookieLocale || "he";
-
     const match = languages.find((lang) => lang.value === initialLocale);
     setSelected(match ?? languages[0]);
-  }, [router]);
+  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -63,8 +61,7 @@ export default function LanguageSelector() {
                   setSelected(lang);
                   setOpen(false);
                   // Optional: trigger i18n change here
-                  document.cookie = `SHOPNEST_LOCALE=${lang.value}; path=/; max-age=31536000`;
-
+                  document.cookie = `SHOPNEST_LOCALE=${lang.value}; path=/; max-age=31536000; SameSite=Lax`;
                   router.refresh();
                 }}
               >

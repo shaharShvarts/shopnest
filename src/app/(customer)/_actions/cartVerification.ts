@@ -66,6 +66,19 @@ export async function addProductToCart(
   }
 }
 
+export async function deleteProductFromCart(cartId: string, productId: number) {
+  const [deletedItem] = await db
+    .delete(cartProducts)
+    .where(
+      and(
+        eq(cartProducts.cartId, cartId),
+        eq(cartProducts.productId, productId)
+      )
+    )
+    .returning({ quantity: cartProducts.quantity });
+  return deletedItem?.quantity ?? 0;
+}
+
 type ProductPriceResult =
   | { success: true; price: number }
   | { success: false; errors: string };

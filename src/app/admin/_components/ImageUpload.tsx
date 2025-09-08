@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Upload } from "lucide-react";
 import { isValidImage } from "@/lib/isValidImage";
 import { useRef } from "react";
+import { env } from "@/data/env/server";
 
 type ImageUploadProps = {
   initialImage?: string;
@@ -14,8 +15,7 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const validImageTypes =
-    process.env.NEXT_PUBLIC_VALID_IMAGE_TYPES?.split("|") ?? [];
+  const validImageTypes = env.VALID_IMAGE_TYPES?.split("|") ?? [];
 
   const imageTypes = validImageTypes.map(
     (type) => type.split("/").pop()?.toUpperCase() ?? ""
