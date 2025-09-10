@@ -10,10 +10,10 @@ import { startTransition, useActionState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import BreadcrumbComponent from "../../components/Breadcrumb";
-import type { ProductPreview } from "../../types";
+import { fetchedProduct } from "../[id]/purchase/page";
 
 type ProductDetailsProps = {
-  product: ProductPreview;
+  product: fetchedProduct;
 };
 
 export type AddToCartState = {
@@ -35,7 +35,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
 
   useEffect(() => {
     if (state.success) {
-      // toast.success("Product added to cart!");
+      toast.success("Product added to cart!");
       startTransition(() => {
         setCartCount((count) => Number(count) + 1);
         router.push("/");
@@ -48,7 +48,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
       );
     }
   }, [state]);
-  // className="max-w-4xl mx-auto p-6"
+
   return (
     <>
       <BreadcrumbComponent />

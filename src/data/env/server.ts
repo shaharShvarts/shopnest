@@ -8,8 +8,6 @@ export const env = createEnv({
     DB_HOST: z.string().min(1),
     DB_PORT: z.string().min(1),
     DB_NAME: z.string().min(1),
-    MAX_FILE_SIZE: z.string().min(1),
-    VALID_IMAGE_TYPES: z.string().min(1),
     // CLERK_SECRET_KEY: z.string().min(1),
     // CLERK_WEBHOOK_SECRET: z.string().min(1),
     // UPLOADTHING_TOKEN: z.string().min(1),

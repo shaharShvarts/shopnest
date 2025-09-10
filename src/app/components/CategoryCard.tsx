@@ -1,18 +1,24 @@
+import Link from "next/link";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import Image from "next/image";
-import Link from "next/link";
-import { CategoryPreview } from "../(customer)/categories/page";
-import { useTranslations } from "next-intl";
-export function CategoryCard({ id, name, imageUrl }: CategoryPreview) {
+
+type CategoryCardProps = {
+  [key: string]: string | number;
+};
+
+export function CategoryCard(props: CategoryCardProps) {
+  const { id, name, imageUrl } = props;
+
   const t = useTranslations("CategoriesPage");
 
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">
         <Image
-          src={imageUrl}
-          alt={name}
+          src={String(imageUrl)}
+          alt={String(name)}
           fill
           className="object-cover transition-transform duration-300 hover:scale-105"
           sizes="100vw"

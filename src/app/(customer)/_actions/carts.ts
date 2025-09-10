@@ -9,9 +9,6 @@ import {
   getProductPrice,
   updateTotalPrice,
 } from "./cartVerification";
-import { db } from "@/drizzle/db";
-import { cartProducts } from "@/drizzle/schema";
-import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 const productSchema = z.object({

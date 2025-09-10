@@ -3,6 +3,7 @@ import { UserRound } from "lucide-react";
 import { CartIcon } from "./components/CartIcon";
 import { CartProvider } from "@/context/CartContext";
 import LanguageSelector from "../components/LanguageSelector";
+import DvorikLogo from "../components/DvorikLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,7 @@ export default async function HomeLayout({
             href={"/"}
             className="flex flex-col justify-center items-center"
           >
-            <h1 className="font-bold text-3xl font-serif text-rose-800">
-              Dvorik
-            </h1>
-            <h2 className="font-bold text-gray-500">⭐ Collection ⭐</h2>
+            <DvorikLogo height={64} fill="#6D3F03" />
           </Link>
           <div className="flex items-center justify-between gap-4">
             <LanguageSelector />

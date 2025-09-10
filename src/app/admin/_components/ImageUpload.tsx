@@ -15,7 +15,8 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const validImageTypes = env.VALID_IMAGE_TYPES?.split("|") ?? [];
+  const validImageTypes =
+    process.env.NEXT_PUBLIC_VALID_IMAGE_TYPES?.split("|") ?? [];
 
   const imageTypes = validImageTypes.map(
     (type) => type.split("/").pop()?.toUpperCase() ?? ""

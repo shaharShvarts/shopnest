@@ -12,7 +12,7 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/formatters";
 import { ProductPreview } from "../(customer)/types";
 import { useTranslations } from "next-intl";
-// relative w-full aspect-video
+
 export function ProductCard({
   id,
   name,

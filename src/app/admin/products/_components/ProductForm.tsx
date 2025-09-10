@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Category, Product, Subcategory } from "@/drizzle/schema";
 import { Combobox } from "../../_components/Combobox";
 import { ImageUpload } from "../../_components/ImageUpload";
-import { addProduct, editProduct } from "@/_actions/products";
+import { addProduct, editProduct } from "../../_actions/products";
+// import { addProduct, editProduct } from "@/_actions/products";
 
 type ProductFormProps = {
   product?: Product | null;

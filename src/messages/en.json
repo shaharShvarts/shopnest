@@ -23,9 +23,28 @@
     "th_quantity": "Quantity",
     "th_price": "Price",
     "summary_label": "Total",
+    "button": "Proceed to purchase",
     "Metadata": {
       "title": "My Cart",
       "description": "Cart contents awaiting purchase"
+    }
+  },
+  "ShippingPage": {
+    "header": "Shipping address",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "city": "City",
+    "street": "Street",
+    "apartment": "Apartment",
+    "building": "Building",
+    "floor": "Floor",
+    "entry": "Entry",
+    "phone": "Phone",
+    "email": "Email",
+    "notes": "Notes",
+    "Metadata": {
+      "title": "Shipping address",
+      "description": "Shipping form address info"
     }
   }
 }

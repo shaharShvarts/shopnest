@@ -17,9 +17,24 @@
     "th_quantity": "כמות",
     "th_price": "מחיר",
     "summary_label": "סה״כ",
+    "button": "המשך לרכישה",
     "Metadata": {
       "title": "הסל שלי",
       "description": "תכולת הסל הממתינה לרכישה"
     }
+  },
+  "ShippingPage": {
+    "header": "כתובת למשלוח",
+    "firstName": "שם",
+    "lastName": "שם משפחה",
+    "city": "עיר",
+    "street": "רחוב",
+    "apartment": "מספר דירה",
+    "building": "מספר בית",
+    "floor": "קומה",
+    "entry": "כניסה",
+    "phone": "טלפון",
+    "email": "אימייל",
+    "notes": "הערות"
   }
 }

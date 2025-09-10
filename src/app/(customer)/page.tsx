@@ -2,7 +2,18 @@ import { db } from "@/drizzle/db";
 import { cache } from "@/lib/cache";
 import { eq, desc } from "drizzle-orm";
 import { categories } from "@/drizzle/schema";
-import CategoriesPageGrid from "./components/CategoriesPageGrid";
+import CategoriesGrid from "./components/CategoriesGrid";
+import { PageHeader } from "../admin/_components/PageHeader";
+import { getTranslations } from "next-intl/server";
+
+export async function generateMetadata() {
+  const Metadata = await getTranslations("CartPage.Metadata");
+
+  return {
+    title: Metadata("title"),
+    description: Metadata("description"),
+  };
+}
 
 const fetchActiveCategories = cache(
   () => {
@@ -20,7 +31,17 @@ const fetchActiveCategories = cache(
   { revalidate: 60 * 60 * 24 }
 ); // 24 hours
 
+export type CategoryPageProps = Awaited<
+  ReturnType<typeof fetchActiveCategories>
+>[number];
+
 export default async function CategoriesPage() {
   const categories = await fetchActiveCategories();
-  return <CategoriesPageGrid categories={categories} />;
+  const t = await getTranslations("CategoriesPage");
+  return (
+    <>
+      <PageHeader>{t("header")}</PageHeader>
+      <CategoriesGrid categories={categories} />
+    </>
+  );
 }
