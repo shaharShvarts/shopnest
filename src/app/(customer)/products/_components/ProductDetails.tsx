@@ -9,8 +9,8 @@ import { addToCart } from "../../_actions/carts";
 import { startTransition, useActionState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
-import BreadcrumbComponent from "../../components/Breadcrumb";
-import { fetchedProduct } from "../[id]/purchase/page";
+import { fetchedProduct } from "../[id]/details/page";
+import { useTranslations } from "next-intl";
 
 type ProductDetailsProps = {
   product: fetchedProduct;
@@ -32,6 +32,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
 
   const { setCartCount } = useCart();
   const router = useRouter();
+  const t = useTranslations("ProductDetails");
 
   useEffect(() => {
     if (state.success) {
@@ -51,7 +52,6 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
 
   return (
     <>
-      <BreadcrumbComponent />
       <form action={formAction} className="space-y-8">
         <input type="hidden" name="productId" value={product.id.toString()} />
         <div>
@@ -75,7 +75,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
                   {product.name}
                 </h1>
                 <h3 className="text-sm font-semibold text-gray-600 mb-6">
-                  <span>Price: </span>
+                  <span>{t("price")} </span>
                   {new Intl.NumberFormat("he-IL", {
                     style: "currency",
                     currency: "ILS",
@@ -85,8 +85,12 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
               </div>
 
               <div className="space-y-2">
-                <p>The current quantity is: {product.quantity} </p>
-                <Label htmlFor="quantity">Quantity</Label>
+                {product.quantity > 1 && (
+                  <p>{t("quantity", { count: product.quantity })}</p>
+                )}
+                <Label htmlFor="quantity" className="mt-4">
+                  {t("quantityLabel")}
+                </Label>
                 <Input
                   type="number"
                   className="w-[200px]"
@@ -100,7 +104,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
               </div>
 
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Saving..." : "Add to Cart"}
+                {isPending ? "Saving..." : t("addToCartButton")}
               </Button>
             </div>
           </div>

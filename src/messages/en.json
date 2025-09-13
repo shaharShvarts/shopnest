@@ -8,13 +8,20 @@
     }
   },
   "ProductsPage": {
+    "header": "Products",
     "button": "Product Details",
+    "Breadcrumbs": {
+      "home": "Home",
+      "categories": "Categories",
+      "products": "Products"
+    },
     "Metadata": {
       "title": "Categories",
       "description": "All the available Products"
     }
   },
   "CartPage": {
+    "shop_button": "Back to shop",
     "header": "Shopping Cart",
     "alter": "Your cart is empty.",
     "th_remove": "remove",
@@ -46,5 +53,24 @@
       "title": "Shipping address",
       "description": "Shipping form address info"
     }
+  },
+  "DetailsPage": {
+    "header": "Product Details",
+    "button": "Add to cart",
+    "Breadcrumbs": {
+      "home": "Home",
+      "category": "Category",
+      "products": "Product"
+    },
+    "Metadata": {
+      "title": "Product Details",
+      "description": "Detailed information about the product"
+    }
+  },
+  "ProductDetails": {
+    "price": "Price:",
+    "quantityLabel": "quantity:",
+    "quantity": "The current quantity is: {count}",
+    "addToCartButton": "Add to cart"
   }
 }

@@ -2,8 +2,9 @@ import { db } from "@/drizzle/db";
 import { cache } from "@/lib/cache";
 import { eq, desc } from "drizzle-orm";
 import { categories } from "@/drizzle/schema";
-import { PageHeader } from "../components/PageHeader";
 import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/app/components/PageHeader";
+import CategoriesGrid from "../components/CategoriesGrid";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");
@@ -39,8 +40,8 @@ export default async function CategoriesPage() {
   const t = await getTranslations("CategoriesPage");
   return (
     <>
-      <PageHeader>Home Page</PageHeader>
-      {/* <CategoriesGrid categories={categories} /> */}
+      <PageHeader>{t("header")}</PageHeader>
+      <CategoriesGrid categories={categories} />
     </>
   );
 }

@@ -4,7 +4,7 @@ import { db } from "@/drizzle/db";
 import AdminLoading from "../loading";
 import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "../_components/PageHeader";
+import { PageHeader } from "../../components/PageHeader";
 import { ProductTable } from "./_components/ProductTable";
 import { orders, products } from "@/drizzle/schema";
 

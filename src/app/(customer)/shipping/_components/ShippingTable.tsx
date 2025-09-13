@@ -6,7 +6,6 @@ import { removeProduct } from "../../_actions/carts";
 import { TableCell } from "@/components/ui";
 import { CircleX } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { cookies } from "next/headers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,28 +20,13 @@ function getAddressFromCookie(): Record<string, string> {
     .split("; ")
     .find((row) => row.startsWith("address="))
     ?.split("=")[1];
+  console.log("Raw cookie data:", raw);
   return raw ? JSON.parse(decodeURIComponent(raw)) : {};
 }
 
-type FormErrors = {
-  [key: string]: string | undefined;
-};
-
-type ShippingFormErrors = {
-  firstName?: string;
-  lastName?: string;
-  city?: string;
-  street?: string;
-  apartment?: string;
-  building?: string;
-  phone?: string;
-  email?: string;
-  // Add more fields as needed
-};
-
-type ShippingFormState = {
+export type ShippingFormState = {
   success: boolean;
-  errors: ShippingFormErrors;
+  errors?: Record<string, string[]>;
 };
 
 export function ShippingTable() {
@@ -51,19 +35,10 @@ export function ShippingTable() {
   const [state, formAction, isPending] = useActionState<
     ShippingFormState,
     FormData
-  >(
-    async (_state, formData) => {
-      const data = Object.fromEntries(formData);
-
-      // Save to cookie
-      document.cookie = `address=${encodeURIComponent(
-        JSON.stringify(data)
-      )}; path=/; max-age=${60 * 60 * 24 * 30}`;
-
-      return { success: true, errors: {} };
-    },
-    { success: false, errors: {} }
-  );
+  >(redirectToPurchase, {
+    success: false,
+    errors: {},
+  });
 
   return (
     <form action={formAction} className="space-y-6 max-w-2xl mx-auto">

@@ -4,7 +4,7 @@ import { fetchCartId } from "../_actions/cartVerification";
 import { cartProducts, products } from "@/drizzle/schema";
 import CartTable from "../components/CartTable";
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/app/admin/_components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");

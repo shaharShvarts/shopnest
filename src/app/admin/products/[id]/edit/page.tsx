@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/drizzle/db";
 import { categories, products } from "@/drizzle/schema";
 import ProductForm from "../../_components/ProductForm";
-import { PageHeader } from "@/app/admin/_components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 
 type EditCategoryProps = {
   params: Promise<{ id: number }>;

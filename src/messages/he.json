@@ -5,10 +5,17 @@
     "Metadata": { "title": "קטגוריות", "description": "כל הקטגוריות לבחירה" }
   },
   "ProductsPage": {
+    "header": "מוצרים",
+    "Breadcrumbs": {
+      "home": "בית",
+      "categories": "קטגוריות",
+      "products": "מוצרים"
+    },
     "button": "פרטי המוצר",
     "Metadata": { "title": "מוצרים", "description": "כל המוצרים הזמינים במלאי" }
   },
   "CartPage": {
+    "shop_button": "חזרה לחנות",
     "header": "הסל שלי",
     "alter": "הסל שלך ריק",
     "th_remove": "הסרה",
@@ -36,5 +43,24 @@
     "phone": "טלפון",
     "email": "אימייל",
     "notes": "הערות"
+  },
+  "DetailsPage": {
+    "header": "פרטי המוצר",
+    "button": "הוסף לסל",
+    "Breadcrumbs": {
+      "home": "בית",
+      "category": "קטגוריה",
+      "products": "מוצר"
+    },
+    "Metadata": {
+      "title": "פרטי המוצר",
+      "description": "מידע מפורט על המוצר"
+    }
+  },
+  "ProductDetails": {
+    "price": "מחיר:",
+    "quantityLabel": "כמות:",
+    "quantity": "הכמות הנוכחית היא: {count}",
+    "addToCartButton": "הוסף לסל"
   }
 }

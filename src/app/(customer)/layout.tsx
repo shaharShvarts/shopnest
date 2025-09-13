@@ -28,7 +28,11 @@ export default async function HomeLayout({
             href={"/"}
             className="flex flex-col justify-center items-center"
           >
-            <DvorikLogo height={64} fill="#6D3F03" />
+            <DvorikLogo
+              height={64}
+              fill="#6D3F03"
+              className="hover:fill-[#C2410C] transition-colors"
+            />
           </Link>
           <div className="flex items-center justify-between gap-4">
             <LanguageSelector />

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/drizzle/db";
 import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "../_components/PageHeader";
+import { PageHeader } from "../../components/PageHeader";
 import { SubcategoryTable } from "./_components/SubcategoryTable";
 import { categories, products, subcategories } from "@/drizzle/schema";
 import { Suspense } from "react";

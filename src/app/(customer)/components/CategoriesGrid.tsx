@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { PageHeader } from "@/app/admin/_components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 import { CategoryCard } from "@/app/components/CategoryCard";
 import { CategoryPageProps } from "../page";
 

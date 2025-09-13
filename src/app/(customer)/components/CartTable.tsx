@@ -24,7 +24,16 @@ export default async function CartTable({ cartData }: cartDataProps) {
   const totalPrice = cartData.reduce((sum, item) => sum + item.price, 0);
 
   if (cartData.length === 0)
-    return <p className="text-muted-foreground">{t("alter")}</p>;
+    return (
+      <>
+        <p className="text-muted-foreground">{t("alter")}</p>
+        <Button className="p-4 mt-4">
+          <Link href="/" className="text-white">
+            {t("shop_button")}
+          </Link>
+        </Button>
+      </>
+    );
 
   return (
     <>

@@ -1,5 +1,5 @@
 import { db } from "@/drizzle/db";
-import { PageHeader } from "../../_components/PageHeader";
+import { PageHeader } from "../../../components/PageHeader";
 import SubcategoryForm from "../_components/SubcategoryForm";
 import { categories } from "@/drizzle/schema";
 

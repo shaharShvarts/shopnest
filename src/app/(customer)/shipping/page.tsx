@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/app/admin/_components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 import { ShippingTable } from "./_components/ShippingTable";
 
 export async function generateMetadata() {

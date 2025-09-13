@@ -2,7 +2,7 @@ import { db } from "@/drizzle/db";
 import { eq } from "drizzle-orm";
 import { categories, subcategories } from "@/drizzle/schema";
 import SubcategoryForm from "../../_components/SubcategoryForm";
-import { PageHeader } from "@/app/admin/_components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 
 type EditSubcategoryProps = {
   params: Promise<{ id: number }>;
