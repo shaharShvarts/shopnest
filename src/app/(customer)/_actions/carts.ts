@@ -7,9 +7,11 @@ import {
   deleteProductFromCart,
   fetchCartId,
   getProductPrice,
+  reserveProduct,
   updateTotalPrice,
 } from "./cartVerification";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 const productSchema = z.object({
   quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
@@ -56,9 +58,25 @@ export async function addToCart(
   }
 
   const { productId, quantity } = result.data;
+  const userId = (await cookies()).get("user_id")?.value;
+  const sessionId = (await cookies()).get("session_id")?.value;
+
+  if (!userId && !sessionId)
+    return {
+      success: false,
+      errors: { cart: ["unable to find the client"] },
+    };
 
   // 1. Find or create cart by userId or sessionId
-  const cartId = await fetchCartId();
+  const reservedProduct = await reserveProduct(productId);
+  if (!reservedProduct)
+    return {
+      success: false,
+      errors: { cart: ["This product cannot be reserved for the cart."] },
+    };
+
+  // 2. Find or create cart by userId or sessionId
+  const cartId = await fetchCartId(userId, sessionId);
 
   if (!cartId)
     return {
@@ -66,11 +84,11 @@ export async function addToCart(
       errors: { cart: ["Unable to create or fetch cart"] },
     };
 
-  // 2. Add product to cart
+  // 3. Add product to cart
   const cartProduct = await addProductToCart(productId, quantity, cartId);
   if (!cartProduct.success) return cartProduct;
 
-  // 3. Get product price
+  // 4. Get product price
   const product = await getProductPrice(productId);
   if (!product.success) return product;
 

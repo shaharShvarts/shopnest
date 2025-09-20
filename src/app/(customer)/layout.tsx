@@ -4,6 +4,7 @@ import { CartIcon } from "./components/CartIcon";
 import { CartProvider } from "@/context/CartContext";
 import LanguageSelector from "../components/LanguageSelector";
 import DvorikLogo from "../components/DvorikLogo";
+import Footer from "./components/Footer";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +20,8 @@ export default async function HomeLayout({
 }>) {
   return (
     <CartProvider>
-      <header
-        dir="ltr"
-        className="sticky top-0 border-b border-black/50 bg-white z-50 ltr"
-      >
-        <nav className="max-w-screen-xl mx-auto py-3 flex items-center justify-between">
+      <header dir="ltr" className="sticky top-0 bg-white z-50 ltr shadow-md">
+        <nav className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href={"/"}
             className="flex flex-col justify-center items-center"
@@ -45,7 +43,11 @@ export default async function HomeLayout({
           </div>
         </nav>
       </header>
-      <div className="max-w-screen-xl mx-auto my-6">{children}</div>
+      <div className="flex-grow bg-gradient-to-br from-gray-100 to-gray-400">
+        <div className="container mx-auto px-4 py-3">{children}</div>
+      </div>
+      <Footer />
     </CartProvider>
   );
 }
+// max-w-screen-xl mx-auto my-6

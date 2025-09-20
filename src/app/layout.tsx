@@ -42,7 +42,7 @@ export default async function RootLayout({
     <html lang={locale} dir={locale === "he" ? "rtl" : "ltr"}>
       <body
         className={cn(
-          "bg-background min-h-screen font-sans antialiased",
+          "bg-background min-h-screen flex flex-col font-sans antialiased",
           montserrat.variable
         )}
       >

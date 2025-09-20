@@ -8,7 +8,7 @@ import {
   boolean,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
-import { createdAt, deletedAt, updatedAt } from "../schemaHelpers";
+import { addedAt, createdAt, deletedAt, updatedAt } from "../schemaHelpers";
 import { categories } from "./category";
 import { subcategories } from "./subcategory";
 import { cartProducts } from "./cartProduct";
@@ -35,6 +35,7 @@ export const products = pgTable(
       () => subcategories.id,
       { onDelete: "restrict" }
     ),
+    addedAt,
     deletedAt,
     createdAt,
     updatedAt,

@@ -38,7 +38,7 @@ const fetchProductById = async (id: string) => {
 
 export type fetchedProduct = Awaited<ReturnType<typeof fetchProductById>>;
 
-export default async function PurchasePage({ params }: Params) {
+export default async function ProductsPage({ params }: Params) {
   const { id } = await params;
   const product = await fetchProductById(id);
   const t = await getTranslations("DetailsPage");
