@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/drizzle/db";
-import { carts, cartProducts, products } from "@/drizzle/schema";
+import { carts, cartProducts, products, reservations } from "@/drizzle/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 
+type RequestBody = {
+  productId: number;
+  quantity: number;
+};
+
 export async function POST(req: NextRequest) {
-  const { productId, quantity } = await req.json();
+  const { productId, quantity } = (await req.json()) as RequestBody;
   const userId = (await cookies()).get("user_id")?.value;
   const sessionId = (await cookies()).get("session_id")?.value;
 
-  if (!userId && !sessionId) {
-    return NextResponse.json({ error: "Missing session_id" }, { status: 400 });
+  const identifier = userId ?? sessionId;
+
+  if (!identifier) {
+    return new Response(JSON.stringify({ error: "Missing user/session ID" }), {
+      status: 400,
+    });
   }
 
   // // 1. Find or create cart
@@ -51,13 +60,16 @@ export async function POST(req: NextRequest) {
       productId,
       quantity,
     });
-  } catch (error) {
-    const err = error as Error;
+  } catch (error: any) {
+    if (error.cause.code === "23505") {
+      // PostgreSQL unique violation
+      return NextResponse.json(
+        { error: "Product already exists in cart" },
+        { status: 409 }
+      );
+    }
 
-    return NextResponse.json(
-      { error: "Product already exists in cart", err: err.message },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 
   // 4. Update cart totalPrice
@@ -68,28 +80,22 @@ export async function POST(req: NextRequest) {
     })
     .where(eq(carts.id, cartId));
 
+  // 5. If reservation exists for this user and product, extend the expiry time
+  const type = "Cart";
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+  await db
+    .update(reservations)
+    .set({ type, expiresAt })
+    .where(
+      and(
+        eq(reservations.productId, productId),
+        eq(reservations.userId, identifier)
+      )
+    );
+
   return NextResponse.json(
     { success: true, message: "Product added to cart" },
     { status: 200 }
   );
 }
-
-// export async function GET(req: Request) {
-//   const { searchParams } = new URL(req.url);
-//   const userId = searchParams.get("userId");
-//   const sessionId = searchParams.get("sessionId");
-
-//   const cartBy = userId
-//     ? eq(carts.userId, Number(userId))
-//     : eq(carts.sessionId, sessionId!);
-
-//   const [cart] = await db
-//     .select()
-//     .from(carts)
-//     .where(and(cartBy, eq(carts.isActive, true)))
-//     .limit(1);
-
-//   const count = cart ? cart.items.length : 0;
-
-//   return NextResponse.json({ count });
-// }

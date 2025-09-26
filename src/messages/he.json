@@ -61,6 +61,7 @@
     "price": "מחיר:",
     "quantityLabel": "כמות:",
     "quantity": "הכמות הנוכחית היא: {count}",
-    "addToCartButton": "הוסף לסל"
+    "addToCartButton": "הוסף לסל",
+    "addToCartSuccess": "המוצר נוסף בהצלחה לעגלה!"
   }
 }

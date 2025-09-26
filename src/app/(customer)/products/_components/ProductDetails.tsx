@@ -6,110 +6,179 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { addToCart } from "../../_actions/carts";
-import { startTransition, useActionState, useEffect } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import { fetchedProduct } from "../[id]/details/page";
 import { useTranslations } from "next-intl";
+import { Minus, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const getProductQTY = async (productId: number) => {
+  const res = await fetch(`/api/reservations?productId=${productId}`, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    if (res.status === 409) return res.json();
+    const errorData = await res.json();
+    console.log("Backend error:", errorData);
+
+    throw new Error(errorData.error || "Reservation failed");
+  }
+
+  return res.json();
+};
+
+const addProductToCart = async (productId: number, quantity: number) => {
+  const res = await fetch(`/api/cart/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ productId, quantity }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    console.log("Backend error:", errorData);
+
+    throw new Error(errorData.error || "Cart adding failed");
+  }
+
+  return res.json();
+};
 
 type ProductDetailsProps = {
   product: fetchedProduct;
 };
 
-export type AddToCartState = {
-  success: boolean;
-  errors?: string | Record<string, string[]>;
-};
-
 export default function ProductDetails({ product }: ProductDetailsProps) {
-  const [state, formAction, isPending] = useActionState<
-    AddToCartState,
-    FormData
-  >(addToCart, {
-    success: false,
-    errors: {},
-  });
+  const [counter, setCounter] = useState(product.quantity);
+  const [loading, setLoading] = useState(false);
 
-  const { setCartCount } = useCart();
+  useEffect(() => {
+    const fetchQuantity = async () => {
+      try {
+        const productQuantity = await getProductQTY(product.id);
+        setCounter(productQuantity.quantity);
+      } catch (error) {
+        const err = error as Error;
+        console.log(err.message || "Reservation error");
+        alert(err.message || "Failed to reserve product. Please try again.");
+      }
+    };
+
+    fetchQuantity();
+  }, [counter]);
+
+  const { addToCartContext } = useCart();
   const router = useRouter();
   const t = useTranslations("ProductDetails");
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Product added to cart!");
-      startTransition(() => {
-        setCartCount((count) => Number(count) + 1);
-        router.push("/");
-      });
-    } else if (state.errors && Object.keys(state.errors).length > 0) {
-      toast.error(
-        typeof state.errors === "string"
-          ? state.errors
-          : Object.values(state.errors).flat().join(", ")
-      );
-    }
-  }, [state]);
-
   return (
-    <>
-      <form action={formAction} className="space-y-8">
-        <input type="hidden" name="productId" value={product.id.toString()} />
-        <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            {/* <!-- Left Column: Image --> */}
-            <div className="flex flex-col w-full">
-              <Image
-                src={product.imageUrl}
-                alt={product.name}
-                width={500}
-                height={500}
-                className="transition-transform duration-300 hover:scale-105"
-                sizes="100vw"
-              />
-            </div>
+    <div className="container mx-auto p-4">
+      <div className="columns-2 xs:columns-1 gap-4">
+        <div className="image-container mb-4 border-gray-200 border rounded-lg overflow-hidden">
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            width={500}
+            height={500}
+            className="transition-transform duration-300 hover:scale-105"
+            sizes="100vw"
+          />
+        </div>
+        <div
+          className={cn(
+            "flex flex-col justify-start h-full border-gray-200 border rounded-lg overflow-hidden ",
+            counter === 0 ? " pointer-events-none opacity-50" : ""
+          )}
+        >
+          <h1 className="text-3xl font-bold mb-2 text-gray-800">
+            {product.name}
+          </h1>
+          <h3 className="text-sm font-semibold text-gray-600 mb-6">
+            <span>{t("price")} </span>
+            {new Intl.NumberFormat("he-IL", {
+              style: "currency",
+              currency: "ILS",
+            }).format(product.price)}
+          </h3>
+          <p className="text-gray-700 mb-4">{product.description}</p>
 
-            {/* <!-- Right Column: Content --> */}
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <h1 className="text-3xl font-bold mb-2 text-gray-800">
-                  {product.name}
-                </h1>
-                <h3 className="text-sm font-semibold text-gray-600 mb-6">
-                  <span>{t("price")} </span>
-                  {new Intl.NumberFormat("he-IL", {
-                    style: "currency",
-                    currency: "ILS",
-                  }).format(product.price)}
-                </h3>
-                <p className="text-gray-700 mb-4">{product.description}</p>
-              </div>
-
-              <div className="space-y-2">
-                {product.quantity > 1 && (
-                  <p>{t("quantity", { count: product.quantity })}</p>
-                )}
-                <Label htmlFor="quantity" className="mt-4">
-                  {t("quantityLabel")}
-                </Label>
+          {product.quantity > 1 && (
+            <>
+              <p>{t("quantity", { count: product.quantity })}</p>
+              <Label htmlFor="quantity" className="mt-4">
+                {t("quantityLabel")}
+              </Label>
+              <div className="flex items-center space-x-2 mt-2">
+                <Button
+                  disabled={counter === 0}
+                  variant="outline"
+                  className="border-2 border-black py-4 rounded-none"
+                  size="sm"
+                  onClick={() =>
+                    setCounter((prev) => (prev > 1 ? prev - 1 : prev))
+                  }
+                >
+                  <Minus />
+                </Button>
                 <Input
                   type="number"
-                  className="w-[200px]"
                   id="quantity"
-                  required
                   name="quantity"
-                  defaultValue={1}
-                  min="1"
+                  disabled={counter === 0}
+                  value={counter ?? 0} // fallback to 0 if undefined
+                  onChange={(e) => setCounter(Number(e.target.value))}
+                  min={1}
                   max={product.quantity}
+                  className="appearance-none w-[60px] text-center !border-2 !border-black !rounded-none focus-visible:outline-none focus-visible:ring-0 focus-visible:border-transparent"
                 />
+                <Button
+                  variant="outline"
+                  disabled={counter === 0}
+                  className="border-2 border-black py-4 rounded-none"
+                  size="sm"
+                  onClick={() =>
+                    setCounter((prev) =>
+                      prev < product.quantity ? prev + 1 : prev
+                    )
+                  }
+                >
+                  <Plus />
+                </Button>
               </div>
-
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Saving..." : t("addToCartButton")}
-              </Button>
-            </div>
-          </div>
+            </>
+          )}
+          <Button
+            className="mt-6 w-[200px]"
+            disabled={loading || counter === 0}
+            onClick={async () => {
+              setLoading(true);
+              try {
+                await addProductToCart(product.id, counter);
+                addToCartContext({
+                  productId: product.id,
+                  quantity: counter,
+                  expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+                });
+                toast.success(t("addToCartSuccess"), { position: "top-right" });
+                router.push(`/categories/${product.categoryId}/products`);
+              } catch (error) {
+                const err = error as Error;
+                console.log("Cart adding error:", err.message);
+                alert(
+                  err.message || "Failed to reserve product. Please try again."
+                );
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {t("addToCartButton")}
+          </Button>
         </div>
-      </form>
-    </>
+      </div>
+    </div>
   );
 }

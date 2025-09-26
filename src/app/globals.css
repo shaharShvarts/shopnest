@@ -44,6 +44,15 @@ textarea,
   [role="button"]:not([disabled]) {
     cursor: pointer;
   }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    @apply appearance-none m-0;
+  }
+
+  input[type="number"] {
+    @apply appearance-none; /* For Firefox */
+  }
 }
 
 @theme inline {

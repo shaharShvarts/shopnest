@@ -32,7 +32,7 @@ export const fetchCategoryWithProducts = cache(
         .where(eq(products.categoryId, id))
         .orderBy(desc(products.name)),
     ]);
-    console.log("category");
+
     return {
       categoryName: category[0]?.name ?? null,
       products: productArr,

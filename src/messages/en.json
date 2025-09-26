@@ -23,7 +23,7 @@
   "CartPage": {
     "shop_button": "Back to shop",
     "header": "Shopping Cart",
-    "alter": "Your cart is empty.",
+    "alter": "Your cart is currently empty.",
     "th_remove": "remove",
     "th_name": "Name",
     "th_description": "Description",
@@ -71,6 +71,7 @@
     "price": "Price:",
     "quantityLabel": "quantity:",
     "quantity": "The current quantity is: {count}",
-    "addToCartButton": "Add to cart"
+    "addToCartButton": "Add to cart",
+    "addToCartSuccess": "Product added to cart successfully!"
   }
 }

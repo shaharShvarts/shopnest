@@ -9,3 +9,4 @@ export * from "@/drizzle/schema/cart";
 export * from "@/drizzle/schema/cartProduct";
 export * from "@/drizzle/schema/order";
 export * from "@/drizzle/schema/orderProduct";
+export * from "@/drizzle/schema/reservation";

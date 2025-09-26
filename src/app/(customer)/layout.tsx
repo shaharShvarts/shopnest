@@ -43,7 +43,9 @@ export default async function HomeLayout({
           </div>
         </nav>
       </header>
-      <div className="flex-grow bg-gradient-to-br from-gray-100 to-gray-400">
+      <div className="flex-grow">
+        {" "}
+        {/* bg-gradient-to-br from-gray-100 to-gray-400 */}
         <div className="container mx-auto px-4 py-3">{children}</div>
       </div>
       <Footer />
