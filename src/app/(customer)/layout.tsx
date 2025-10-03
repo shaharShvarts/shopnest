@@ -5,6 +5,7 @@ import { CartProvider } from "@/context/CartContext";
 import LanguageSelector from "../components/LanguageSelector";
 import DvorikLogo from "../components/DvorikLogo";
 import Footer from "./components/Footer";
+import CookieConsent from "./components/CookieConsent";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +45,10 @@ export default async function HomeLayout({
         </nav>
       </header>
       <div className="flex-grow">
-        {" "}
-        {/* bg-gradient-to-br from-gray-100 to-gray-400 */}
         <div className="container mx-auto px-4 py-3">{children}</div>
       </div>
       <Footer />
+      <CookieConsent />
     </CartProvider>
   );
 }
-// max-w-screen-xl mx-auto my-6

@@ -12,6 +12,7 @@ import { getLocale } from "next-intl/server";
 import { RemoveButton } from "../carts/_components/RemoveButton";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 type cartDataProps = {
   cartData: CartPageProps[];
@@ -38,47 +39,47 @@ export default async function CartTable({ cartData }: cartDataProps) {
   return (
     <>
       <Table>
-        <TableHeader>
-          <TableRow className={locale === "he" ? "[&>th]:text-right" : ""}>
-            <TableHead className="w-0">
-              <span className="sr-only">Shopping Cart</span>
-            </TableHead>
-            <TableHead>{t("th_name")}</TableHead>
-            <TableHead>{t("th_description")}</TableHead>
-            <TableHead>{t("th_quantity")}</TableHead>
-            <TableHead>{t("th_price")}</TableHead>
-            <TableHead>{t("th_remove")}</TableHead>
-            <TableHead className="w-0">
-              <span className="sr-only">Remove</span>
-            </TableHead>
+        <TableHeader className="bg-muted">
+          <TableRow className={cn(locale === "he" ? "[&>th]:text-right" : "")}>
+            <TableHead className="font-bold">{t("th_name")}</TableHead>
+            <TableHead className="font-bold">{t("th_description")}</TableHead>
+            <TableHead className="font-bold">{t("th_quantity")}</TableHead>
+            <TableHead className="font-bold">{t("th_price")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {cartData.map((item) => (
             <TableRow key={item.id}>
               <TableCell>
-                <span className="sr-only">Shopping Cart</span>
+                <div className="flex items-center gap-3">
+                  <RemoveButton productId={item.id} />
+                  <span>{item.name}</span>
+                </div>
               </TableCell>
-              <TableCell>{item.name}</TableCell>
               <TableCell>{item.description}</TableCell>
               <TableCell>{item.quantity}</TableCell>
               <TableCell>{item.price}</TableCell>
-              <RemoveButton productId={item.id} />
             </TableRow>
           ))}
-          <TableRow className="font-semibold border-t">
-            <TableCell />
+          <TableRow className="font-semibold border-t bg-muted">
             <TableCell colSpan={2}>{t("summary_label")}</TableCell>
             <TableCell>{totalQuantity}</TableCell>
-            <TableCell>{totalPrice.toFixed(2)}</TableCell>
+            <TableCell>
+              {new Intl.NumberFormat("he-IL", {
+                style: "currency",
+                currency: "ILS",
+              }).format(totalPrice)}
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>
-      <Button className="p-4 mt-4">
-        <Link href="/shipping" className="text-white">
-          {t("button")}
-        </Link>
-      </Button>
+      <div className="flex justify-center mt-4">
+        <Button className="p-4">
+          <Link href="/shipping" className="text-white">
+            {t("button")}
+          </Link>
+        </Button>
+      </div>
     </>
   );
 }

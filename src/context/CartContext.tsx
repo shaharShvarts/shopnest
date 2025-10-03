@@ -4,55 +4,33 @@ import {
   createContext,
   useContext,
   useState,
+  Dispatch,
+  SetStateAction,
   ReactNode,
   useEffect,
 } from "react";
 
-type CartItem = {
-  productId: number;
-  quantity: number;
-  expiresAt: Date;
-};
-
 type CartContextType = {
-  items: CartItem[];
-  addToCartContext: (item: CartItem) => void;
-  removeFromCartContext: (productId: number) => void;
+  cartCount: number;
+  setCartCount: Dispatch<SetStateAction<number>>;
 };
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+const CartContext = createContext<CartContextType | null>(null);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [cartCount, setCartCount] = useState<number>(0);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem("cart");
-    if (stored) {
-      const parsed = JSON.parse(stored) as CartItem[];
-      const now = new Date(Date.now());
-      const valid = parsed.filter((item) => item.expiresAt > now);
-      setItems(valid);
-    }
+    const stored = localStorage.getItem("cartCount");
+    if (stored) setCartCount(Number(stored));
   }, []);
 
-  // Save to localStorage whenever items change
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(items));
-  }, [items]);
-
-  const addToCartContext = (item: CartItem) => {
-    setItems((prev) => [...prev, item]);
-  };
-
-  const removeFromCartContext = (productId: number) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
-  };
+    localStorage.setItem("cartCount", String(cartCount));
+  }, [cartCount]);
 
   return (
-    <CartContext.Provider
-      value={{ items, addToCartContext, removeFromCartContext }}
-    >
+    <CartContext.Provider value={{ cartCount, setCartCount }}>
       {children}
     </CartContext.Provider>
   );

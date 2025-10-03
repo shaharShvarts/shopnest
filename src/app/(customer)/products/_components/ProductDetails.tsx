@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { addToCart } from "../../_actions/carts";
+// import { addToCart } from "../../_actions/carts";
 import { startTransition, useActionState, useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
@@ -14,21 +14,21 @@ import { useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const getProductQTY = async (productId: number) => {
-  const res = await fetch(`/api/reservations?productId=${productId}`, {
-    method: "GET",
-  });
+// const getProductQTY = async (productId: number) => {
+//   const res = await fetch(`/api/reservations?productId=${productId}`, {
+//     method: "GET",
+//   });
 
-  if (!res.ok) {
-    if (res.status === 409) return res.json();
-    const errorData = await res.json();
-    console.log("Backend error:", errorData);
+//   if (!res.ok) {
+//     if (res.status === 409) return res.json();
+//     const errorData = await res.json();
+//     console.log("Backend error:", errorData);
 
-    throw new Error(errorData.error || "Reservation failed");
-  }
+//     throw new Error(errorData.error || "Reservation failed");
+//   }
 
-  return res.json();
-};
+//   return res.json();
+// };
 
 const addProductToCart = async (productId: number, quantity: number) => {
   const res = await fetch(`/api/cart/add`, {
@@ -55,22 +55,22 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   const [counter, setCounter] = useState(product.quantity);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchQuantity = async () => {
-      try {
-        const productQuantity = await getProductQTY(product.id);
-        setCounter(productQuantity.quantity);
-      } catch (error) {
-        const err = error as Error;
-        console.log(err.message || "Reservation error");
-        alert(err.message || "Failed to reserve product. Please try again.");
-      }
-    };
+  // useEffect(() => {
+  //   const fetchQuantity = async () => {
+  //     try {
+  //       const productQuantity = await getProductQTY(product.id);
+  //       setCounter(productQuantity.quantity);
+  //     } catch (error) {
+  //       const err = error as Error;
+  //       console.log(err.message || "Reservation error");
+  //       alert(err.message || "Failed to reserve product. Please try again.");
+  //     }
+  //   };
 
-    fetchQuantity();
-  }, [counter]);
+  //   fetchQuantity();
+  // }, [counter]);
 
-  const { addToCartContext } = useCart();
+  const { setCartCount } = useCart();
   const router = useRouter();
   const t = useTranslations("ProductDetails");
 
@@ -157,12 +157,10 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
               setLoading(true);
               try {
                 await addProductToCart(product.id, counter);
-                addToCartContext({
-                  productId: product.id,
-                  quantity: counter,
-                  expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+                setCartCount((prev) => prev + counter);
+                toast.success(t("addToCartSuccess"), {
+                  position: "top-center",
                 });
-                toast.success(t("addToCartSuccess"), { position: "top-right" });
                 router.push(`/categories/${product.categoryId}/products`);
               } catch (error) {
                 const err = error as Error;

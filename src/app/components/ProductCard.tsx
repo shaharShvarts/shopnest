@@ -1,7 +1,4 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardHeader,
@@ -13,39 +10,17 @@ import {
 import Image from "next/image";
 import { formatCurrency } from "@/lib/formatters";
 import { ProductPreview } from "../(customer)/types";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { getTranslations } from "next-intl/server";
+import Link from "next/link";
 
-const reserveProduct = async (productId: number) => {
-  const res = await fetch("/api/reservations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ productId }),
-  });
-
-  if (!res.ok) {
-    if (res.status === 409) return "Not enough stock";
-    const errorData = await res.json();
-    console.log("Backend error:", errorData);
-
-    throw new Error(errorData.error || "Reservation failed");
-  }
-
-  return res.json();
-};
-
-export function ProductCard({
+export async function ProductCard({
   id,
   name,
   price,
   imageUrl,
   description,
 }: ProductPreview) {
-  const t = useTranslations("ProductsPage");
-  const [loading, setLoading] = useState(false);
-
-  const router = useRouter();
-
+  const t = await getTranslations("ProductsPage");
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">
@@ -65,34 +40,15 @@ export function ProductCard({
         <p className="line-clamp-4">{description}</p>
       </CardContent>
       <CardFooter>
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={loading}
-          onClick={async () => {
-            setLoading(true);
-            try {
-              await reserveProduct(id);
-              router.push(`/products/${id}/details`);
-            } catch (error) {
-              const err = error as Error;
-              console.log(err.message || "Reservation error");
-              alert(
-                err.message || "Failed to reserve product. Please try again."
-              );
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          {t("button")}
+        <Button asChild size="lg" className="w-full">
+          <Link href={`/products/${id}/details`}>{t("button")}</Link>
         </Button>
       </CardFooter>
     </Card>
   );
 }
 
-export function ProductCardSkeleton() {
+export async function ProductCardSkeleton() {
   return (
     <Card className="flex overflow-hidden flex-col animate-pulse">
       <div className="w-full aspect-video bg-gray-300" />

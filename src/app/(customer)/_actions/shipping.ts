@@ -1,7 +1,7 @@
 "use server";
 
 import z from "zod";
-import type { AddToCartState } from "../products/_components/ProductDetails";
+// import type { AddToCartState } from "../products/_components/ProductDetails";
 import {
   addProductToCart,
   deleteProductFromCart,

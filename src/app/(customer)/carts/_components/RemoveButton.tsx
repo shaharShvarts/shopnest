@@ -13,21 +13,18 @@ export function RemoveButton({ productId }: { productId: number }) {
   const { setCartCount } = useCart();
 
   return (
-    <TableCell>
-      <span className="sr-only">Remove</span>
-      <button
-        disabled={isPending}
-        onClick={() => {
-          startTransition(async () => {
-            const quantity = await removeProduct(productId);
-            if (!quantity) return;
-            setCartCount((count) => Number(count) - quantity);
-            router.refresh();
-          });
-        }}
-      >
-        <CircleX className="cursor-pointer" />
-      </button>
-    </TableCell>
+    <button
+      disabled={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          const quantity = await removeProduct(productId);
+          if (!quantity) return;
+          setCartCount((count) => Number(count) - quantity);
+          router.refresh();
+        });
+      }}
+    >
+      <CircleX className="cursor-pointer" />
+    </button>
   );
 }

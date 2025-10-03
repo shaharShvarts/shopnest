@@ -3,23 +3,32 @@
 import { db } from "@/drizzle/db";
 import { carts, cartProducts, products } from "@/drizzle/schema";
 import { eq, sql, and } from "drizzle-orm";
+import { cookies } from "next/headers";
 
-export async function reserveProduct(productId: number) {
-  try {
-    await db
-      .update(products)
-      .set({
-        addedAt: sql`NOW()`,
-      })
-      .where(eq(products.id, productId))
-      .returning();
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
+const fetchUserOrSession = async () => {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("user_id")?.value;
+  const sessionId = cookieStore.get("session_id")?.value;
+  return { userId, sessionId };
+};
 
-export async function fetchCartId(userId?: string, sessionId?: string) {
+// export async function reserveProduct(productId: number) {
+//   try {
+//     await db
+//       .update(products)
+//       .set({
+//         addedAt: sql`NOW()`,
+//       })
+//       .where(eq(products.id, productId))
+//       .returning();
+//     return true;
+//   } catch (error) {
+//     return false;
+//   }
+// }
+
+export async function fetchCartId() {
+  const { userId, sessionId } = await fetchUserOrSession();
   const cartBy = userId
     ? eq(carts.userId, Number(userId))
     : eq(carts.sessionId, sessionId!);
