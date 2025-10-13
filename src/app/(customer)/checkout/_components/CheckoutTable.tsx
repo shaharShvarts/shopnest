@@ -2,15 +2,23 @@
 
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Label } from "@radix-ui/react-label";
+import { Label } from "@/components/ui/label";
 import { submitCheckout } from "../../_actions/checkout";
 import ShippingAddress from "./ShippingAddress";
 import { Button } from "@/components/ui/button";
+import { CreditCard, Apple } from "lucide-react";
+import { BsPaypal } from "react-icons/bs";
+import { FaApplePay } from "react-icons/fa";
+import { FaGooglePay } from "react-icons/fa";
+import { BsCreditCard } from "react-icons/bs";
+import { HiCreditCard } from "react-icons/hi2";
+import { FaCcPaypal } from "react-icons/fa6";
 
 export default function CheckoutTable() {
   const t = useTranslations("CheckoutPage");
 
   const [showBilling, setShowBilling] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("credit");
   const [state, formAction] = useActionState(submitCheckout, {
     success: false,
     errors: {},
@@ -21,14 +29,10 @@ export default function CheckoutTable() {
       {/* Contact Info */}
       <section>
         <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
-        <Label htmlFor="email">
-          {t("email")}
-          <span className="text-red-500">*</span>
-        </Label>
         <input
           name="email"
           type="email"
-          placeholder="Email"
+          placeholder="Email Address"
           className="w-full border p-2 rounded"
         />
         {state.errors?.email && (
@@ -47,7 +51,7 @@ export default function CheckoutTable() {
         </p>
         <div className="space-y-2">
           <label className="flex items-center space-x-2">
-            <input type="radio" name="shipping" value="regular" required />
+            <input type="radio" name="shipping" value="regular" />
             <span>USA - Regular: $8.00 (3–5 Business Days)</span>
           </label>
           <label className="flex items-center space-x-2">
@@ -61,39 +65,89 @@ export default function CheckoutTable() {
         </div>
       </section>
 
-      {/* Payment Method */}
-      <section>
+      <section className=" border p-2 rounded space-y-4">
         <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <input
-            name="cardName"
-            placeholder="Name on Card"
-            required
-            className="border p-2 rounded"
-          />
-          <input
-            name="cardNumber"
-            placeholder="Card Number"
-            required
-            className="border p-2 rounded"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <input
-            name="expiry"
-            placeholder="Expiration Date (MM/YY)"
-            required
-            className="border p-2 rounded"
-          />
-          <input
-            name="securityCode"
-            placeholder="Security Code"
-            required
-            className="border p-2 rounded"
-          />
-        </div>
-      </section>
+        <div className="grid grid-cols-4 justify-items-center">
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              name="payment"
+              value="credit"
+              checked={paymentMethod === "credit"}
+              onChange={() => setPaymentMethod("credit")}
+              required
+            />
+            <HiCreditCard className="w-5 h-5 text-blue-600" />
+          </label>
 
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              name="payment"
+              value="paypal"
+              checked={paymentMethod === "paypal"}
+              onChange={() => setPaymentMethod("paypal")}
+            />
+            <BsPaypal className="w-5 h-5 text-blue-600" />
+          </label>
+
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              name="payment"
+              value="applepay"
+              checked={paymentMethod === "applepay"}
+              onChange={() => setPaymentMethod("applepay")}
+            />
+            <FaApplePay className="w-10 h-10 text-blue-600" />
+          </label>
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              name="payment"
+              value="googlepay"
+              checked={paymentMethod === "googlepay"}
+              onChange={() => setPaymentMethod("googlepay")}
+            />
+            <FaGooglePay className="w-10 h-10 text-blue-600" />
+          </label>
+        </div>
+
+        {/* Payment Method */}
+        {paymentMethod === "credit" && (
+          <section>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                name="cardName"
+                placeholder="Name on Card"
+                className="border p-2 rounded"
+              />
+              <input
+                name="cardNumber"
+                placeholder="Card Number"
+                className="border p-2 rounded"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <input
+                name="expiry"
+                placeholder="Expiration (MM/YY)"
+                className="border p-2 rounded"
+              />
+              <input
+                name="securityCode"
+                placeholder="Security Code"
+                className="border p-2 rounded"
+              />
+              <input
+                name="cardId"
+                placeholder="Card ID"
+                className="w-full border p-2 rounded"
+              />
+            </div>
+          </section>
+        )}
+      </section>
       {/* Billing Address */}
       <section>
         <h2 className="text-xl font-semibold mb-4">Billing Address</h2>
@@ -114,7 +168,7 @@ export default function CheckoutTable() {
       <section>
         <h2 className="text-xl font-semibold mb-4">Additional Information</h2>
         <p className="text-sm text-gray-700">
-          Note: You agree to CanaKit’s Authorized Reseller Program, and
+          Note: You agree to Shopnest’s Authorized Reseller Program, and
           understand that this product is not intended for resale.
         </p>
       </section>

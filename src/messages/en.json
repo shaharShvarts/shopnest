@@ -36,7 +36,7 @@
       "description": "Cart contents awaiting purchase"
     }
   },
-  "CheckoutPage": {
+  "ShippingPage": {
     "header": "Shipping address",
     "firstName": "First Name",
     "lastName": "Last Name",

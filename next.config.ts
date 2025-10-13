@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+const maxSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE);
+const bodySizeLimit = maxSize > 1 ? (`${maxSize}mb` as const) : "5mb";
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? 0),
+      bodySizeLimit,
     },
   },
   webpack(config) {

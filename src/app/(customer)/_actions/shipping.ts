@@ -12,6 +12,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { ShippingFormState } from "../shipping/_components/ShippingTable";
 import { cookies } from "next/headers";
+import { POST as iCountPayment } from "@/app/api/iCount/payment/route";
 
 const shippingSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -44,6 +45,42 @@ export async function redirectToPurchase(
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
+
+  try {
+    const payload = {
+      amount: 1,
+      customerName: "John Doe",
+      customerEmail: "john.doe@example.com",
+    };
+
+    const request = new Request("http://localhost/api/iCount/payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const response = await iCountPayment(request);
+
+    // 1. Call your Next.js API route
+    // const response = await fetch("/api/iCount/payment", );
+
+    // if (!response.ok) {
+    //   throw new Error("Payment initialization failed");
+    // }
+    if (!response.ok) {
+      console.error("iCount error status:", response.status);
+    }
+    // const data = await response.json();
+    // console.log(data);
+    // // 2. Redirect the user to the secure iCount payment page
+    // if (data.paymentUrl) {
+    //   // router.push(data.paymentUrl);
+    // }
+  } catch (error) {
+    console.error("Error during checkout:", error);
+    // alert("An error occurred during payment. Please try again.");
+    // setLoading(false);
+  }
 
   return { success: true, errors: {} };
 }

@@ -1,0 +1,79 @@
+POST https://api.icount.co.il/api/v3.php/auth/login
+Content-Type: application/json
+
+{
+  "cid": "shopnest",
+  "user": "shahar.shvarts@gmail.com",
+  "pass":"abf784"
+}
+
+###
+POST https://api.icount.co.il/api/v3.php/token/info
+Content-Type: application/json
+
+{
+  "sid": "68eb674c2592a956294709",
+  "cid": "shopnest",
+  "user": "shahar.shvarts@gmail.com",
+  "pass":"abf784",
+  "token_id":10196385,
+  "access_token":"API3E8-C0A82008-68EA31A6-A1B4B619047E72FD"
+}
+
+###
+POST https://api.icount.co.il/api/v3.php/user/info
+Content-Type: application/json
+Authorization: Bearer API3E8-C0A82008-68EA31A6-A1B4B619047E72FD
+
+{
+  "cid": "shopnest",
+  "username": "shahar.shvarts",
+  "user_email": "shahar.shvarts@gmail.com"
+}
+
+###
+POST https://api.icount.co.il/api/v3.php/token/create
+Content-Type: application/json
+
+{
+  "sid": "68ea312a0ae04260679009",
+  "cid": "shopnest",
+  "user": "shahar.shvarts@gmail.com",
+  "pass":"abf784",
+  "user_id": 1,
+  "expires_in": 0,
+  "no_refresh": true
+}
+
+###
+POST https://api.icount.co.il/api/v3.php/cc/bill
+Content-Type: application/json
+Authorization: Bearer API3E8-C0A82008-68EA31A6-A1B4B619047E72FD
+
+{
+  "cid": "shopnest",
+  "client_id": 1,
+  "custom_client_id": "999",
+  "vat_id": "033052622",
+  "email": "shahar222@gmail.com",
+  "client_name": "Shopnest (attempt 1)",
+  "sum": 20,
+  "use_j5_if_available": false,
+  "num_of_payments": 0,
+  "first_payment": 20,
+  "is_credit": true,
+  "currency_id": 1,
+  "currency_code": "ILS",
+  "currency": "Israeli Shekel",
+  "cc_token_id": 0,
+  "cc_number": 4785701450021528,
+  "cc_type": "Credit-Card",
+  "cc_cvv": 181,
+  "cc_validity": "0931",
+  "cc_holder_id": "033052622",
+  "cc_holder_name": "shahar shvarts",
+  "payment_description": "test",
+  "is_test": false
+}
+
+

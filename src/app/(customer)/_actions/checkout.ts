@@ -1,47 +1,42 @@
 "use server";
 
-import z from "zod";
+import { checkoutSchema } from "../checkout/schema";
 
-const checkoutSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Invalid email address"),
+// import z from "zod";
+// import { ZodError, SafeParseError } from "zod";
 
-  shipping_name: z.string().min(1, "Name is required"),
-  shipping_lastName: z.string().min(1, "Last name is required"),
-  shipping_address: z.string().min(1, "Address is required"),
-  shipping_city: z.string().min(1, "City is required"),
-  shipping_state: z.string().min(1, "City is required"),
-  shipping_postal: z.string().min(1, "Postal code is required"),
-  shipping_phone: z.string().min(1, "Phone is required"),
-  //   shipping_country: z.string().min(1, "Country is required"),
-  //   shipping_payment: z.string().min(1, "Payment method is required"),
-});
+// const checkoutSchema = z.object({
+//   email: z.string().min(1, "Email is required").email("Invalid email address"),
 
-const billingSchema = z.object({
-  billing_name: z.string().min(1, "Name is required"),
-  billing_lastName: z.string().min(1, "Last name is required"),
-  billing_address: z.string().min(1, "Address is required"),
-  billing_city: z.string().min(1, "City is required"),
-  billing_state: z.string().min(1, "State is required"),
-  billing_postal: z.string().min(1, "Postal code is required"),
-  billing_phone: z.string().min(1, "Phone is required"),
-});
+//   shipping_name: z.string().min(1, "Name is required"),
+//   shipping_lastName: z.string().min(1, "Last name is required"),
+//   shipping_address: z.string().min(1, "Address is required"),
+//   shipping_city: z.string().min(1, "City is required"),
+//   shipping_state: z.string().min(1, "City is required"),
+//   shipping_postal: z.string().min(1, "Postal code is required"),
+//   shipping_phone: z.string().min(1, "Phone is required"),
+//   //   shipping_country: z.string().min(1, "Country is required"),
+//   //   shipping_payment: z.string().min(1, "Payment method is required"),
+// });
+
+// const billingSchema = z.object({
+//   billing_name: z.string().min(1, "Name is required"),
+//   billing_lastName: z.string().min(1, "Last name is required"),
+//   billing_address: z.string().min(1, "Address is required"),
+//   billing_city: z.string().min(1, "City is required"),
+//   billing_state: z.string().min(1, "State is required"),
+//   billing_postal: z.string().min(1, "Postal code is required"),
+//   billing_phone: z.string().min(1, "Phone is required"),
+// });
 
 export async function submitCheckout(prevState: any, formData: FormData) {
   const data = Object.fromEntries(formData);
-  const billingEnabled = data.billing_enabled === "on";
+  const result = checkoutSchema.safeParse(data);
 
-  const baseResult = checkoutSchema.safeParse(data);
-  const billingResult = billingEnabled
-    ? billingSchema.safeParse(data)
-    : { success: true };
-
-  if (!baseResult.success || !billingResult.success) {
+  if (!result.success) {
     return {
       success: false,
-      errors: {
-        ...baseResult.error?.flatten().fieldErrors,
-        ...billingResult.error?.flatten().fieldErrors,
-      },
+      errors: result.error.flatten().fieldErrors,
     };
   }
 

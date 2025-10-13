@@ -5,13 +5,11 @@ export default function ShippingAddress({ prefix }: { prefix: string }) {
         <input
           name={`${prefix}_firstName`}
           placeholder="First Name"
-          required
           className="border p-2 rounded"
         />
         <input
           name={`${prefix}_lastName`}
           placeholder="Last Name"
-          required
           className="border p-2 rounded"
         />
       </div>
@@ -23,7 +21,6 @@ export default function ShippingAddress({ prefix }: { prefix: string }) {
       <input
         name={`${prefix}_address`}
         placeholder="Address"
-        required
         className="w-full border p-2 rounded mt-4"
       />
       <input
@@ -35,28 +32,21 @@ export default function ShippingAddress({ prefix }: { prefix: string }) {
         <input
           name={`${prefix}_city`}
           placeholder="City"
-          required
           className="border p-2 rounded"
         />
-        <select
-          name={`${prefix}_state`}
-          required
-          className="border p-2 rounded"
-        >
+        <select name={`${prefix}_state`} className="border p-2 rounded">
           <option value="">State</option>
           <option value="NY">Israel</option>
         </select>
         <input
           name={`${prefix}_postal`}
           placeholder="ZIP Code"
-          required
           className="border p-2 rounded"
         />
       </div>
       <input
         name={`${prefix}_phone`}
         placeholder="Phone"
-        required
         className="w-full border p-2 rounded mt-4"
       />
     </section>
