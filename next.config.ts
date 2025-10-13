@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit,
     },
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/,

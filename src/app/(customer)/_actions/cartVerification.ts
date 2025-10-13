@@ -132,7 +132,7 @@ export async function updateTotalPrice(
   } catch (error) {
     return {
       success: false,
-      errors: "Failed to update cart total price",
+      errors: `Failed to update cart total price ${error}`,
     };
   }
 }
