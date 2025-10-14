@@ -11,7 +11,7 @@ type ProductsPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export const fetchCategoryWithProducts = cache(
+const fetchCategoryWithProducts = cache(
   async (id: number) => {
     const [category, productArr] = await Promise.all([
       db

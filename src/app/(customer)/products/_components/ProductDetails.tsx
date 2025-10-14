@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 const addProductToCart = async (productId: number, quantity: number) => {
   const res = await fetch(`/api/cart/add`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ productId, quantity }),
   });

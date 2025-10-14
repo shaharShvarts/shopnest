@@ -11,8 +11,11 @@ type RequestBody = {
 
 export async function POST(req: NextRequest) {
   const { productId, quantity } = (await req.json()) as RequestBody;
-  const userId = (await cookies()).get("user_id")?.value;
-  const sessionId = (await cookies()).get("session_id")?.value;
+  // const userId = (await cookies()).get("user_id")?.value;
+  // const sessionId = (await cookies()).get("session_id")?.value;
+
+  const userId = req.cookies.get("user_id")?.value;
+  const sessionId = req.cookies.get("session_id")?.value;
 
   const identifier = userId ?? sessionId;
 
