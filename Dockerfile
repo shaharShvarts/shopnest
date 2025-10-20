@@ -4,6 +4,7 @@ WORKDIR /app
 COPY . .
 RUN npm install && npm run build
 
+
 # Stage 2: Serve
 FROM node:18-alpine
 WORKDIR /app
