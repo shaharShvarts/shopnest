@@ -1,0 +1,5 @@
+Run Dev:
+docker-compose -f docker-compose.dev.yml up -d
+
+Run Prod:
+docker-compose -f docker-compose.prod.yml up -d

@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  web-prod:
+    build:
+      context: ./app
+    ports:
+      - "3002:3000"
+    env_file:
+      - .env.production
+    depends_on:
+      - db-prod
+    networks:
+      - shopnest-prod-net
+
+  db-prod:
+    image: postgres:17.0
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - pgdata-prod:/var/lib/postgresql/data
+    networks:
+      - shopnest-prod-net
+
+  nginx-prod:
+    image: nginx:latest
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web-prod
+    networks:
+      - shopnest-prod-net
+
+volumes:
+  pgdata-prod:
+
+networks:
+  shopnest-prod-net:

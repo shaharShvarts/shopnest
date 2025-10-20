@@ -9,7 +9,6 @@ import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { unknown } from "zod";
 import { redirectToPurchase } from "../../_actions/shipping";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "next-intl";
@@ -20,7 +19,6 @@ function getAddressFromCookie(): Record<string, string> {
     .split("; ")
     .find((row) => row.startsWith("address="))
     ?.split("=")[1];
-  console.log("Raw cookie data:", raw);
   return raw ? JSON.parse(decodeURIComponent(raw)) : {};
 }
 
