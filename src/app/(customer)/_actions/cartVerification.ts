@@ -52,6 +52,12 @@ export async function fetchCartId() {
   return cart.id;
 }
 
+type PgError = {
+  cause?: {
+    code?: string;
+  };
+};
+
 type ProductResult =
   | { success: true; status: number }
   | { success: false; errors: string };
@@ -69,8 +75,9 @@ export async function addProductToCart(
     });
     return { success: true, status: 201 };
   } catch (error) {
-    const err = error as any;
-    if (err.cause.code === "23505") {
+    const err = error as PgError;
+
+    if (err.cause?.code === "23505") {
       return {
         success: false,
         errors: "Product already exists in the cart",

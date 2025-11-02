@@ -35,8 +35,8 @@ export type CategoryPageProps = Awaited<
 >[number];
 
 export default async function CategoriesPage() {
-  const categories = await fetchActiveCategories();
-  const t = await getTranslations("CategoriesPage");
+  // const categories = await fetchActiveCategories();
+  // const t = await getTranslations("CategoriesPage");
   return (
     <>
       <PageHeader>Home Page</PageHeader>

@@ -27,7 +27,13 @@ const editSchema = productSchema.extend({
   image: z.instanceof(File).optional(),
 });
 
-export async function addProduct(_: any, formData: FormData) {
+type DbError = Error & {
+  cause?: {
+    code?: string;
+  };
+};
+
+export async function addProduct(_: unknown, formData: FormData) {
   const result = productSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -44,7 +50,6 @@ export async function addProduct(_: any, formData: FormData) {
   const fullFilePath = `public${imageUrl}`;
   await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
 
-  // Save product data to the database
   try {
     await db.insert(products).values({ ...rawData, imageUrl });
   } catch (error: unknown) {
@@ -54,14 +59,13 @@ export async function addProduct(_: any, formData: FormData) {
 
     let errorMessage = "Something went wrong.";
 
-    if (error instanceof Error) {
-      const err = error as any;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
-        errorMessage = `A product with this name already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
-      }
+    const err = error as DbError;
+
+    if (err.cause?.code === "23505") {
+      errorMessage =
+        "A product with this name already exists. Try a different name!";
+    } else if (err.message) {
+      errorMessage = err.message;
     }
 
     return {
@@ -75,7 +79,7 @@ export async function addProduct(_: any, formData: FormData) {
   redirect("/admin/products");
 }
 
-export async function editProduct(id: number, _: any, formData: FormData) {
+export async function editProduct(id: number, _: unknown, formData: FormData) {
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -102,32 +106,29 @@ export async function editProduct(id: number, _: any, formData: FormData) {
     }
 
     imageUrl = `/products/${crypto.randomUUID()}-${image.name}`;
-    const newFilePath = `public${imageUrl}`; // recompute path
+    const newFilePath = `public${imageUrl}`;
     await fs.writeFile(newFilePath, Buffer.from(await image.arrayBuffer()));
   }
 
-  // Update product data in the database
   try {
     await db
       .update(products)
       .set({ ...rawData, imageUrl })
       .where(eq(products.id, id));
   } catch (error: unknown) {
-    const newFilePath = `public${imageUrl}`; // recompute path
+    const newFilePath = `public${imageUrl}`;
     if (await fileExists(newFilePath)) {
       await fs.unlink(newFilePath);
     }
 
     let errorMessage = "Something went wrong.";
+    const err = error as DbError;
 
-    if (error instanceof Error) {
-      const err = error as any;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
-        errorMessage = `A product with this name already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
-      }
+    if (err.cause?.code === "23505") {
+      errorMessage =
+        "A product with this name already exists. Try a different name!";
+    } else if (err.message) {
+      errorMessage = err.message;
     }
 
     return {

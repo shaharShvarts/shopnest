@@ -2,20 +2,20 @@
 
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Label } from "@/components/ui/label";
+// import { Label } from "@/components/ui/label";
 import { submitCheckout } from "../../_actions/checkout";
 import ShippingAddress from "./ShippingAddress";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Apple } from "lucide-react";
+// import { CreditCard, Apple } from "lucide-react";
 import { BsPaypal } from "react-icons/bs";
 import { FaApplePay } from "react-icons/fa";
 import { FaGooglePay } from "react-icons/fa";
-import { BsCreditCard } from "react-icons/bs";
+// import { BsCreditCard } from "react-icons/bs";
 import { HiCreditCard } from "react-icons/hi2";
-import { FaCcPaypal } from "react-icons/fa6";
+// import { FaCcPaypal } from "react-icons/fa6";
 
 export default function CheckoutTable() {
-  const t = useTranslations("CheckoutPage");
+  // const t = useTranslations("CheckoutPage");
 
   const [showBilling, setShowBilling] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("credit");

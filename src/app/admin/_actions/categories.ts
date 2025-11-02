@@ -8,7 +8,7 @@ import { imageSchema } from "./zod";
 import { revalidatePath } from "next/cache";
 import { fileExists } from "@/lib/fileExists";
 import { categories } from "@/drizzle/schema";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 const zodSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -30,9 +30,14 @@ type AddCategoryResult = {
   message?: string;
 };
 
-// This function handles the addition of a new category
+type DbError = Error & {
+  cause?: {
+    code?: string;
+  };
+};
+
 export async function addCategory(
-  _: any,
+  _: unknown,
   formData: FormData
 ): Promise<AddCategoryResult> {
   const result = zodSchema.safeParse(Object.fromEntries(formData));
@@ -51,7 +56,6 @@ export async function addCategory(
   const fullFilePath = `public${imageUrl}`;
   await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
 
-  // Save category data to the database
   try {
     await db.insert(categories).values({ ...rawData, imageUrl });
   } catch (error) {
@@ -61,14 +65,13 @@ export async function addCategory(
 
     let errorMessage = "Something went wrong.";
 
-    if (error instanceof Error) {
-      const err = error as any;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
-        errorMessage = `A category with this name already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
-      }
+    const err = error as DbError;
+
+    if (err.cause?.code === "23505") {
+      errorMessage =
+        "A category with this name already exists. Try a different name!";
+    } else if (err.message) {
+      errorMessage = err.message;
     }
 
     return {
@@ -81,16 +84,15 @@ export async function addCategory(
 
   revalidatePath("/");
   revalidatePath("/categories");
+
   return {
     success: true,
     errors: {},
     message: "Category added successfully",
   };
-  // redirect("/admin/categories");
 }
 
-// This function handles the editing of an existing category
-export async function editCategory(id: number, _: any, formData: FormData) {
+export async function editCategory(id: number, _: unknown, formData: FormData) {
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -102,7 +104,6 @@ export async function editCategory(id: number, _: any, formData: FormData) {
 
   const { image, ...rawData } = result.data;
 
-  // Fetch the existing category from the database
   const [category] = await db
     .select()
     .from(categories)
@@ -118,32 +119,30 @@ export async function editCategory(id: number, _: any, formData: FormData) {
     }
 
     imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
-    const newFilePath = `public${imageUrl}`; // recompute path
+    const newFilePath = `public${imageUrl}`;
     await fs.writeFile(newFilePath, Buffer.from(await image.arrayBuffer()));
   }
 
-  // Update category data to the database
   try {
     await db
       .update(categories)
       .set({ ...rawData, imageUrl })
       .where(eq(categories.id, Number(id)));
-  } catch (error: unknown) {
-    const newFilePath = `public${imageUrl}`; // recompute path
+  } catch (error) {
+    const newFilePath = `public${imageUrl}`;
     if (await fileExists(newFilePath)) {
       await fs.unlink(newFilePath);
     }
 
     let errorMessage = "Something went wrong.";
 
-    if (error instanceof Error) {
-      const err = error as any;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
-        errorMessage = `A category with this name already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
-      }
+    const err = error as DbError;
+
+    if (err.cause?.code === "23505") {
+      errorMessage =
+        "A category with this name already exists. Try a different name!";
+    } else if (err.message) {
+      errorMessage = err.message;
     }
 
     return {
@@ -153,6 +152,7 @@ export async function editCategory(id: number, _: any, formData: FormData) {
       },
     };
   }
+
   revalidatePath("/");
   revalidatePath("/categories");
 
@@ -161,7 +161,6 @@ export async function editCategory(id: number, _: any, formData: FormData) {
     errors: {},
     message: "Category updated successfully",
   };
-  // redirect("/admin/categories");
 }
 
 export async function ToggleCategoryActive(id: number, active: boolean) {

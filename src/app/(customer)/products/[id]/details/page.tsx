@@ -1,6 +1,6 @@
 import { db } from "@/drizzle/db";
 import { products } from "@/drizzle/schema";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
 import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
 import { PageHeader } from "@/app/components/PageHeader";

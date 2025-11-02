@@ -20,8 +20,14 @@ const editSchema = zodSchema.extend({
   image: z.instanceof(File).optional(),
 });
 
+type DbError = Error & {
+  cause?: {
+    code?: string;
+  };
+};
+
 // This function handles the addition of a new category
-export async function addSubcategory(_: any, formData: FormData) {
+export async function addSubcategory(_: unknown, formData: FormData) {
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -49,12 +55,12 @@ export async function addSubcategory(_: any, formData: FormData) {
     let errorMessage = "Something went wrong.";
 
     if (error instanceof Error) {
-      const err = error as any;
+      const err = error as DbError;
       // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
+      if (err.cause?.code === "23505") {
         errorMessage = `A subcategory with this name already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
+      } else if (err.message) {
+        errorMessage = error.message;
       }
     }
 
@@ -72,7 +78,11 @@ export async function addSubcategory(_: any, formData: FormData) {
 }
 
 // // This function handles the editing of an existing category
-export async function editSubcategory(id: number, _: any, formData: FormData) {
+export async function editSubcategory(
+  id: number,
+  _: unknown,
+  formData: FormData
+) {
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -119,12 +129,12 @@ export async function editSubcategory(id: number, _: any, formData: FormData) {
     let errorMessage = "Something went wrong.";
 
     if (error instanceof Error) {
-      const err = error as any;
+      const err = error as DbError;
       // Unique constraint violation and clean up the uploaded image
-      if (err.cause.code === "23505") {
+      if (err.cause?.code === "23505") {
         errorMessage = `A subcategory with this name already exists. Try a different name!`;
-      } else {
-        errorMessage = error.message || "An unexpected error occurred.";
+      } else if (err.message) {
+        errorMessage = err.message;
       }
     }
 

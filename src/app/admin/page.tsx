@@ -1,4 +1,4 @@
-import { LogIn, LogInIcon, ShoppingCart, UserRound } from "lucide-react";
+import { ShoppingCart, UserRound } from "lucide-react";
 import LanguageSelector from "../components/LanguageSelector";
 
 export default function AdminDashboard() {

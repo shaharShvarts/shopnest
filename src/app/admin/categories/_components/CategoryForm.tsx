@@ -39,7 +39,7 @@ export default function CategoryForm({ category }: CategoryFormProps) {
           : Object.values(state.errors).flat().join(", ")
       );
     }
-  }, [state]);
+  }, [state, router]);
 
   return (
     <form action={formAction} className="space-y-8">

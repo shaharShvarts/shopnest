@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/drizzle/db";
-import { and, desc, eq, gt, sql } from "drizzle-orm/sql";
+import { and, eq, gt, sql } from "drizzle-orm/sql";
 import { reservations, products } from "@/drizzle/schema";
 import { cookies } from "next/headers";
 
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       expiresAt,
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: "Database error" }), {
+    return new Response(JSON.stringify({ error: `Database error: ${error}` }), {
       status: 500,
     });
   }

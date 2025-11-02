@@ -1,5 +1,4 @@
 import { PageHeader } from "@/app/components/PageHeader";
-import CheckoutTable from "./_components/CheckoutTable";
 import CheckoutPageTest from "./_components/Checkout";
 
 export default function CheckoutPage() {

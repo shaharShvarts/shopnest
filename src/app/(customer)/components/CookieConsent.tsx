@@ -22,8 +22,8 @@ export default function CookieConsent() {
   return (
     <div className="sticky bottom-0 w-full bg-black text-white p-4 z-50 flex flex-col md:flex-row justify-between items-center">
       <p className="text-sm md:text-base mb-2 md:mb-0">
-        We use cookies to improve your experience. By clicking "Accept", you
-        agree to our use of cookies. See our{" "}
+        {`We use cookies to improve your experience. By clicking "Accept", you
+        agree to our use of cookies. See our `}
         <a
           href="/privacy-policy"
           className="underline text-blue-400 hover:text-blue-300"

@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { removeProduct } from "../../_actions/carts";
-import { TableCell } from "@/components/ui";
 import { CircleX } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 

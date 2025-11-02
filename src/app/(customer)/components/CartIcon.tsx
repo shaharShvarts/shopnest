@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { getCartCount } from "../_actions/getCartCount";
+// import { useEffect } from "react";
+// import { getCartCount } from "../_actions/getCartCount";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 
 export const CartIcon = () => {
-  const { cartCount, setCartCount } = useCart();
+  const { cartCount } = useCart();
 
   // useEffect(() => {
   //   (async () => {

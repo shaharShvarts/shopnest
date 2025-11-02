@@ -3,7 +3,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { Combobox } from "../../_components/Combobox";
 import { Subcategory, Category } from "@/drizzle/schema";
 import { ImageUpload } from "../../_components/ImageUpload";

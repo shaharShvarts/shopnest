@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     },
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
 
   webpack(config) {

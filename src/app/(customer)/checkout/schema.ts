@@ -60,26 +60,26 @@ const shippingSchema = z.object({
 });
 
 // סכמת כתובת לחיוב
-const billingSchema = z.object({
-  billing_name: z.string().min(1, "שם נדרש"),
-  billing_lastName: z.string().min(1, "שם משפחה נדרש"),
-  billing_address: z.string().min(1, "כתובת נדרשת"),
-  billing_city: z.string().min(1, "עיר נדרשת"),
-  billing_state: z.string().min(1, "מדינה נדרשת"),
-  billing_postal: z.string().min(1, "מיקוד נדרש"),
-  billing_phone: z.string().min(1, "טלפון נדרש"),
-});
+// const billingSchema = z.object({
+//   billing_name: z.string().min(1, "שם נדרש"),
+//   billing_lastName: z.string().min(1, "שם משפחה נדרש"),
+//   billing_address: z.string().min(1, "כתובת נדרשת"),
+//   billing_city: z.string().min(1, "עיר נדרשת"),
+//   billing_state: z.string().min(1, "מדינה נדרשת"),
+//   billing_postal: z.string().min(1, "מיקוד נדרש"),
+//   billing_phone: z.string().min(1, "טלפון נדרש"),
+// });
 
-const cardSchema = z.object({
-  card_name: z.string().min(1, "שם על הכרטיס נדרש"),
-  card_number: cardNumberSchema,
-  card_expiry: expirationSchema,
-  card_cvv: z.string().regex(/^\d{3,4}$/, "CVV לא תקין"),
-  card_id: z
-    .string()
-    .min(6, "Card ID must be at least 6 characters")
-    .max(30, "Card ID too long"),
-});
+// const cardSchema = z.object({
+//   card_name: z.string().min(1, "שם על הכרטיס נדרש"),
+//   card_number: cardNumberSchema,
+//   card_expiry: expirationSchema,
+//   card_cvv: z.string().regex(/^\d{3,4}$/, "CVV לא תקין"),
+//   card_id: z
+//     .string()
+//     .min(6, "Card ID must be at least 6 characters")
+//     .max(30, "Card ID too long"),
+// });
 
 // סכמת Checkout מלאה
 export const checkoutSchema = z

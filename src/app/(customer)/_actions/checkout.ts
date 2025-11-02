@@ -29,7 +29,7 @@ import { checkoutSchema } from "../checkout/schema";
 //   billing_phone: z.string().min(1, "Phone is required"),
 // });
 
-export async function submitCheckout(prevState: any, formData: FormData) {
+export async function submitCheckout(prevState: unknown, formData: FormData) {
   const data = Object.fromEntries(formData);
   const result = checkoutSchema.safeParse(data);
 

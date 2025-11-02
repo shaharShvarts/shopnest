@@ -1,11 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useDropzone } from "react-dropzone";
 import { useState, useEffect } from "react";
 import { Upload } from "lucide-react";
 import { isValidImage } from "@/lib/isValidImage";
 import { useRef } from "react";
-import { env } from "@/data/env/server";
 
 type ImageUploadProps = {
   initialImage?: string;
@@ -95,9 +95,16 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
         </div>
       ) : (
         <div className="w-full h-full flex items-center justify-center pointer-events-none">
-          <img
+          {/* <img
             src={previewUrl}
             alt="Selected preview"
+            /> */}
+          <Image
+            src={previewUrl}
+            alt="Selected preview"
+            width={400}
+            height={300}
+            priority // optional: improves LCP for above-the-fold images
             className="object-contain w-full h-full rounded"
           />
         </div>
