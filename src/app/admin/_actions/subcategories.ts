@@ -3,9 +3,12 @@
 import z from "zod";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { imageSchema } from "./zod";
-import { revalidatePath } from "next/cache";
+import {
+  revalidateTenantPath,
+  tenantPath,
+} from "@/lib/tenant-context";
 import { fileExists } from "@/lib/fileExists";
 import { subcategories } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
@@ -28,6 +31,7 @@ type DbError = Error & {
 
 // This function handles the addition of a new category
 export async function addSubcategory(_: unknown, formData: FormData) {
+  const db = await getDb();
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -72,9 +76,9 @@ export async function addSubcategory(_: unknown, formData: FormData) {
     };
   }
 
-  revalidatePath("/");
-  revalidatePath("/subcategories");
-  redirect("/admin/subcategories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/subcategories");
+  redirect(await tenantPath("/admin/subcategories"));
 }
 
 // // This function handles the editing of an existing category
@@ -83,6 +87,7 @@ export async function editSubcategory(
   _: unknown,
   formData: FormData
 ) {
+  const db = await getDb();
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -146,24 +151,26 @@ export async function editSubcategory(
     };
   }
 
-  revalidatePath("/");
-  revalidatePath("/subcategories");
-  redirect("/admin/subcategories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/subcategories");
+  redirect(await tenantPath("/admin/subcategories"));
 }
 
 // This function handles the editing of an existing category
 export async function ToggleSubcategoryActive(id: number, active: boolean) {
+  const db = await getDb();
   await db
     .update(subcategories)
     .set({ isActive: active })
     .where(eq(subcategories.id, Number(id)));
 
-  revalidatePath("/");
-  revalidatePath("/subcategories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/subcategories");
 }
 
 // This function handles the deletion of a subcategory
 export async function deleteSubcategory(id: number): Promise<string> {
+  const db = await getDb();
   const [subcategory] = await db
     .delete(subcategories)
     .where(eq(subcategories.id, Number(id)))
@@ -180,7 +187,7 @@ export async function deleteSubcategory(id: number): Promise<string> {
     await fs.unlink(fullFilePath);
   }
 
-  revalidatePath("/");
-  revalidatePath("/subcategories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/subcategories");
   return `Subcategory ${subcategory.name} was successfully deleted.`;
 }

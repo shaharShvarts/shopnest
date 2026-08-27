@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { and, eq, gt, sql } from "drizzle-orm/sql";
 import { reservations, products } from "@/drizzle/schema";
 import { cookies } from "next/headers";
@@ -9,6 +9,7 @@ const reservationSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const db = await getDb();
   const body = await req.json();
   const parsed = reservationSchema.safeParse(body);
 
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const db = await getDb();
   const { searchParams } = new URL(req.url);
 
   const parsed = reservationSchema.safeParse({

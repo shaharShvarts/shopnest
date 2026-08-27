@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { carts, cartProducts, products } from "@/drizzle/schema";
 import { eq, sql, and } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -28,6 +28,7 @@ const fetchUserOrSession = async () => {
 // }
 
 export async function fetchCartId() {
+  const db = await getDb();
   const { userId, sessionId } = await fetchUserOrSession();
   const cartBy = userId
     ? eq(carts.userId, Number(userId))
@@ -67,6 +68,7 @@ export async function addProductToCart(
   quantity: number,
   cartId: string
 ): Promise<ProductResult> {
+  const db = await getDb();
   try {
     await db.insert(cartProducts).values({
       cartId,
@@ -92,6 +94,7 @@ export async function addProductToCart(
 }
 
 export async function deleteProductFromCart(cartId: string, productId: number) {
+  const db = await getDb();
   const [deletedItem] = await db
     .delete(cartProducts)
     .where(
@@ -111,6 +114,7 @@ type ProductPriceResult =
 export async function getProductPrice(
   productId: number
 ): Promise<ProductPriceResult> {
+  const db = await getDb();
   const [product] = await db
     .select({ price: products.price })
     .from(products)
@@ -128,6 +132,7 @@ export async function updateTotalPrice(
   cartId: string,
   itemTotal: number
 ): Promise<ProductResult> {
+  const db = await getDb();
   try {
     await db
       .update(carts)

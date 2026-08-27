@@ -1,9 +1,10 @@
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { PageHeader } from "../../../components/PageHeader";
 import ProductForm from "../_components/ProductForm";
 import { categories } from "@/drizzle/schema";
 
 export default async function NewProductPage() {
+  const db = await getDb();
   const categoryList = await db.select().from(categories);
 
   return (

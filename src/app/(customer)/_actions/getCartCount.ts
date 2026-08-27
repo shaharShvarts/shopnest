@@ -1,11 +1,12 @@
 "use server";
 
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { cartProducts } from "@/drizzle/schema";
 import { sql, eq } from "drizzle-orm";
 import { fetchCartId } from "./cartVerification";
 
 export async function getCartCount(): Promise<number> {
+  const db = await getDb();
   const cartId = await fetchCartId();
 
   if (!cartId) return 0;

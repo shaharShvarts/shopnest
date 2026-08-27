@@ -11,7 +11,7 @@ import { getTranslations } from "next-intl/server";
 import { getLocale } from "next-intl/server";
 import { RemoveButton } from "../carts/_components/RemoveButton";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 import { cn } from "@/lib/utils";
 
 type cartDataProps = {

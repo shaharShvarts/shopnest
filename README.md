@@ -1,5 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+Multi-tenant routing and PostgreSQL schema provisioning are documented in
+[`docs/multi-tenancy.md`](docs/multi-tenancy.md).
+
 ## Getting Started
 
 First, run the development server:

@@ -1,10 +1,12 @@
-import { db } from "@/drizzle/db";
+import { getDbForTenant } from "@/drizzle/db";
 import { cache } from "@/lib/cache";
 import { eq, desc } from "drizzle-orm";
 import { categories } from "@/drizzle/schema";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/app/components/PageHeader";
 import CategoriesGrid from "../components/CategoriesGrid";
+import { getTenant } from "@/lib/tenant-context";
+import type { Tenant } from "@/lib/tenant";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");
@@ -16,7 +18,8 @@ export async function generateMetadata() {
 }
 
 const fetchActiveCategories = cache(
-  () => {
+  async (tenant: Tenant | null) => {
+    const db = getDbForTenant(tenant);
     return db
       .select({
         id: categories.id,
@@ -36,7 +39,7 @@ export type CategoryPageProps = Awaited<
 >[number];
 
 export default async function CategoriesPage() {
-  const categories = await fetchActiveCategories();
+  const categories = await fetchActiveCategories(await getTenant());
   const t = await getTranslations("CategoriesPage");
   return (
     <>

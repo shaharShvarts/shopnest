@@ -1,4 +1,4 @@
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { products } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
@@ -20,6 +20,7 @@ export async function generateMetadata() {
 }
 
 const fetchProductById = async (id: string) => {
+  const db = await getDb();
   const [product] = await db
     .select({
       id: products.id,

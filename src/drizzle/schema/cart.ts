@@ -17,7 +17,7 @@ export const carts = pgTable(
     createdAt,
     updatedAt,
   },
-  (table) => [
+  () => [
     {
       check: {
         name: "ensure_user_or_session",

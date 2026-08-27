@@ -1,6 +1,6 @@
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 import { Suspense } from "react";
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import AdminLoading from "../loading";
 import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ export type CategoriesData = {
 };
 
 export default async function AdminCategoriesPage() {
+  const db = await getDb();
   const categoriesData: CategoriesData[] = await db
     .select({
       isActive: categories.isActive,

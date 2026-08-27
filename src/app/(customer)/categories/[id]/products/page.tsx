@@ -1,4 +1,4 @@
-import { db } from "@/drizzle/db";
+import { getDbForTenant } from "@/drizzle/db";
 import { desc, eq } from "drizzle-orm";
 import { categories, products } from "@/drizzle/schema";
 import { ProductCard } from "@/app/components/ProductCard";
@@ -6,13 +6,16 @@ import { PageHeader } from "@/app/components/PageHeader";
 import { cache } from "@/lib/cache";
 import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
 import { getTranslations } from "next-intl/server";
+import { getTenant } from "@/lib/tenant-context";
+import type { Tenant } from "@/lib/tenant";
 
 type ProductsPageProps = {
   params: Promise<{ id: string }>;
 };
 
 const fetchCategoryWithProducts = cache(
-  async (id: number) => {
+  async (id: number, tenant: Tenant | null) => {
+    const db = getDbForTenant(tenant);
     const [category, productArr] = await Promise.all([
       db
         .select({ name: categories.name })
@@ -52,7 +55,8 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
   const tb = await getTranslations("ProductsPage.Breadcrumbs");
 
   const { categoryName, products } = await fetchCategoryWithProducts(
-    Number(id)
+    Number(id),
+    await getTenant()
   );
 
   return (
