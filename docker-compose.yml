@@ -7,6 +7,9 @@ services:
       - "3000:3000"
     env_file:
       - .env.production
+    environment:
+      DB_HOST: db
+      DB_NAME: shopnest
     depends_on:
       - db
 

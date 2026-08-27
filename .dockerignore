@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.gitignore
+Dockerfile*
+docker-compose*.yml
+npm-debug.log*
+pnpm-lock.yaml
+yarn.lock
+local-old-migrations
+backup-vs-master.patch
