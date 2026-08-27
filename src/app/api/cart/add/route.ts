@@ -33,7 +33,11 @@ export async function POST(req: NextRequest) {
     ? eq(carts.userId, Number(userId))
     : eq(carts.sessionId, sessionId!);
 
-  let cart = await db.select().from(carts).where(cartBy).limit(1);
+  let cart = await db
+    .select()
+    .from(carts)
+    .where(and(cartBy, eq(carts.isActive, true)))
+    .limit(1);
 
   if (cart.length === 0) {
     const [newCart] = await db
