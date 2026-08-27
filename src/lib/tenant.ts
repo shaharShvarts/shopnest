@@ -1,10 +1,13 @@
-const TENANT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+import {
+  resolveConfiguredTenant,
+  type ValidatedTenant,
+} from "./tenant-validation.mjs";
 
-export const CONFIGURED_TENANT_SLUGS = [
-  "panda-pop",
-  "dvorik-collection",
-  "gift-shop",
-] as const;
+export {
+  CONFIGURED_TENANT_SLUGS,
+  normalizeTenantSlug,
+  resolveConfiguredTenant,
+} from "./tenant-validation.mjs";
 
 export const LEGACY_ROUTE_SEGMENTS = new Set([
   "admin",
@@ -21,36 +24,7 @@ export const LEGACY_ROUTE_SEGMENTS = new Set([
 export const TENANT_HEADER = "x-shopnest-tenant-slug";
 export const TENANT_SCHEMA_HEADER = "x-shopnest-tenant-schema";
 
-export type Tenant = {
-  slug: string;
-  schema: string;
-  basePath: string;
-};
-
-export function normalizeTenantSlug(value: string): Tenant | null {
-  const slug = value.trim().toLowerCase();
-
-  if (!TENANT_SLUG_PATTERN.test(slug)) return null;
-
-  const schema = slug.replaceAll("-", "_");
-  if (schema.length > 63) return null;
-
-  return { slug, schema, basePath: `/${slug}` };
-}
-
-const configuredTenants = new Map<string, Tenant>(
-  CONFIGURED_TENANT_SLUGS.map((slug) => {
-    const tenant = normalizeTenantSlug(slug);
-    if (!tenant) throw new Error(`Invalid configured tenant slug: ${slug}`);
-    return [slug, tenant];
-  })
-);
-
-export function resolveConfiguredTenant(value: string): Tenant | null {
-  const tenant = normalizeTenantSlug(value);
-  if (!tenant) return null;
-  return configuredTenants.get(tenant.slug) ?? null;
-}
+export type Tenant = ValidatedTenant;
 
 export type TenantRouteResolution =
   | { kind: "legacy" }
