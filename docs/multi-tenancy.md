@@ -16,6 +16,10 @@ with underscores. For example, `panda-pop` uses schema `panda_pop`, and
 `dvorik-collection` uses schema `dvorik_collection`. Invalid slugs and schema
 names longer than PostgreSQL's 63-character identifier limit are rejected.
 
+Only tenants in `CONFIGURED_TENANT_SLUGS` are accepted. The MVP allowlist is
+`panda-pop`, `dvorik-collection`, and `gift-shop`. Unknown tenant paths return
+404 before request context or database-pool creation.
+
 ## Database provisioning
 
 Each tenant must have its own PostgreSQL schema before its URL is served. The

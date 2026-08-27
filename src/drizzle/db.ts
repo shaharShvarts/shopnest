@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@/drizzle/schema";
 import { Pool } from "pg";
 import { getTenant } from "@/lib/tenant-context";
-import type { Tenant } from "@/lib/tenant";
+import { resolveConfiguredTenant, type Tenant } from "@/lib/tenant";
 
 export const db = drizzle(env.DATABASE_URL, { schema });
 
@@ -28,14 +28,23 @@ export async function getDb(): Promise<Database> {
 export function getDbForTenant(tenant: Tenant | null): Database {
   if (!tenant) return db;
 
-  let pool = tenantPools.get(tenant.schema);
+  const configuredTenant = resolveConfiguredTenant(tenant.slug);
+  if (
+    !configuredTenant ||
+    configuredTenant.schema !== tenant.schema ||
+    configuredTenant.basePath !== tenant.basePath
+  ) {
+    throw new Error(`Refusing database access for unknown tenant: ${tenant.slug}`);
+  }
+
+  let pool = tenantPools.get(configuredTenant.schema);
 
   if (!pool) {
     pool = new Pool({
       connectionString: env.DATABASE_URL,
-      options: `-c search_path=${tenant.schema}`,
+      options: `-c search_path=${configuredTenant.schema}`,
     });
-    tenantPools.set(tenant.schema, pool);
+    tenantPools.set(configuredTenant.schema, pool);
   }
 
   return drizzle(pool, { schema });

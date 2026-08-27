@@ -2,25 +2,20 @@ import { nanoid } from "nanoid";
 import { NextRequest, NextResponse } from "next/server";
 import { isValidPassword } from "./lib/isValidPassword";
 import {
-  normalizeTenantSlug,
+  resolveTenantRoute,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
 } from "./lib/tenant";
 
-const LEGACY_ROUTE_SEGMENTS = new Set([
-  "admin",
-  "api",
-  "carts",
-  "categories",
-  "checkout",
-  "login",
-  "privacy-policy",
-  "products",
-  "shipping",
-]);
-
 export async function middleware(req: NextRequest) {
-  const tenantRoute = resolveTenantRoute(req.nextUrl.pathname);
+  const routeResolution = resolveTenantRoute(req.nextUrl.pathname);
+
+  if (routeResolution.kind === "not-found") {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
+  const tenantRoute =
+    routeResolution.kind === "tenant" ? routeResolution : null;
   const internalPath = tenantRoute?.internalPath ?? req.nextUrl.pathname;
   const requestHeaders = new Headers(req.headers);
 
@@ -64,20 +59,6 @@ export async function middleware(req: NextRequest) {
   }
 
   return response;
-}
-
-function resolveTenantRoute(pathname: string) {
-  const [firstSegment, ...rest] = pathname.split("/").filter(Boolean);
-
-  if (!firstSegment || LEGACY_ROUTE_SEGMENTS.has(firstSegment)) return null;
-
-  const tenant = normalizeTenantSlug(firstSegment);
-  if (!tenant) return null;
-
-  return {
-    tenant,
-    internalPath: rest.length === 0 ? "/" : `/${rest.join("/")}`,
-  };
 }
 
 async function isAuthenticated(req: NextRequest) {

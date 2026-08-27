@@ -3,8 +3,8 @@ import "server-only";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import {
-  normalizeTenantSlug,
   prefixTenantPath,
+  resolveConfiguredTenant,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
   type Tenant,
@@ -16,8 +16,8 @@ export async function getTenant(): Promise<Tenant | null> {
 
   if (!slug) return null;
 
-  const tenant = normalizeTenantSlug(slug);
-  if (!tenant) throw new Error("Invalid tenant context");
+  const tenant = resolveConfiguredTenant(slug);
+  if (!tenant) throw new Error("Unknown tenant context");
 
   const schema = requestHeaders.get(TENANT_SCHEMA_HEADER);
   if (schema !== tenant.schema) throw new Error("Invalid tenant schema context");
