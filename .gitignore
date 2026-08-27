@@ -45,6 +45,8 @@ next-env.d.ts
 /public/subcategories
 
 *.sql
+!src/drizzle/migrations/*.sql
 
+local-old-migrations/
 icountToken.txt
 Software Requirements Specification.docx
