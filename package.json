@@ -13,7 +13,8 @@
     "db:studio": "drizzle-kit studio",
     "tenant:create": "node scripts/tenant-create.mjs",
     "tenant:list": "node scripts/tenant-list.mjs",
-    "tenant:test": "node --test tests/tenant-provisioning.test.mjs"
+    "tenant:test": "node --test tests/tenant-provisioning.test.mjs",
+    "checkout:test": "node --experimental-strip-types --test tests/checkout-order.test.mts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

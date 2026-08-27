@@ -33,6 +33,22 @@ export function scopeMigrationSql(sql, schema) {
   return scopedSql;
 }
 
+export function normalizeMigrationSql(sql) {
+  return sql.replace(/\r\n?/g, "\n");
+}
+
+export function hashMigrationSql(sql) {
+  return createHash("sha256")
+    .update(normalizeMigrationSql(sql))
+    .digest("hex");
+}
+
+export function assertMigrationHash(fileName, storedHash, sql) {
+  if (storedHash !== hashMigrationSql(sql)) {
+    throw new Error(`Migration ${fileName} changed after it was applied`);
+  }
+}
+
 export async function readDrizzleMigrations(migrationsFolder) {
   const journalPath = path.join(migrationsFolder, "meta", "_journal.json");
   const journal = JSON.parse(await readFile(journalPath, "utf8"));
@@ -58,7 +74,7 @@ export async function readDrizzleMigrations(migrationsFolder) {
       const sql = await readFile(path.join(migrationsFolder, fileName), "utf8");
       return {
         fileName,
-        hash: createHash("sha256").update(sql).digest("hex"),
+        hash: hashMigrationSql(sql),
         createdAt: journalEntry.when,
         sql,
       };
@@ -117,11 +133,11 @@ export async function provisionTenant({
       );
 
       if (existing.rowCount > 0) {
-        if (existing.rows[0].hash !== migration.hash) {
-          throw new Error(
-            `Migration ${migration.fileName} changed after it was applied`
-          );
-        }
+        assertMigrationHash(
+          migration.fileName,
+          existing.rows[0].hash,
+          migration.sql
+        );
         continue;
       }
 

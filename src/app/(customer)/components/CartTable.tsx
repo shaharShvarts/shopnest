@@ -75,7 +75,7 @@ export default async function CartTable({ cartData }: cartDataProps) {
       </Table>
       <div className="flex justify-center mt-4">
         <Button className="p-4">
-          <Link href="/shipping" className="text-white">
+          <Link href="/checkout" className="text-white">
             {t("button")}
           </Link>
         </Button>

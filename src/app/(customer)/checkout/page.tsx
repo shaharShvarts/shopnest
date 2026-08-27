@@ -1,12 +1,12 @@
 import { PageHeader } from "@/app/components/PageHeader";
-import CheckoutPageTest from "./_components/Checkout";
+import { randomUUID } from "node:crypto";
+import CheckoutTable from "./_components/CheckoutTable";
 
 export default function CheckoutPage() {
   return (
     <div>
       <PageHeader>Secure Checkout</PageHeader>
-      {/* <CheckoutTable /> */}
-      <CheckoutPageTest />
+      <CheckoutTable submissionToken={randomUUID()} />
     </div>
   );
 }

@@ -7,7 +7,9 @@ import {
   resolveConfiguredTenant,
 } from "../src/lib/tenant-validation.mjs";
 import {
+  assertMigrationHash,
   assertSafeTenantSchema,
+  hashMigrationSql,
   readDrizzleMigrations,
   scopeMigrationSql,
 } from "../scripts/lib/tenant-provisioning.mjs";
@@ -40,6 +42,43 @@ test("public-qualified Drizzle SQL is scoped to the tenant schema", () => {
     'CREATE TYPE "panda_pop"."status" AS ENUM (\'active\');'
   );
   assert.doesNotMatch(scoped, /public/);
+});
+
+test("LF and CRLF migration SQL produce the same normalized hash", () => {
+  const lfSql = "CREATE TABLE products (id integer);\nSELECT 1;\n";
+  const crlfSql = lfSql.replaceAll("\n", "\r\n");
+
+  assert.equal(hashMigrationSql(lfSql), hashMigrationSql(crlfSql));
+});
+
+test("a real SQL content change produces a different migration hash", () => {
+  const originalSql = "CREATE TABLE products (id integer);\n";
+  const changedSql = "CREATE TABLE products (id bigint);\n";
+
+  assert.notEqual(hashMigrationSql(originalSql), hashMigrationSql(changedSql));
+  assert.throws(
+    () =>
+      assertMigrationHash(
+        "0001_products.sql",
+        hashMigrationSql(originalSql),
+        changedSql
+      ),
+    /changed after it was applied/
+  );
+});
+
+test("an existing LF migration hash accepts a CRLF checkout", () => {
+  const lfSql = "CREATE TABLE orders (id integer);\nALTER TABLE orders ADD total integer;\n";
+  const storedLfHash = hashMigrationSql(lfSql);
+  const checkedOutCrlfSql = lfSql.replaceAll("\n", "\r\n");
+
+  assert.doesNotThrow(() =>
+    assertMigrationHash(
+      "0002_orders.sql",
+      storedLfHash,
+      checkedOutCrlfSql
+    )
+  );
 });
 
 test("all checked-in Drizzle SQL migrations can be tenant-scoped", async () => {
