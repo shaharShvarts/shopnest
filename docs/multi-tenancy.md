@@ -26,24 +26,60 @@ Each tenant must have its own PostgreSQL schema before its URL is served. The
 application deliberately does not fall back to `public` for a tenant request.
 This prevents a missing tenant schema or table from exposing legacy-store data.
 
-Provision and migrate a tenant with a database role that is allowed to create
-schemas:
+List the configured tenant registry and normalized schema names:
 
-```sql
-CREATE SCHEMA panda_pop;
+```bash
+npm run tenant:list
 ```
 
-Then run the existing Drizzle migrations with the connection's `search_path`
-set to that schema. One way to do that locally is to set `PGOPTIONS` for the
-migration process:
+Provision a configured tenant with the safe CLI:
 
-```text
-PGOPTIONS=-c search_path=panda_pop npm run db:migrate
+```bash
+npm run tenant:create -- panda-pop
 ```
 
-Repeat this for every tenant schema. Existing migrations and tables remain
-unchanged; the migration history is applied independently inside each tenant
-schema. Back up the database before provisioning production tenants.
+The command reads `DATABASE_URL` from the environment. For compatibility with
+the existing application configuration, `DB_USER`, `DB_PASSWORD`, `DB_HOST`,
+`DB_PORT`, and `DB_NAME` may be supplied instead. Credentials are never stored
+in the command or repository.
+
+### Local usage
+
+Set the database connection in your shell, then run the command:
+
+```bash
+export DATABASE_URL="postgresql://..."
+npm run tenant:create -- panda-pop
+```
+
+In PowerShell:
+
+```powershell
+$env:DATABASE_URL = "postgresql://..."
+npm run tenant:create -- panda-pop
+```
+
+The database role must be allowed to create the tenant schema and objects in
+it. Re-running the command is safe: schema creation uses `IF NOT EXISTS`, and
+applied migration hashes are recorded in the tenant's own
+`__drizzle_migrations` table.
+
+### Production usage
+
+1. Back up the database.
+2. Inject `DATABASE_URL` from the production secret manager; do not place it in
+   source control or command history.
+3. Use a deployment role with only the schema/object privileges needed for
+   provisioning.
+4. Run `npm run tenant:list` and verify the intended tenant is configured.
+5. Run `npm run tenant:create -- <tenant-slug>` from the deployed revision.
+
+Provisioning validates the slug against the same allowlist used by the app,
+rejects `public` as a tenant schema, acquires a PostgreSQL advisory lock, sets
+and verifies the transaction-local `search_path`, and rewrites explicit
+`"public".` qualifiers in existing Drizzle SQL to the validated tenant schema.
+Schema creation, migrations, and migration-history updates commit atomically.
+Existing migrations and legacy `public` tables are not modified.
 
 ## Current limitations
 
