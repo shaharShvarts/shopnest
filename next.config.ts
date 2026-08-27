@@ -5,6 +5,7 @@ const maxSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE);
 const bodySizeLimit = maxSize > 1 ? (`${maxSize}mb` as const) : "5mb";
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: process.cwd(),
   experimental: {
     serverActions: {
       bodySizeLimit,

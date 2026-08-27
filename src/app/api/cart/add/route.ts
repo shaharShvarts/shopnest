@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { carts, cartProducts, products, reservations } from "@/drizzle/schema";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -15,6 +15,7 @@ type DbError = Error & {
 };
 
 export async function POST(req: NextRequest) {
+  const db = await getDb();
   const { productId, quantity } = (await req.json()) as RequestBody;
 
   const userId = req.cookies.get("user_id")?.value;

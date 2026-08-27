@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { db } from "@/drizzle/db";
+import { TenantLink as Link } from "@/components/TenantLink";
+import { getDb } from "@/drizzle/db";
 import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "../../components/PageHeader";
@@ -17,6 +17,7 @@ export type SubcategoriesData = {
 };
 
 export default async function AdminSubcategoriesPage() {
+  const db = await getDb();
   const subcategoriesData: SubcategoriesData[] = await db
     .select({
       isActive: subcategories.isActive,

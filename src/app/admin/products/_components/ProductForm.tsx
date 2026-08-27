@@ -10,6 +10,7 @@ import { Category, Product, Subcategory } from "@/drizzle/schema";
 import { Combobox } from "../../_components/Combobox";
 import { ImageUpload } from "../../_components/ImageUpload";
 import { addProduct, editProduct } from "../../_actions/products";
+import { useTenant } from "@/context/TenantContext";
 // import { addProduct, editProduct } from "@/_actions/products";
 
 type ProductFormProps = {
@@ -21,6 +22,7 @@ export default function ProductForm({
   product,
   categoryList,
 }: ProductFormProps) {
+  const tenant = useTenant();
   const action = !product ? addProduct : editProduct.bind(null, product.id);
 
   const [state, formAction, isPending] = useActionState(action, {
@@ -52,7 +54,9 @@ export default function ProductForm({
 
     if (categoryId) {
       (async () => {
-        const res = await fetch(`/api/subcategories?categoryId=${categoryId}`);
+        const res = await fetch(
+          tenant.path(`/api/subcategories?categoryId=${categoryId}`)
+        );
         const data: Subcategory[] = await res.json();
         setSubcategoryList(data);
 
@@ -63,7 +67,7 @@ export default function ProductForm({
         prevCategoryId.current = categoryId;
       })();
     }
-  }, [categoryId]);
+  }, [categoryId, tenant]);
 
   return (
     <form action={formAction} className="space-y-8">

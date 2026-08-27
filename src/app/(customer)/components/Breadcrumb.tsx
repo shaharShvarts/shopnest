@@ -6,6 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { TenantLink } from "@/components/TenantLink";
 
 type BreadcrumbSegment = {
   label: string;
@@ -31,9 +32,9 @@ export default function DynamicBreadcrumb({
                 <BreadcrumbPage>{segment.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
-                  <a href={segment.href} className="hover:underline">
+                  <TenantLink href={segment.href} className="hover:underline">
                     {segment.label}
-                  </a>
+                  </TenantLink>
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>

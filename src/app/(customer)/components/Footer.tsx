@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 
 function Footer() {
   return (
@@ -21,14 +21,14 @@ function Footer() {
               </Link>
             </li>
             <li>
-              <a href="/categories" className="hover:text-white">
+              <Link href="/categories" className="hover:text-white">
                 categories
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="/carts" className="hover:text-white">
+              <Link href="/carts" className="hover:text-white">
                 My Cart
-              </a>
+              </Link>
             </li>
           </ul>
         </div>

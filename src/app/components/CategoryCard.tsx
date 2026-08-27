@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";

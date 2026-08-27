@@ -1,23 +1,13 @@
 import type { Metadata } from "next";
 
-import { Roboto, Montserrat, Lato } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import ToastProvider from "./components/ToastProvider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
-
-const roboto = Roboto({
-  variable: "--font-sans",
-  weight: ["400", "700"],
-  subsets: ["latin"],
-});
-
-const lato = Lato({
-  variable: "--font-sans",
-  weight: ["400", "700"],
-  subsets: ["latin"],
-});
+import { getTenant } from "@/lib/tenant-context";
+import { TenantProvider } from "@/context/TenantContext";
 
 const montserrat = Montserrat({
   variable: "--font-sans",
@@ -37,6 +27,7 @@ export default async function RootLayout({
 }>) {
   const messages = await getMessages();
   const locale = await getLocale();
+  const tenant = await getTenant();
 
   return (
     <html lang={locale} dir={locale === "he" ? "rtl" : "ltr"}>
@@ -46,9 +37,11 @@ export default async function RootLayout({
           montserrat.variable
         )}
       >
-        <NextIntlClientProvider messages={messages}>
-          {children}
-        </NextIntlClientProvider>
+        <TenantProvider basePath={tenant?.basePath ?? ""}>
+          <NextIntlClientProvider messages={messages}>
+            {children}
+          </NextIntlClientProvider>
+        </TenantProvider>
         <ToastProvider />
       </body>
     </html>

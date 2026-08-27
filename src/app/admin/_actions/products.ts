@@ -3,9 +3,12 @@
 import z from "zod";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { imageSchema } from "./zod";
-import { revalidatePath } from "next/cache";
+import {
+  revalidateTenantPath,
+  tenantPath,
+} from "@/lib/tenant-context";
 import { products } from "@/drizzle/schema";
 import { fileExists } from "@/lib/fileExists";
 import { notFound, redirect } from "next/navigation";
@@ -34,6 +37,7 @@ type DbError = Error & {
 };
 
 export async function addProduct(_: unknown, formData: FormData) {
+  const db = await getDb();
   const result = productSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -74,12 +78,13 @@ export async function addProduct(_: unknown, formData: FormData) {
     };
   }
 
-  revalidatePath("/");
-  revalidatePath("/products");
-  redirect("/admin/products");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/products");
+  redirect(await tenantPath("/admin/products"));
 }
 
 export async function editProduct(id: number, _: unknown, formData: FormData) {
+  const db = await getDb();
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -137,22 +142,24 @@ export async function editProduct(id: number, _: unknown, formData: FormData) {
     };
   }
 
-  revalidatePath("/");
-  revalidatePath("/products");
-  redirect("/admin/products");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/products");
+  redirect(await tenantPath("/admin/products"));
 }
 
 export async function ToggleProductActive(id: number, active: boolean) {
+  const db = await getDb();
   await db
     .update(products)
     .set({ isActive: active })
     .where(eq(products.id, Number(id)));
 
-  revalidatePath("/");
-  revalidatePath("/products");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/products");
 }
 
 export async function deleteProduct(id: number): Promise<string> {
+  const db = await getDb();
   const [productRow] = await db
     .delete(products)
     .where(eq(products.id, Number(id)))
@@ -168,7 +175,7 @@ export async function deleteProduct(id: number): Promise<string> {
     await fs.unlink(fullFilePath);
   }
 
-  revalidatePath("/");
-  revalidatePath("/products");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/products");
   return `product ${productRow.name} was successfully deleted.`;
 }

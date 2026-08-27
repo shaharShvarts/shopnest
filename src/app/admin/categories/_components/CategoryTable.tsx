@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui";
 import { MoreVertical } from "lucide-react";
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 
 import { StatusIcon } from "@/app/components/StatusIcon";
 import {

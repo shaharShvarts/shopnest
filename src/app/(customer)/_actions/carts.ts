@@ -10,7 +10,7 @@ import {
   // reserveProduct,
   updateTotalPrice,
 } from "./cartVerification";
-import { revalidatePath } from "next/cache";
+import { revalidateTenantPath } from "@/lib/tenant-context";
 // import { cookies } from "next/headers";
 
 // const productSchema = z.object({
@@ -39,8 +39,8 @@ export async function removeProduct(productId: number) {
   // 5. Update the cart’s total price
   await updateTotalPrice(cartId, itemTotal);
 
-  revalidatePath("/");
-  revalidatePath("/carts");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/carts");
   return quantity;
 }
 

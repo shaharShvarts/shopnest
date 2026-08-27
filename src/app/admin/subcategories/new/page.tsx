@@ -1,9 +1,10 @@
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { PageHeader } from "../../../components/PageHeader";
 import SubcategoryForm from "../_components/SubcategoryForm";
 import { categories } from "@/drizzle/schema";
 
 export default async function NewSubcategoryPage() {
+  const db = await getDb();
   const categoryList = await db.select().from(categories);
 
   return (

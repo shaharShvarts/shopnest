@@ -1,4 +1,4 @@
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { subcategories } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -18,6 +18,7 @@ export async function GET(request: Request) {
 
 // Example mock function
 async function fetchSubcategoriesByCategoryId(categoryId: string) {
+  const db = await getDb();
   const results = await db
     .select()
     .from(subcategories)

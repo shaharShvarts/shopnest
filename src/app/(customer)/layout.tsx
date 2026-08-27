@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 import { UserRound } from "lucide-react";
 import { CartIcon } from "./components/CartIcon";
 import { CartProvider } from "@/context/CartContext";

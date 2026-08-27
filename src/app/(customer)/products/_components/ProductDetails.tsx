@@ -13,6 +13,7 @@ import { fetchedProduct } from "../[id]/details/page";
 import { useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/context/TenantContext";
 
 // const getProductQTY = async (productId: number) => {
 //   const res = await fetch(`/api/reservations?productId=${productId}`, {
@@ -30,8 +31,12 @@ import { cn } from "@/lib/utils";
 //   return res.json();
 // };
 
-const addProductToCart = async (productId: number, quantity: number) => {
-  const res = await fetch(`/api/cart/add`, {
+const addProductToCart = async (
+  apiPath: string,
+  productId: number,
+  quantity: number
+) => {
+  const res = await fetch(apiPath, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -74,6 +79,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   const { setCartCount } = useCart();
   const router = useRouter();
   const t = useTranslations("ProductDetails");
+  const tenant = useTenant();
 
   return (
     <div className="container mx-auto p-4">
@@ -157,12 +163,18 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
             onClick={async () => {
               setLoading(true);
               try {
-                await addProductToCart(product.id, counter);
+                await addProductToCart(
+                  tenant.path("/api/cart/add"),
+                  product.id,
+                  counter
+                );
                 setCartCount((prev) => prev + counter);
                 toast.success(t("addToCartSuccess"), {
                   position: "top-center",
                 });
-                router.push(`/categories/${product.categoryId}/products`);
+                router.push(
+                  tenant.path(`/categories/${product.categoryId}/products`)
+                );
               } catch (error) {
                 const err = error as Error;
                 console.log("Cart adding error:", err.message);

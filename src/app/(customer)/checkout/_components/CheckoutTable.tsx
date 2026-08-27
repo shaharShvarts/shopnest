@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { useTranslations } from "next-intl";
 // import { Label } from "@/components/ui/label";
 import { submitCheckout } from "../../_actions/checkout";
 import ShippingAddress from "./ShippingAddress";

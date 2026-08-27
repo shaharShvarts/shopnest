@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { fetchCartId } from "../_actions/cartVerification";
 import { cartProducts, products } from "@/drizzle/schema";
 import CartTable from "../components/CartTable";
@@ -25,6 +25,7 @@ export type CartPageProps = {
 
 export default async function CartPage() {
   const t = await getTranslations("CartPage");
+  const db = await getDb();
   const cartId = await fetchCartId();
   if (!cartId) return null;
 

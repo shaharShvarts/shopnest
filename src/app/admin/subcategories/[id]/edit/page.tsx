@@ -1,4 +1,4 @@
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { eq } from "drizzle-orm";
 import { categories, subcategories } from "@/drizzle/schema";
 import SubcategoryForm from "../../_components/SubcategoryForm";
@@ -12,6 +12,7 @@ export default async function EditSubcategoryPage({
   params,
 }: EditSubcategoryProps) {
   const { id } = await params;
+  const db = await getDb();
 
   const [subcategoryResult, categoryList] = await Promise.all([
     db

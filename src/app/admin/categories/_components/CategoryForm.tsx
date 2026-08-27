@@ -9,6 +9,7 @@ import { Category } from "@/drizzle/schema";
 import { ImageUpload } from "../../_components/ImageUpload";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { useTenant } from "@/context/TenantContext";
 
 type CategoryFormProps = {
   category?: Category | null;
@@ -24,13 +25,14 @@ export default function CategoryForm({ category }: CategoryFormProps) {
   );
 
   const router = useRouter();
+  const tenant = useTenant();
 
   useEffect(() => {
     if (state.success) {
       toast.success(state?.message);
       startTransition(() => {
         // setCartCount((count) => Number(count) + 1);
-        router.push("/admin/categories");
+        router.push(tenant.path("/admin/categories"));
       });
     } else if (state.errors && Object.keys(state.errors).length > 0) {
       toast.error(
@@ -39,7 +41,7 @@ export default function CategoryForm({ category }: CategoryFormProps) {
           : Object.values(state.errors).flat().join(", ")
       );
     }
-  }, [state, router]);
+  }, [state, router, tenant]);
 
   return (
     <form action={formAction} className="space-y-8">

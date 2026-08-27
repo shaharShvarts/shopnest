@@ -11,7 +11,7 @@ import Image from "next/image";
 import { formatCurrency } from "@/lib/formatters";
 import { ProductPreview } from "../(customer)/types";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 
 export async function ProductCard({
   id,

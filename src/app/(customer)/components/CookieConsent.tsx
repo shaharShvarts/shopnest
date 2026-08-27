@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
+import { TenantLink } from "@/components/TenantLink";
 
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
@@ -24,14 +25,14 @@ export default function CookieConsent() {
       <p className="text-sm md:text-base mb-2 md:mb-0">
         {`We use cookies to improve your experience. By clicking "Accept", you
         agree to our use of cookies. See our `}
-        <a
+        <TenantLink
           href="/privacy-policy"
           className="underline text-blue-400 hover:text-blue-300"
           target="_blank"
           rel="noopener noreferrer"
         >
           Privacy Policy
-        </a>
+        </TenantLink>
         .
       </p>
       <div className="flex space-x-2">

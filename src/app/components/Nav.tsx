@@ -1,9 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { TenantLink as Link } from "@/components/TenantLink";
 import { usePathname } from "next/navigation";
 import { ComponentProps, ReactNode } from "react";
+import { useTenant } from "@/context/TenantContext";
 
 export function Nav({ children }: { children: ReactNode }) {
   return (
@@ -15,13 +16,15 @@ export function Nav({ children }: { children: ReactNode }) {
 
 export function NavLink(props: Omit<ComponentProps<typeof Link>, "className">) {
   const pathname = usePathname();
+  const tenant = useTenant();
 
   return (
     <Link
       {...props}
       className={cn(
         "p-4 hover:bg-secondary hover:text-secondary-foreground focus-visible:bg-secondary focus-visible:text-secondary-foreground text-background",
-        pathname === props.href && " bg-background text-foreground"
+        pathname === tenant.path(String(props.href)) &&
+          " bg-background text-foreground"
       )}
     />
   );

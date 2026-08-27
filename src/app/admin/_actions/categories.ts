@@ -3,9 +3,9 @@
 import z from "zod";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
-import { db } from "@/drizzle/db";
+import { getDb } from "@/drizzle/db";
 import { imageSchema } from "./zod";
-import { revalidatePath } from "next/cache";
+import { revalidateTenantPath } from "@/lib/tenant-context";
 import { fileExists } from "@/lib/fileExists";
 import { categories } from "@/drizzle/schema";
 import { notFound } from "next/navigation";
@@ -40,6 +40,7 @@ export async function addCategory(
   _: unknown,
   formData: FormData
 ): Promise<AddCategoryResult> {
+  const db = await getDb();
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -82,8 +83,8 @@ export async function addCategory(
     };
   }
 
-  revalidatePath("/");
-  revalidatePath("/categories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/categories");
 
   return {
     success: true,
@@ -93,6 +94,7 @@ export async function addCategory(
 }
 
 export async function editCategory(id: number, _: unknown, formData: FormData) {
+  const db = await getDb();
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -153,8 +155,8 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
     };
   }
 
-  revalidatePath("/");
-  revalidatePath("/categories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/categories");
 
   return {
     success: true,
@@ -164,18 +166,20 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
 }
 
 export async function ToggleCategoryActive(id: number, active: boolean) {
+  const db = await getDb();
   await db
     .update(categories)
     .set({ isActive: active })
     .where(eq(categories.id, Number(id)));
 
   // Redirect to the categories page after successful update
-  revalidatePath("/");
-  revalidatePath("/categories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/categories");
 }
 
 // This function handles the deletion of a category
 export async function deleteCategory(id: number): Promise<string> {
+  const db = await getDb();
   const [category] = await db
     .delete(categories)
     .where(eq(categories.id, Number(id)))
@@ -192,7 +196,7 @@ export async function deleteCategory(id: number): Promise<string> {
     await fs.unlink(fullFilePath);
   }
 
-  revalidatePath("/");
-  revalidatePath("/categories");
+  await revalidateTenantPath("/");
+  await revalidateTenantPath("/categories");
   return `Category ${category.name} was successfully deleted.`;
 }
