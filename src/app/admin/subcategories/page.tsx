@@ -13,6 +13,7 @@ export type SubcategoriesData = {
   isActive: boolean;
   subcategoryId: number;
   name: string;
+  imageUrl: string;
   categoryName: string;
   productsCount: number;
 };
@@ -25,6 +26,7 @@ export default async function AdminSubcategoriesPage() {
         isActive: subcategories.isActive,
         subcategoryId: subcategories.id,
         name: subcategories.name,
+        imageUrl: subcategories.imageUrl,
         categoryName: categories.name,
       })
       .from(subcategories)

@@ -18,6 +18,8 @@ import {
   validateProductPlacement,
 } from "@/lib/catalog/core";
 import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
+import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { publicImageFilePath } from "@/lib/images/image-files";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -60,7 +62,7 @@ export async function addProduct(_: unknown, formData: FormData) {
 
   await fs.mkdir("public/products", { recursive: true });
   const imageUrl = `/products/${crypto.randomUUID()}-${image.name}`;
-  const fullFilePath = `public${imageUrl}`;
+  const fullFilePath = publicImageFilePath(imageUrl)!;
   await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
 
   try {
@@ -121,14 +123,14 @@ export async function editProduct(id: number, _: unknown, formData: FormData) {
   }
 
   const oldCategoryId = productRow.categoryId;
-  const oldImagePath = `public${productRow.imageUrl}`;
-  let imageUrl = productRow.imageUrl;
+  const oldImagePath = publicImageFilePath(productRow.imageUrl);
+  let imageUrl = normalizeImageUrl(productRow.imageUrl) ?? productRow.imageUrl;
   let newImagePath: string | null = null;
 
   if (image) {
     await fs.mkdir("public/products", { recursive: true });
     imageUrl = `/products/${crypto.randomUUID()}-${image.name}`;
-    newImagePath = `public${imageUrl}`;
+    newImagePath = publicImageFilePath(imageUrl)!;
     await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
   }
 
@@ -149,7 +151,7 @@ export async function editProduct(id: number, _: unknown, formData: FormData) {
     };
   }
 
-  if (newImagePath && (await fileExists(oldImagePath))) {
+  if (newImagePath && oldImagePath && (await fileExists(oldImagePath))) {
     await fs.unlink(oldImagePath);
   }
 
@@ -194,11 +196,9 @@ export async function deleteProduct(id: number): Promise<string> {
 
   if (!productRow) notFound();
 
-  const imageUrl = productRow?.imageUrl ?? "";
+  const fullFilePath = publicImageFilePath(productRow.imageUrl);
 
-  const fullFilePath = `public${imageUrl}`;
-
-  if (await fileExists(fullFilePath)) {
+  if (fullFilePath && (await fileExists(fullFilePath))) {
     await fs.unlink(fullFilePath);
   }
 

@@ -1,12 +1,16 @@
-import { PageHeader } from "../../../components/PageHeader";
 import CategoryForm from "../_components/CategoryForm";
 import { requireTenantAdmin } from "@/lib/admin-auth/server";
+import { AdminFormHeader } from "../../_components/AdminFormHeader";
 
 export default async function NewCategoryPage() {
   await requireTenantAdmin();
   return (
     <>
-      <PageHeader>Add Category</PageHeader>
+      <AdminFormHeader
+        title="Add Category"
+        backHref="/admin/categories"
+        backLabel="Back to Categories"
+      />
       <CategoryForm />
     </>
   );

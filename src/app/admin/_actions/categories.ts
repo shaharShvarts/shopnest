@@ -12,6 +12,8 @@ import { notFound } from "next/navigation";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
 import { createCatalogCategory } from "@/lib/catalog/core";
 import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
+import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { publicImageFilePath } from "@/lib/images/image-files";
 
 const zodSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -51,7 +53,7 @@ export async function addCategory(
 
   await fs.mkdir("public/categories", { recursive: true });
   const imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
-  const fullFilePath = `public${imageUrl}`;
+  const fullFilePath = publicImageFilePath(imageUrl)!;
   await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
 
   try {
@@ -105,14 +107,14 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
 
   if (!category) notFound();
 
-  const oldImagePath = `public${category.imageUrl}`;
-  let imageUrl = category.imageUrl;
+  const oldImagePath = publicImageFilePath(category.imageUrl);
+  let imageUrl = normalizeImageUrl(category.imageUrl) ?? category.imageUrl;
   let newImagePath: string | null = null;
 
   if (image) {
     await fs.mkdir("public/categories", { recursive: true });
     imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
-    newImagePath = `public${imageUrl}`;
+    newImagePath = publicImageFilePath(imageUrl)!;
     await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
   }
 
@@ -135,7 +137,7 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
     };
   }
 
-  if (newImagePath && (await fileExists(oldImagePath))) {
+  if (newImagePath && oldImagePath && (await fileExists(oldImagePath))) {
     await fs.unlink(oldImagePath);
   }
 
@@ -184,12 +186,10 @@ export async function deleteCategory(id: number): Promise<string> {
 
   if (!category) notFound();
 
-  const imageUrl = category?.imageUrl ?? "";
-
-  const fullFilePath = `public${imageUrl}`;
+  const fullFilePath = publicImageFilePath(category.imageUrl);
 
   // Delete the image file from the server
-  if (await fileExists(fullFilePath)) {
+  if (fullFilePath && (await fileExists(fullFilePath))) {
     await fs.unlink(fullFilePath);
   }
 

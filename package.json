@@ -20,7 +20,8 @@
     "tenant:test": "node --test tests/tenant-provisioning.test.mjs",
     "checkout:test": "node --experimental-strip-types --test tests/checkout-order.test.mts",
     "admin-auth:test": "node --experimental-strip-types --test tests/admin-auth.test.mts",
-    "catalog:test": "node --experimental-strip-types --test tests/catalog-flow.test.mts"
+    "catalog:test": "node --experimental-strip-types --test tests/catalog-flow.test.mts",
+    "admin-ui:test": "node --experimental-strip-types --test tests/admin-images-navigation.test.mts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

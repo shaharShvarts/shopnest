@@ -21,6 +21,7 @@ import {
 } from "../../_components/PageActions";
 import { ProductData } from "../page";
 import { deleteProduct, ToggleProductActive } from "../../_actions/products";
+import { AdminImagePreview } from "../../_components/AdminImagePreview";
 
 type ProductTableProps = {
   productData: ProductData[];
@@ -42,6 +43,7 @@ export function ProductTable({ productData }: ProductTableProps) {
             <span className="sr-only">Available for Purchase</span>
           </TableHead>
           <TableHead>Name</TableHead>
+          <TableHead>Image</TableHead>
           <TableHead>Price</TableHead>
           <TableHead>Orders</TableHead>
           <TableHead className="w-0">
@@ -51,7 +53,7 @@ export function ProductTable({ productData }: ProductTableProps) {
       </TableHeader>
       <TableBody>
         {productData.map(
-          ({ productsId, name, price, ordersCount, isActive }) => (
+          ({ productsId, name, imageUrl, price, ordersCount, isActive }) => (
             <TableRow key={productsId}>
               <TableCell>
                 <span className="sr-only">
@@ -60,6 +62,9 @@ export function ProductTable({ productData }: ProductTableProps) {
                 <StatusIcon isActive={isActive} />
               </TableCell>
               <TableCell>{name}</TableCell>
+              <TableCell>
+                <AdminImagePreview src={imageUrl} alt={name} compact />
+              </TableCell>
               <TableCell>{price}</TableCell>
               <TableCell>{ordersCount}</TableCell>
               <TableCell>

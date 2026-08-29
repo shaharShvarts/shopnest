@@ -12,6 +12,7 @@ export type ProductData = {
   productsId: number;
   isActive: boolean;
   name: string;
+  imageUrl: string;
   price: number;
   ordersCount: number;
 };
@@ -22,6 +23,7 @@ export default async function AdminProductsPage() {
     db
       .select({
         name: products.name,
+        imageUrl: products.imageUrl,
         price: products.price,
         productsId: products.id,
         isActive: products.isActive,

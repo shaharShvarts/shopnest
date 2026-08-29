@@ -18,6 +18,8 @@ import {
   validateCategory,
 } from "@/lib/catalog/core";
 import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
+import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { publicImageFilePath } from "@/lib/images/image-files";
 
 const zodSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -46,7 +48,7 @@ export async function addSubcategory(_: unknown, formData: FormData) {
 
   await fs.mkdir("public/subcategories", { recursive: true });
   const imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
-  const fullFilePath = `public${imageUrl}`;
+  const fullFilePath = publicImageFilePath(imageUrl)!;
   await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
 
   // Save category data to the database
@@ -112,14 +114,14 @@ export async function editSubcategory(
   }
 
   const oldCategoryId = subcategory.categoryId;
-  const oldImagePath = `public${subcategory.imageUrl}`;
-  let imageUrl = subcategory.imageUrl;
+  const oldImagePath = publicImageFilePath(subcategory.imageUrl);
+  let imageUrl = normalizeImageUrl(subcategory.imageUrl) ?? subcategory.imageUrl;
   let newImagePath: string | null = null;
 
   if (image) {
     await fs.mkdir("public/subcategories", { recursive: true });
     imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
-    newImagePath = `public${imageUrl}`;
+    newImagePath = publicImageFilePath(imageUrl)!;
     await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
   }
 
@@ -143,7 +145,7 @@ export async function editSubcategory(
     };
   }
 
-  if (newImagePath && (await fileExists(oldImagePath))) {
+  if (newImagePath && oldImagePath && (await fileExists(oldImagePath))) {
     await fs.unlink(oldImagePath);
   }
 
@@ -190,12 +192,10 @@ export async function deleteSubcategory(id: number): Promise<string> {
 
   if (!subcategory) notFound();
 
-  const imageUrl = subcategory?.imageUrl ?? "";
-
-  const fullFilePath = `public${imageUrl}`;
+  const fullFilePath = publicImageFilePath(subcategory.imageUrl);
 
   // Delete the image file from the server
-  if (await fileExists(fullFilePath)) {
+  if (fullFilePath && (await fileExists(fullFilePath))) {
     await fs.unlink(fullFilePath);
   }
 

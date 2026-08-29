@@ -12,6 +12,10 @@ services:
       DB_NAME: shopnest
     depends_on:
       - db
+    volumes:
+      - category_uploads:/app/public/categories
+      - subcategory_uploads:/app/public/subcategories
+      - product_uploads:/app/public/products
 
   db:
     image: postgres:17.0
@@ -36,3 +40,6 @@ services:
 
 volumes:
   pgdata:
+  category_uploads:
+  subcategory_uploads:
+  product_uploads:
