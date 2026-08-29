@@ -4,19 +4,22 @@ import z from "zod";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
-import { imageSchema } from "./zod";
+import { imageSchema, optionalImageSchema } from "./zod";
 import { revalidateTenantPath } from "@/lib/tenant-context";
 import { fileExists } from "@/lib/fileExists";
 import { categories } from "@/drizzle/schema";
 import { notFound } from "next/navigation";
+import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
+import { createCatalogCategory } from "@/lib/catalog/core";
+import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
 
 const zodSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().trim().min(1, "Name is required"),
   image: imageSchema,
 });
 
 const editSchema = zodSchema.extend({
-  image: z.instanceof(File).optional(),
+  image: optionalImageSchema,
 });
 
 type CategoryFormErrors = {
@@ -28,12 +31,6 @@ type AddCategoryResult = {
   success: boolean;
   errors?: CategoryFormErrors;
   message?: string;
-};
-
-type DbError = Error & {
-  cause?: {
-    code?: string;
-  };
 };
 
 export async function addCategory(
@@ -58,27 +55,21 @@ export async function addCategory(
   await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
 
   try {
-    await db.insert(categories).values({ ...rawData, imageUrl });
+    await createCatalogCategory(new DrizzleCatalogStore(db), {
+      ...rawData,
+      imageUrl,
+    });
   } catch (error) {
     if (await fileExists(fullFilePath)) {
       await fs.unlink(fullFilePath);
     }
 
-    let errorMessage = "Something went wrong.";
-
-    const err = error as DbError;
-
-    if (err.cause?.code === "23505") {
-      errorMessage =
-        "A category with this name already exists. Try a different name!";
-    } else if (err.message) {
-      errorMessage = err.message;
-    }
+    const formError = catalogFormError(error, "category");
 
     return {
       success: false,
       errors: {
-        name: [errorMessage],
+        [formError.field]: [formError.message],
       },
     };
   }
@@ -112,17 +103,17 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
     .where(eq(categories.id, Number(id)))
     .limit(1);
 
-  let imageUrl = category?.imageUrl ?? "";
-  const fullFilePath = `public${imageUrl}`;
+  if (!category) notFound();
 
-  if (image != null && image.size > 0) {
-    if (await fileExists(fullFilePath)) {
-      await fs.unlink(fullFilePath);
-    }
+  const oldImagePath = `public${category.imageUrl}`;
+  let imageUrl = category.imageUrl;
+  let newImagePath: string | null = null;
 
+  if (image) {
+    await fs.mkdir("public/categories", { recursive: true });
     imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
-    const newFilePath = `public${imageUrl}`;
-    await fs.writeFile(newFilePath, Buffer.from(await image.arrayBuffer()));
+    newImagePath = `public${imageUrl}`;
+    await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
   }
 
   try {
@@ -131,32 +122,26 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
       .set({ ...rawData, imageUrl })
       .where(eq(categories.id, Number(id)));
   } catch (error) {
-    const newFilePath = `public${imageUrl}`;
-    if (await fileExists(newFilePath)) {
-      await fs.unlink(newFilePath);
+    if (newImagePath && (await fileExists(newImagePath))) {
+      await fs.unlink(newImagePath);
     }
-
-    let errorMessage = "Something went wrong.";
-
-    const err = error as DbError;
-
-    if (err.cause?.code === "23505") {
-      errorMessage =
-        "A category with this name already exists. Try a different name!";
-    } else if (err.message) {
-      errorMessage = err.message;
-    }
+    const formError = catalogFormError(error, "category");
 
     return {
       success: false,
       errors: {
-        name: [errorMessage],
+        [formError.field]: [formError.message],
       },
     };
   }
 
+  if (newImagePath && (await fileExists(oldImagePath))) {
+    await fs.unlink(oldImagePath);
+  }
+
   await revalidateTenantPath("/");
   await revalidateTenantPath("/categories");
+  await revalidateTenantPath(`/categories/${id}/products`);
 
   return {
     success: true,
@@ -167,23 +152,35 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
 
 export async function ToggleCategoryActive(id: number, active: boolean) {
   const { db } = await requireTenantAdminDb();
-  await db
+  const updated = await db
     .update(categories)
     .set({ isActive: active })
-    .where(eq(categories.id, Number(id)));
+    .where(eq(categories.id, Number(id)))
+    .returning({ id: categories.id });
+
+  if (updated.length === 0) notFound();
 
   // Redirect to the categories page after successful update
   await revalidateTenantPath("/");
   await revalidateTenantPath("/categories");
+  await revalidateTenantPath(`/categories/${id}/products`);
 }
 
 // This function handles the deletion of a category
 export async function deleteCategory(id: number): Promise<string> {
   const { db } = await requireTenantAdminDb();
-  const [category] = await db
-    .delete(categories)
-    .where(eq(categories.id, Number(id)))
-    .returning();
+  let category;
+  try {
+    [category] = await db
+      .delete(categories)
+      .where(eq(categories.id, Number(id)))
+      .returning();
+  } catch (error) {
+    if (isForeignKeyViolation(error)) {
+      return "Category cannot be deleted while it has products or subcategories.";
+    }
+    throw error;
+  }
 
   if (!category) notFound();
 
@@ -198,5 +195,6 @@ export async function deleteCategory(id: number): Promise<string> {
 
   await revalidateTenantPath("/");
   await revalidateTenantPath("/categories");
+  await revalidateTenantPath(`/categories/${id}/products`);
   return `Category ${category.name} was successfully deleted.`;
 }

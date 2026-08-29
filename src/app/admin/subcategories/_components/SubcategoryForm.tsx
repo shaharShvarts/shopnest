@@ -54,6 +54,9 @@ export default function SubcategoryForm({
           list={categoryList}
           selected={categoryId}
         />
+        {state?.errors?.categoryId && (
+          <div className="text-destructive">{state.errors.categoryId}</div>
+        )}
       </div>
 
       <div className="space-y-2">

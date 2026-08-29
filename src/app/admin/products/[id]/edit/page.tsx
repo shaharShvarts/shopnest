@@ -3,6 +3,7 @@ import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { categories, products } from "@/drizzle/schema";
 import ProductForm from "../../_components/ProductForm";
 import { PageHeader } from "@/app/components/PageHeader";
+import { notFound } from "next/navigation";
 
 type EditCategoryProps = {
   params: Promise<{ id: number }>;
@@ -22,6 +23,7 @@ export default async function EditProductPage({ params }: EditCategoryProps) {
   ]);
 
   const product = productResult[0];
+  if (!product) notFound();
 
   return (
     <>

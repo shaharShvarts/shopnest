@@ -2,7 +2,7 @@ import {
   AdminAuthorizationError,
   requireTenantAdminDb,
 } from "@/lib/admin-auth/server";
-import { subcategories } from "@/drizzle/schema";
+import { categories, subcategories } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -11,13 +11,28 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get("categoryId");
 
-    if (!categoryId) {
-      return NextResponse.json({ error: "Missing categoryId" }, { status: 400 });
+    const parsedCategoryId = Number(categoryId);
+    if (!Number.isInteger(parsedCategoryId) || parsedCategoryId <= 0) {
+      return NextResponse.json({ error: "Invalid categoryId" }, { status: 400 });
     }
 
-    const subcategories = await fetchSubcategoriesByCategoryId(categoryId);
+    const { db } = await requireTenantAdminDb();
+    const [category] = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(eq(categories.id, parsedCategoryId))
+      .limit(1);
+    if (!category) {
+      return NextResponse.json({ error: "Category not found" }, { status: 404 });
+    }
 
-    return NextResponse.json(subcategories);
+    const subcategoryRows = await db
+      .select()
+      .from(subcategories)
+      .where(eq(subcategories.categoryId, parsedCategoryId))
+      .orderBy(subcategories.name);
+
+    return NextResponse.json(subcategoryRows);
   } catch (error) {
     if (error instanceof AdminAuthorizationError) {
       return NextResponse.json(
@@ -27,15 +42,4 @@ export async function GET(request: Request) {
     }
     throw error;
   }
-}
-
-// Example mock function
-async function fetchSubcategoriesByCategoryId(categoryId: string) {
-  const { db } = await requireTenantAdminDb();
-  const results = await db
-    .select()
-    .from(subcategories)
-    .where(eq(subcategories.categoryId, Number(categoryId)));
-
-  return results || [];
 }

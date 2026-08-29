@@ -2,11 +2,11 @@ import { TenantLink as Link } from "@/components/TenantLink";
 import { Suspense } from "react";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import AdminLoading from "../loading";
-import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "../../components/PageHeader";
 import { ProductTable } from "./_components/ProductTable";
-import { orders, products } from "@/drizzle/schema";
+import { orderProducts, products } from "@/drizzle/schema";
+import { countOrdersByProduct } from "@/lib/catalog/counts";
 
 export type ProductData = {
   productsId: number;
@@ -18,18 +18,23 @@ export type ProductData = {
 
 export default async function AdminProductsPage() {
   const { db } = await requireTenantAdminDb();
-  const productData: ProductData[] = await db
-    .select({
-      name: products.name,
-      price: products.price,
-      productsId: products.id,
-      isActive: products.isActive,
-      ordersCount: count(orders.id).as("ordersCount"),
-    })
-    .from(products)
-    .leftJoin(orders, eq(orders.id, products.id))
-    .groupBy(products.name, products.price, products.id, products.isActive)
-    .orderBy(products.name);
+  const [productRows, orderRelations] = await Promise.all([
+    db
+      .select({
+        name: products.name,
+        price: products.price,
+        productsId: products.id,
+        isActive: products.isActive,
+      })
+      .from(products)
+      .orderBy(products.name),
+    db.select({ productId: orderProducts.productId }).from(orderProducts),
+  ]);
+  const orderCounts = countOrdersByProduct(orderRelations);
+  const productData: ProductData[] = productRows.map((product) => ({
+    ...product,
+    ordersCount: orderCounts.get(product.productsId) ?? 0,
+  }));
 
   return (
     <>
