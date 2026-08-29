@@ -16,7 +16,7 @@ The legacy reservations endpoint is now read-only for availability. Its POST han
 
 ## Reservation lifecycle
 
-Checkout reservations are keyed by `checkout_token + product_id` and associated with the cart and session/user owner. Reusing a checkout token updates the same rows, so refresh or retry does not multiply reserved stock. The default lifetime is 15 minutes and may be configured with `INVENTORY_RESERVATION_MINUTES` (valid range: 1–1440).
+Checkout reservations are keyed by `checkout_token + product_id`, while the attempt is immutably bound to one cart and one session/user owner. Every reservation mutation takes a transaction advisory lock for the checkout token, reads every row for that token, and verifies the cart and owner before excluding, refreshing, releasing, or consuming anything. Conflict updates never rewrite ownership fields. Reusing a token for its original attempt updates the same rows, while reuse by another cart/owner fails without changing availability. The default lifetime is 15 minutes and may be configured with `INVENTORY_RESERVATION_MINUTES` (valid range: 1–1440).
 
 Availability always excludes rows with `expires_at <= now()`. Correctness therefore does not depend on cron. `InventoryService.cleanupExpiredReservations()` is available for a future scheduled maintenance job and changes expired active rows to `expired`.
 
@@ -45,7 +45,7 @@ Each product has independent thresholds, defaulting to low `10` and critical `4`
 | `<= critical` and `> 0` | `critical_stock` |
 | `0` | `out_of_stock` |
 
-Reservations affect the live status returned to storefront and future dashboard queries, but transient reservation changes do not send alert events. Completed consumption and admin adjustments evaluate post-transaction available stock. An unresolved unique index deduplicates each product/alert type. Repeated changes within one band do not create new events; worsening threshold crossings do. Restocking resolves alerts whose conditions no longer apply, allowing a later drop to create a fresh event.
+Reservations affect the live status returned to storefront and future dashboard queries, but transient reservation changes do not send alert events. Completed consumption and admin adjustments evaluate post-transaction available stock. A partial unique index permits only one unresolved alert per product. When severity changes, the previous severity row is resolved before the current severity is persisted; historical rows remain available for audit. Repeated changes within one band do not create new events. Healthy stock resolves the remaining active alert, allowing a later drop to create a fresh event.
 
 `inventory_alerts` records product, type, available quantity, threshold, creation/resolution timestamps, and delivery state. The current `DatabaseOnlyInventoryNotificationService` returns `not_configured`; no email, SMS, WhatsApp, or other delivery is claimed. A future provider can implement `InventoryNotificationService` without coupling delivery to stock transactions.
 
@@ -64,6 +64,8 @@ Tenant migration `0002_classy_bloodstorm.sql`:
 - extends the existing reservations table with checkout/cart ownership, state, lifecycle timestamps, uniqueness, foreign keys, and query indexes;
 - safely backfills legacy reservation rows as released with unique checkout tokens so old rows cannot unexpectedly hold stock;
 - adds tenant-local inventory alert enums, table, constraints, and indexes.
+
+Follow-up migration `0003_free_vermin.sql` safely resolves any duplicate legacy unresolved severities while retaining their history, then enforces one unresolved alert per product. The original `0002` SQL remains unchanged so tenants that already applied it continue to pass migration-integrity hashing.
 
 The normal `npm run tenant:create -- <tenant>` path applies the migration to new and existing configured tenant schemas. Existing migrations and tables are retained.
 

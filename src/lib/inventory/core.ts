@@ -88,28 +88,32 @@ export type NewInventoryAlert = {
   createdAt: Date;
 };
 
+export type ReservationAttemptIdentity = {
+  checkoutToken: string;
+  cartId: string;
+  ownerKey: string;
+};
+
 export interface InventoryTransaction {
   getProducts(productIds: number[]): Promise<InventoryProductRecord[]>;
   lockProducts(productIds: number[]): Promise<InventoryProductRecord[]>;
+  lockReservationAttempt(checkoutToken: string): Promise<void>;
   getActiveReservationTotals(
     productIds: number[],
     now: Date,
-    excludeCheckoutToken?: string
+    excludeAttempt?: ReservationAttemptIdentity
   ): Promise<Map<number, number>>;
   getAttemptReservations(
-    checkoutToken: string,
-    cartId: string
+    checkoutToken: string
   ): Promise<InventoryReservationRecord[]>;
   upsertReservations(reservations: NewInventoryReservation[]): Promise<void>;
   releaseAttemptReservationsExcept(
-    checkoutToken: string,
-    cartId: string,
+    attempt: ReservationAttemptIdentity,
     retainedProductIds: number[],
     now: Date
   ): Promise<void>;
   markAttemptReservations(
-    checkoutToken: string,
-    cartId: string,
+    attempt: ReservationAttemptIdentity,
     state: Exclude<ReservationState, "active">,
     now: Date
   ): Promise<number>;
@@ -137,19 +141,13 @@ export interface InventoryStore {
 
 export type ReservationItem = { productId: number; quantity: number };
 
-export type ReserveInventoryInput = {
-  ownerKey: string;
-  cartId: string;
-  checkoutToken: string;
+export type ReserveInventoryInput = ReservationAttemptIdentity & {
   items: ReservationItem[];
   now?: Date;
   durationMs?: number;
 };
 
-export type ConsumeReservationInput = {
-  ownerKey: string;
-  cartId: string;
-  checkoutToken: string;
+export type ConsumeReservationInput = ReservationAttemptIdentity & {
   now?: Date;
 };
 
@@ -312,25 +310,17 @@ export class InventoryService {
     const now = input.now ?? new Date();
     return this.store.transaction(async (tx) => {
       validateAttempt(input);
-      const reservations = await tx.getAttemptReservations(
-        input.checkoutToken,
-        input.cartId
-      );
+      await tx.lockReservationAttempt(input.checkoutToken);
+      const reservations = await tx.getAttemptReservations(input.checkoutToken);
       if (reservations.length === 0) {
         throw new InventoryError(
           "reservation_not_found",
           "No checkout reservation was found."
         );
       }
-      if (reservations.some((item) => item.ownerKey !== input.ownerKey)) {
-        throw new InventoryError(
-          "reservation_owner_mismatch",
-          "The reservation does not belong to this checkout owner."
-        );
-      }
+      assertAttemptBinding(reservations, input);
       return tx.markAttemptReservations(
-        input.checkoutToken,
-        input.cartId,
+        input,
         "released",
         now
       );
@@ -395,13 +385,7 @@ export async function initializeInventoryAlertsInTransaction(
     product,
     totals.get(productId) ?? 0
   );
-  await evaluateAlertState(
-    tx,
-    availability,
-    now,
-    notificationService,
-    true
-  );
+  await evaluateAlertState(tx, availability, now, notificationService);
   return availability;
 }
 
@@ -413,6 +397,9 @@ export async function reserveInventoryInTransaction(
   validateAttempt(input);
   const items = normalizeReservationItems(input.items);
   const productIds = items.map((item) => item.productId);
+  await tx.lockReservationAttempt(input.checkoutToken);
+  const existingAttempt = await tx.getAttemptReservations(input.checkoutToken);
+  assertAttemptBinding(existingAttempt, input);
   const products = await tx.lockProducts(productIds);
   if (products.length !== productIds.length) {
     const found = new Set(products.map((product) => product.id));
@@ -422,22 +409,8 @@ export async function reserveInventoryInTransaction(
   const otherReservations = await tx.getActiveReservationTotals(
     productIds,
     now,
-    input.checkoutToken
+    input
   );
-  const existingAttempt = await tx.getAttemptReservations(
-    input.checkoutToken,
-    input.cartId
-  );
-  if (
-    existingAttempt.some(
-      (reservation) => reservation.ownerKey !== input.ownerKey
-    )
-  ) {
-    throw new InventoryError(
-      "reservation_owner_mismatch",
-      "The reservation does not belong to this checkout owner."
-    );
-  }
   const productMap = new Map(products.map((product) => [product.id, product]));
 
   for (const item of items) {
@@ -481,8 +454,7 @@ export async function reserveInventoryInTransaction(
     }))
   );
   await tx.releaseAttemptReservationsExcept(
-    input.checkoutToken,
-    input.cartId,
+    input,
     productIds,
     now
   );
@@ -497,31 +469,20 @@ export async function consumeReservationInTransaction(
 ) {
   const now = input.now ?? new Date();
   validateAttempt(input);
-  const initial = await tx.getAttemptReservations(
-    input.checkoutToken,
-    input.cartId
-  );
+  await tx.lockReservationAttempt(input.checkoutToken);
+  const initial = await tx.getAttemptReservations(input.checkoutToken);
   if (initial.length === 0) {
     throw new InventoryError(
       "reservation_not_found",
       "No checkout reservation was found."
     );
   }
+  assertAttemptBinding(initial, input);
 
   const productIds = uniqueProductIds(initial.map((item) => item.productId));
   const products = await tx.lockProducts(productIds);
-  const reservations = await tx.getAttemptReservations(
-    input.checkoutToken,
-    input.cartId
-  );
-  if (
-    reservations.some((reservation) => reservation.ownerKey !== input.ownerKey)
-  ) {
-    throw new InventoryError(
-      "reservation_owner_mismatch",
-      "The reservation does not belong to this checkout owner."
-    );
-  }
+  const reservations = await tx.getAttemptReservations(input.checkoutToken);
+  assertAttemptBinding(reservations, input);
   if (
     reservations.some(
       (reservation) =>
@@ -539,7 +500,7 @@ export async function consumeReservationInTransaction(
   const otherTotals = await tx.getActiveReservationTotals(
     productIds,
     now,
-    input.checkoutToken
+    input
   );
   const availabilityAfter = new Map<number, InventoryAvailability>();
 
@@ -567,8 +528,7 @@ export async function consumeReservationInTransaction(
   }
 
   const consumed = await tx.markAttemptReservations(
-    input.checkoutToken,
-    input.cartId,
+    input,
     "consumed",
     now
   );
@@ -580,13 +540,7 @@ export async function consumeReservationInTransaction(
   }
 
   for (const availability of availabilityAfter.values()) {
-    await evaluateAlertState(
-      tx,
-      availability,
-      now,
-      notificationService,
-      true
-    );
+    await evaluateAlertState(tx, availability, now, notificationService);
   }
   return availabilityAfter;
 }
@@ -625,7 +579,6 @@ export async function adjustInventoryInTransaction(
       productId
     );
   }
-  const previous = calculateInventoryAvailability(product, reserved);
   const next = calculateInventoryAvailability(
     {
       ...product,
@@ -640,13 +593,7 @@ export async function adjustInventoryInTransaction(
     lowStockThreshold: low,
     criticalStockThreshold: critical,
   });
-  await evaluateAlertState(
-    tx,
-    next,
-    now,
-    notificationService,
-    statusSeverity(next.status) > statusSeverity(previous.status)
-  );
+  await evaluateAlertState(tx, next, now, notificationService);
   return next;
 }
 
@@ -654,24 +601,18 @@ async function evaluateAlertState(
   tx: InventoryTransaction,
   availability: InventoryAvailability,
   now: Date,
-  notificationService: InventoryNotificationService,
-  emitCurrentAlert: boolean
+  notificationService: InventoryNotificationService
 ) {
-  const resolve: InventoryAlertType[] = [];
-  if (availability.available > availability.lowStockThreshold) {
-    resolve.push("low_stock");
-  }
-  if (availability.available > availability.criticalStockThreshold) {
-    resolve.push("critical_stock");
-  }
-  if (availability.available > 0) resolve.push("out_of_stock");
-  if (resolve.length > 0) {
-    await tx.resolveAlerts(availability.id, resolve, now);
+  const alertType = statusToAlertType(availability.status);
+  const unresolved = await tx.getUnresolvedAlerts(availability.id);
+  const obsoleteTypes = unresolved
+    .filter((alert) => alert.alertType !== alertType)
+    .map((alert) => alert.alertType);
+  if (obsoleteTypes.length > 0) {
+    await tx.resolveAlerts(availability.id, obsoleteTypes, now);
   }
 
-  const alertType = statusToAlertType(availability.status);
-  if (!emitCurrentAlert || !alertType) return;
-  const unresolved = await tx.getUnresolvedAlerts(availability.id);
+  if (!alertType) return;
   if (unresolved.some((alert) => alert.alertType === alertType)) return;
   const threshold =
     alertType === "low_stock"
@@ -748,6 +689,24 @@ function validateAttempt(input: {
   }
 }
 
+function assertAttemptBinding(
+  reservations: InventoryReservationRecord[],
+  attempt: ReservationAttemptIdentity
+) {
+  if (reservations.some((item) => item.cartId !== attempt.cartId)) {
+    throw new InventoryError(
+      "invalid_attempt",
+      "The checkout token is already bound to a different cart."
+    );
+  }
+  if (reservations.some((item) => item.ownerKey !== attempt.ownerKey)) {
+    throw new InventoryError(
+      "reservation_owner_mismatch",
+      "The checkout token is already bound to a different owner."
+    );
+  }
+}
+
 function productNotFound(productId: number) {
   return new InventoryError(
     "product_not_found",
@@ -760,13 +719,4 @@ function statusToAlertType(
   status: InventoryStatus
 ): InventoryAlertType | null {
   return status === "in_stock" ? null : status;
-}
-
-function statusSeverity(status: InventoryStatus) {
-  return {
-    in_stock: 0,
-    low_stock: 1,
-    critical_stock: 2,
-    out_of_stock: 3,
-  }[status];
 }

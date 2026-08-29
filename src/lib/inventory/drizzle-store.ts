@@ -5,7 +5,7 @@ import {
   inArray,
   isNull,
   lte,
-  ne,
+  not,
   notInArray,
   sql,
 } from "drizzle-orm";
@@ -22,6 +22,7 @@ import type {
   InventoryTransaction,
   NewInventoryAlert,
   NewInventoryReservation,
+  ReservationAttemptIdentity,
 } from "./core";
 
 type TenantDatabase = ReturnType<typeof getDbForTenant>;
@@ -72,10 +73,16 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
       .for("update");
   }
 
+  async lockReservationAttempt(checkoutToken: string) {
+    await this.tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${checkoutToken}, 0))`
+    );
+  }
+
   async getActiveReservationTotals(
     productIds: number[],
     now: Date,
-    excludeCheckoutToken?: string
+    excludeAttempt?: ReservationAttemptIdentity
   ) {
     if (productIds.length === 0) return new Map<number, number>();
     const conditions = [
@@ -83,8 +90,16 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
       eq(reservations.state, "active"),
       gt(reservations.expiresAt, now),
     ];
-    if (excludeCheckoutToken) {
-      conditions.push(ne(reservations.checkoutToken, excludeCheckoutToken));
+    if (excludeAttempt) {
+      conditions.push(
+        not(
+          and(
+            eq(reservations.checkoutToken, excludeAttempt.checkoutToken),
+            eq(reservations.cartId, excludeAttempt.cartId),
+            eq(reservations.ownerKey, excludeAttempt.ownerKey)
+          )!
+        )
+      );
     }
     const rows = await this.tx
       .select({
@@ -99,7 +114,7 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
     );
   }
 
-  async getAttemptReservations(checkoutToken: string, cartId: string) {
+  async getAttemptReservations(checkoutToken: string) {
     return this.tx
       .select({
         id: reservations.id,
@@ -113,10 +128,7 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
       })
       .from(reservations)
       .where(
-        and(
-          eq(reservations.checkoutToken, checkoutToken),
-          eq(reservations.cartId, cartId)
-        )
+        eq(reservations.checkoutToken, checkoutToken)
       )
       .orderBy(reservations.productId);
   }
@@ -140,10 +152,8 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
         .onConflictDoUpdate({
           target: [reservations.checkoutToken, reservations.productId],
           set: {
-            ownerKey: reservation.ownerKey,
             purpose: "Checkout",
             quantity: reservation.quantity,
-            cartId: reservation.cartId,
             state: "active",
             expiresAt: reservation.expiresAt,
             consumedAt: null,
@@ -155,14 +165,14 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
   }
 
   async releaseAttemptReservationsExcept(
-    checkoutToken: string,
-    cartId: string,
+    attempt: ReservationAttemptIdentity,
     retainedProductIds: number[],
     now: Date
   ) {
     const conditions = [
-      eq(reservations.checkoutToken, checkoutToken),
-      eq(reservations.cartId, cartId),
+      eq(reservations.checkoutToken, attempt.checkoutToken),
+      eq(reservations.cartId, attempt.cartId),
+      eq(reservations.ownerKey, attempt.ownerKey),
       eq(reservations.state, "active"),
     ];
     if (retainedProductIds.length > 0) {
@@ -175,8 +185,7 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
   }
 
   async markAttemptReservations(
-    checkoutToken: string,
-    cartId: string,
+    attempt: ReservationAttemptIdentity,
     state: Exclude<ReservationState, "active">,
     now: Date
   ) {
@@ -189,8 +198,9 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
       .set({ state, ...timestamps, updatedAt: now })
       .where(
         and(
-          eq(reservations.checkoutToken, checkoutToken),
-          eq(reservations.cartId, cartId),
+          eq(reservations.checkoutToken, attempt.checkoutToken),
+          eq(reservations.cartId, attempt.cartId),
+          eq(reservations.ownerKey, attempt.ownerKey),
           eq(reservations.state, "active")
         )
       )

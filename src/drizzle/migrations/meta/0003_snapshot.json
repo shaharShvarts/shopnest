@@ -1,6 +1,6 @@
 {
-  "id": "fa51047e-2303-4419-b3a0-eebdfc3979d6",
-  "prevId": "4589659a-9695-4f2c-b3a6-57a8345f2651",
+  "id": "dd1c80ee-deb9-4e11-976b-7149a198d66c",
+  "prevId": "fa51047e-2303-4419-b3a0-eebdfc3979d6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1294,17 +1294,11 @@
         }
       },
       "indexes": {
-        "inventory_alert_unresolved_unique": {
-          "name": "inventory_alert_unresolved_unique",
+        "inventory_alert_unresolved_product_unique": {
+          "name": "inventory_alert_unresolved_product_unique",
           "columns": [
             {
               "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "alert_type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

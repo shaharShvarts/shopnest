@@ -60,8 +60,8 @@ export const inventoryAlerts = pgTable(
       "inventory_alert_threshold_non_negative",
       sql`${table.threshold} >= 0`
     ),
-    uniqueIndex("inventory_alert_unresolved_unique")
-      .on(table.productId, table.alertType)
+    uniqueIndex("inventory_alert_unresolved_product_unique")
+      .on(table.productId)
       .where(sql`${table.resolvedAt} is null`),
     index("inventory_alert_product_type_resolved_idx").on(
       table.productId,

@@ -16,6 +16,7 @@ import {
   type InventoryTransaction,
   type NewInventoryAlert,
   type NewInventoryReservation,
+  type ReservationAttemptIdentity,
 } from "../src/lib/inventory/core.ts";
 import type { InventoryAlertType } from "../src/drizzle/schema/inventoryAlert.ts";
 import type { ReservationState } from "../src/drizzle/schema/reservation.ts";
@@ -95,6 +96,58 @@ test("checkout refresh with the same token does not duplicate reservations", asy
   assert.equal((await service.getAvailability(1, t0)).reserved, 2);
 });
 
+test("the same checkout token cannot be reused for a different cart", async () => {
+  const store = inventoryStore(product(1, 5));
+  const service = new InventoryService(store);
+  await service.reserveInventory(attempt("attempt-a", 2));
+  await assert.rejects(
+    service.reserveInventory(attempt("attempt-a", 1, "cart-b", "owner-a")),
+    (error: unknown) => inventoryCode(error, "invalid_attempt")
+  );
+  assert.equal(store.reservations[0].cartId, "cart-a");
+});
+
+test("the same checkout token cannot be reused by a different owner", async () => {
+  const store = inventoryStore(product(1, 5));
+  const service = new InventoryService(store);
+  await service.reserveInventory(attempt("attempt-a", 2));
+  await assert.rejects(
+    service.reserveInventory(attempt("attempt-a", 1, "cart-a", "owner-b")),
+    (error: unknown) => inventoryCode(error, "reservation_owner_mismatch")
+  );
+  assert.equal(store.reservations[0].ownerKey, "owner-a");
+});
+
+test("an existing reservation cannot be stolen, moved, or reassigned", async () => {
+  const store = inventoryStore(product(1, 5));
+  const service = new InventoryService(store);
+  await service.reserveInventory(attempt("attempt-a", 2));
+  await assert.rejects(
+    service.reserveInventory(attempt("attempt-a", 4, "cart-b", "owner-b"))
+  );
+  assert.deepEqual(
+    {
+      cartId: store.reservations[0].cartId,
+      ownerKey: store.reservations[0].ownerKey,
+      quantity: store.reservations[0].quantity,
+      state: store.reservations[0].state,
+    },
+    { cartId: "cart-a", ownerKey: "owner-a", quantity: 2, state: "active" }
+  );
+});
+
+test("failed cross-cart token reuse does not exclude the real reservation", async () => {
+  const store = inventoryStore(product(1, 5));
+  const service = new InventoryService(store);
+  await service.reserveInventory(attempt("attempt-a", 2));
+  await assert.rejects(
+    service.reserveInventory(attempt("attempt-a", 4, "cart-b", "owner-a"))
+  );
+  const availability = await service.getAvailability(1, t0);
+  assert.equal(availability.reserved, 2);
+  assert.equal(availability.available, 3);
+});
+
 test("an expired reservation can be replaced by a new reservation", async () => {
   const store = inventoryStore(product(1, 1));
   const service = new InventoryService(store);
@@ -159,6 +212,41 @@ test("1 to 0 creates an out_of_stock alert", async () => {
   const store = inventoryStore(product(1, 1));
   await new InventoryService(store).adjustInventory(1, { physical: 0, now: t0 });
   assert.deepEqual(store.alerts.map((alert) => alert.alertType), ["out_of_stock"]);
+});
+
+test("severity transitions retain history but keep only one unresolved alert", async () => {
+  const store = inventoryStore(product(1, 11));
+  const service = new InventoryService(store);
+
+  await service.adjustInventory(1, { physical: 10, now: t0 });
+  assert.deepEqual(unresolvedAlertTypes(store), ["low_stock"]);
+
+  await service.adjustInventory(1, { physical: 4, now: later(1) });
+  assert.deepEqual(unresolvedAlertTypes(store), ["critical_stock"]);
+  assert.equal(store.alerts.find((alert) => alert.alertType === "low_stock")?.resolvedAt instanceof Date, true);
+
+  await service.adjustInventory(1, { physical: 0, now: later(2) });
+  assert.deepEqual(unresolvedAlertTypes(store), ["out_of_stock"]);
+  assert.equal(store.alerts.find((alert) => alert.alertType === "critical_stock")?.resolvedAt instanceof Date, true);
+
+  await service.adjustInventory(1, { physical: 30, now: later(3) });
+  assert.deepEqual(unresolvedAlertTypes(store), []);
+  assert.equal(store.alerts.length, 3);
+  assert.equal(store.alerts.every((alert) => alert.resolvedAt instanceof Date), true);
+});
+
+test("a product never has multiple unresolved severity alerts", async () => {
+  const store = inventoryStore(product(1, 11));
+  const service = new InventoryService(store);
+  for (const [index, physical] of [10, 9, 4, 3, 0, 4, 10, 30].entries()) {
+    await service.adjustInventory(1, {
+      physical,
+      now: later(index),
+    });
+    assert.ok(
+      store.alerts.filter((alert) => alert.resolvedAt === null).length <= 1
+    );
+  }
 });
 
 test("restocking 4 to 30 resolves applicable alerts", async () => {
@@ -242,15 +330,26 @@ test("disabled merchant availability prevents reservation", async () => {
   );
 });
 
-test("database migration and store include integrity and row locking", async () => {
-  const [migration, storeSource] = await Promise.all([
+test("database migrations and store enforce integrity, binding, and locking", async () => {
+  const [migration, alertMigration, storeSource] = await Promise.all([
     source("../src/drizzle/migrations/0002_classy_bloodstorm.sql"),
+    source("../src/drizzle/migrations/0003_free_vermin.sql"),
     source("../src/lib/inventory/drizzle-store.ts"),
   ]);
   assert.match(migration, /quantity_non_negative[\s\S]*quantity" >= 0/);
   assert.match(migration, /critical_threshold_not_above_low/);
   assert.match(migration, /reservation_quantity_positive/);
+  assert.match(alertMigration, /severity_rank" > 1/);
+  assert.match(
+    alertMigration,
+    /inventory_alert_unresolved_product_unique[\s\S]*\("product_id"\)/
+  );
   assert.match(storeSource, /\.for\("update"\)/);
+  assert.match(storeSource, /pg_advisory_xact_lock/);
+  assert.doesNotMatch(
+    storeSource,
+    /set:\s*\{[\s\S]{0,200}ownerKey: reservation\.ownerKey/
+  );
 });
 
 test("future dashboard helpers summarize and filter inventory health", () => {
@@ -320,14 +419,25 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
     return this.getProducts(ids);
   }
 
-  async getActiveReservationTotals(ids: number[], now: Date, exclude?: string) {
+  async lockReservationAttempt(_checkoutToken: string) {}
+
+  async getActiveReservationTotals(
+    ids: number[],
+    now: Date,
+    exclude?: ReservationAttemptIdentity
+  ) {
     const totals = new Map<number, number>();
     for (const item of this.reservations) {
       if (
         ids.includes(item.productId) &&
         item.state === "active" &&
         item.expiresAt.getTime() > now.getTime() &&
-        item.checkoutToken !== exclude
+        !(
+          exclude &&
+          item.checkoutToken === exclude.checkoutToken &&
+          item.cartId === exclude.cartId &&
+          item.ownerKey === exclude.ownerKey
+        )
       ) {
         totals.set(item.productId, (totals.get(item.productId) ?? 0) + item.quantity);
       }
@@ -335,10 +445,10 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
     return totals;
   }
 
-  async getAttemptReservations(checkoutToken: string, cartId: string) {
+  async getAttemptReservations(checkoutToken: string) {
     return structuredClone(
       this.reservations.filter(
-        (item) => item.checkoutToken === checkoutToken && item.cartId === cartId
+        (item) => item.checkoutToken === checkoutToken
       )
     );
   }
@@ -350,26 +460,32 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
           candidate.checkoutToken === item.checkoutToken &&
           candidate.productId === item.productId
       );
-      const value: InventoryReservationRecord = {
-        id: existing?.id ?? `reservation-${this.reservations.length + 1}`,
-        ...structuredClone(item),
-        state: "active",
-      };
-      if (existing) Object.assign(existing, value);
-      else this.reservations.push(value);
+      if (existing) {
+        Object.assign(existing, {
+          quantity: item.quantity,
+          expiresAt: structuredClone(item.expiresAt),
+          state: "active" as const,
+        });
+      } else {
+        this.reservations.push({
+          id: `reservation-${this.reservations.length + 1}`,
+          ...structuredClone(item),
+          state: "active",
+        });
+      }
     }
   }
 
   async releaseAttemptReservationsExcept(
-    checkoutToken: string,
-    cartId: string,
+    attempt: ReservationAttemptIdentity,
     retainedProductIds: number[],
     _now: Date
   ) {
     for (const item of this.reservations) {
       if (
-        item.checkoutToken === checkoutToken &&
-        item.cartId === cartId &&
+        item.checkoutToken === attempt.checkoutToken &&
+        item.cartId === attempt.cartId &&
+        item.ownerKey === attempt.ownerKey &&
         item.state === "active" &&
         !retainedProductIds.includes(item.productId)
       ) item.state = "released";
@@ -377,14 +493,18 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
   }
 
   async markAttemptReservations(
-    checkoutToken: string,
-    cartId: string,
+    attempt: ReservationAttemptIdentity,
     state: Exclude<ReservationState, "active">,
     _now: Date
   ) {
     let count = 0;
     for (const item of this.reservations) {
-      if (item.checkoutToken === checkoutToken && item.cartId === cartId && item.state === "active") {
+      if (
+        item.checkoutToken === attempt.checkoutToken &&
+        item.cartId === attempt.cartId &&
+        item.ownerKey === attempt.ownerKey &&
+        item.state === "active"
+      ) {
         item.state = state;
         count += 1;
       }
@@ -416,7 +536,11 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
   }
 
   async createAlert(alert: NewInventoryAlert) {
-    if (activeAlerts(this, alert.alertType).some((item) => item.productId === alert.productId)) {
+    if (
+      this.alerts.some(
+        (item) => item.productId === alert.productId && item.resolvedAt === null
+      )
+    ) {
       throw new Error("duplicate unresolved alert");
     }
     this.alerts.push({ ...structuredClone(alert), id: `alert-${this.alerts.length + 1}`, resolvedAt: null });
@@ -486,6 +610,12 @@ function reservation(overrides: Partial<InventoryReservationRecord> = {}): Inven
 
 function activeAlerts(store: MemoryInventoryStore, type: InventoryAlertType) {
   return store.alerts.filter((alert) => alert.alertType === type && alert.resolvedAt === null);
+}
+
+function unresolvedAlertTypes(store: MemoryInventoryStore) {
+  return store.alerts
+    .filter((alert) => alert.resolvedAt === null)
+    .map((alert) => alert.alertType);
 }
 
 function later(minutes: number) {
