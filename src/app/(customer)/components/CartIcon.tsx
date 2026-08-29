@@ -16,10 +16,10 @@ export const CartIcon = () => {
   // }, []);
 
   return (
-    <div className="relative transition-colors" aria-label="View shopping cart">
+    <div className="relative transition-colors">
       <ShoppingCart className="text-gray-800 hover:text-rose-800" />
       {cartCount > 0 && (
-        <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full px-2 text-xs">
+        <span className="absolute -right-2 -top-2 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] leading-none text-white">
           {cartCount}
         </span>
       )}

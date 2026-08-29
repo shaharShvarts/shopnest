@@ -39,8 +39,8 @@ export function ShippingTable() {
   });
 
   return (
-    <form action={formAction} className="space-y-6 max-w-2xl mx-auto">
-      <div className="grid grid-cols-2 gap-4">
+    <form action={formAction} className="mx-auto w-full max-w-2xl space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="firstName">
             {t("firstName")}
@@ -144,7 +144,7 @@ export function ShippingTable() {
           <Input name="entry" id="entry" defaultValue={address.entry || ""} />
         </div>
 
-        <div className="col-span-2 space-y-2">
+        <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="phone">
             {t("phone")}
             <span className="text-red-500">*</span>
@@ -155,7 +155,7 @@ export function ShippingTable() {
           )}
         </div>
 
-        <div className="col-span-2 space-y-2">
+        <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="email">
             {t("email")}
             <span className="text-red-500">*</span>
@@ -177,7 +177,7 @@ export function ShippingTable() {
         <Textarea name="notes" id="notes" />
       </div>
 
-      <Button type="submit" disabled={isPending} className="w-full mt-4">
+      <Button type="submit" disabled={isPending} className="mt-4 min-h-11 w-full">
         {isPending ? "Saving..." : "Save"}
       </Button>
     </form>

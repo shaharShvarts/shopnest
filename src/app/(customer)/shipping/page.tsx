@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/app/components/PageHeader";
+import { StorefrontPageHeader } from "../components/StorefrontPageHeader";
 import { ShippingTable } from "./_components/ShippingTable";
 
 export async function generateMetadata() {
@@ -16,7 +16,7 @@ export default async function ShippingPage() {
 
   return (
     <>
-      <PageHeader>{t("header")}</PageHeader>
+      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
       <ShippingTable />
     </>
   );

@@ -35,31 +35,45 @@ export default async function HomeLayout({
 
   return (
     <CartProvider>
-      <header dir="ltr" className="sticky top-0 bg-white z-50 ltr shadow-md">
-        <nav className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <header
+        dir="ltr"
+        className="sticky top-0 z-50 bg-white shadow-md"
+      >
+        <nav className="container mx-auto flex min-w-0 items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3">
           <Link
             href={"/"}
-            className="flex flex-col justify-center items-center"
+            aria-label="ShopNest home"
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
           >
             <DvorikLogo
-              height={64}
               fill="#6D3F03"
-              className="hover:fill-[#C2410C] transition-colors"
+              className="size-11 transition-colors hover:fill-[#C2410C] sm:size-16"
             />
           </Link>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-3">
             <LanguageSelector />
-            <Link href={`/carts`}>
+            <Link
+              href={`/carts`}
+              aria-label="View shopping cart"
+              className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500"
+            >
               <CartIcon />
             </Link>
-            <Link href={`/login`}>
-              <UserRound className="text-gray-800 hover:text-rose-800" />
-            </Link>
+            <span
+              role="img"
+              aria-label="Customer accounts are not available yet"
+              title="Customer accounts are not available yet"
+              className="flex size-11 shrink-0 items-center justify-center rounded-md text-gray-500"
+            >
+              <UserRound aria-hidden="true" />
+            </span>
           </div>
         </nav>
       </header>
-      <div className="flex-grow">
-        <div className="container mx-auto px-4 py-3">{children}</div>
+      <div className="min-w-0 flex-grow">
+        <main className="container mx-auto min-w-0 px-3 py-4 sm:px-4 sm:py-6">
+          {children}
+        </main>
       </div>
       <Footer />
       <CookieConsent />

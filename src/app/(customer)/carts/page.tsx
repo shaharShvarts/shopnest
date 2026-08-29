@@ -4,7 +4,8 @@ import { fetchCartId } from "../_actions/cartVerification";
 import { cartProducts, products } from "@/drizzle/schema";
 import CartTable from "../components/CartTable";
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/app/components/PageHeader";
+import { StorefrontPageHeader } from "../components/StorefrontPageHeader";
+import { getTenant } from "@/lib/tenant-context";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");
@@ -21,10 +22,12 @@ export type CartPageProps = {
   price: number;
   description: string | null;
   quantity: number;
+  imageUrl: string;
 };
 
 export default async function CartPage() {
   const t = await getTranslations("CartPage");
+  const tenant = await getTenant();
   const db = await getDb();
   const cartId = await fetchCartId();
   if (!cartId) return null;
@@ -36,6 +39,7 @@ export default async function CartPage() {
       price: products.price,
       description: products.description,
       quantity: cartProducts.quantity,
+      imageUrl: products.imageUrl,
     })
     .from(cartProducts)
     .innerJoin(products, eq(cartProducts.productId, products.id))
@@ -43,8 +47,8 @@ export default async function CartPage() {
 
   return (
     <>
-      <PageHeader>{t("header")}</PageHeader>
-      <CartTable cartData={cartData} />
+      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
+      <CartTable cartData={cartData} tenantSlug={tenant?.slug ?? ""} />
     </>
   );
 }

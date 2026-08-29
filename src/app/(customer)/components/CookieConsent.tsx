@@ -21,8 +21,8 @@ export default function CookieConsent() {
   if (!visible) return null;
 
   return (
-    <div className="sticky bottom-0 w-full bg-black text-white p-4 z-50 flex flex-col md:flex-row justify-between items-center">
-      <p className="text-sm md:text-base mb-2 md:mb-0">
+    <div className="sticky bottom-0 z-50 flex w-full flex-col items-stretch justify-between gap-3 bg-black p-3 text-white sm:p-4 md:flex-row md:items-center">
+      <p className="min-w-0 text-sm md:text-base">
         {`We use cookies to improve your experience. By clicking "Accept", you
         agree to our use of cookies. See our `}
         <TenantLink
@@ -35,16 +35,16 @@ export default function CookieConsent() {
         </TenantLink>
         .
       </p>
-      <div className="flex space-x-2">
+      <div className="flex shrink-0 gap-2">
         <button
           onClick={() => handleConsent("true")}
-          className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded text-sm"
+          className="min-h-11 flex-1 rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-500 md:flex-none"
         >
           Accept
         </button>
         <button
           onClick={() => handleConsent("false")}
-          className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm"
+          className="min-h-11 flex-1 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-500 md:flex-none"
         >
           Decline
         </button>

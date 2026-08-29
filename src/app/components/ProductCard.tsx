@@ -27,8 +27,8 @@ export async function ProductCard({
   const t = await getTranslations("ProductsPage");
   const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenantSlug);
   return (
-    <Card className="flex overflow-hidden flex-col">
-      <div className="relative w-full aspect-video">
+    <Card className="flex min-w-0 overflow-hidden flex-col">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
         {normalizedImageUrl ? (
           <Image
             src={normalizedImageUrl}
@@ -36,7 +36,7 @@ export async function ProductCard({
             fill
             unoptimized
             className="object-cover transition-transform duration-300 hover:scale-105"
-            sizes="100vw"
+            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">
@@ -44,15 +44,17 @@ export async function ProductCard({
           </div>
         )}
       </div>
-      <CardHeader className="text-lg font-semibold">
-        <CardTitle>{name}</CardTitle>
+      <CardHeader className="min-w-0 p-4 text-lg font-semibold">
+        <CardTitle className="break-words text-base sm:text-lg">{name}</CardTitle>
         <CardDescription>{formatCurrency(price)}</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="line-clamp-4">{description}</p>
+      <CardContent className="min-w-0 flex-grow px-4 pb-4">
+        <p className="line-clamp-4 break-words text-sm sm:text-base">
+          {description}
+        </p>
       </CardContent>
-      <CardFooter>
-        <Button asChild size="lg" className="w-full">
+      <CardFooter className="p-4 pt-0">
+        <Button asChild size="lg" className="min-h-11 w-full">
           <Link href={`/products/${id}/details`}>{t("button")}</Link>
         </Button>
       </CardFooter>
@@ -62,9 +64,9 @@ export async function ProductCard({
 
 export async function ProductCardSkeleton() {
   return (
-    <Card className="flex overflow-hidden flex-col animate-pulse">
-      <div className="w-full aspect-video bg-gray-300" />
-      <CardHeader>
+    <Card className="flex min-w-0 animate-pulse flex-col overflow-hidden">
+      <div className="aspect-[4/3] w-full bg-gray-300" />
+      <CardHeader className="p-4">
         <CardTitle>
           <div className="w-3/4 h-6 rounded-full bg-gray-300" />
         </CardTitle>
@@ -72,13 +74,13 @@ export async function ProductCardSkeleton() {
           <div className="w-1/2 h-4 rounded-full bg-gray-300" />
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-2 px-4 pb-4">
         <div className="w-full h-4 rounded-full bg-gray-300" />
         <div className="w-full h-4 rounded-full bg-gray-300" />
         <div className="w-full h-4 rounded-full bg-gray-300" />
       </CardContent>
-      <CardFooter>
-        <Button className="w-full" disabled size="lg"></Button>
+      <CardFooter className="p-4 pt-0">
+        <Button className="min-h-11 w-full" disabled size="lg"></Button>
       </CardFooter>
     </Card>
   );

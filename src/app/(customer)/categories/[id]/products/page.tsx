@@ -2,7 +2,7 @@ import { getDbForTenant } from "@/drizzle/db";
 import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 import { categories, products, subcategories } from "@/drizzle/schema";
 import { ProductCard } from "@/app/components/ProductCard";
-import { PageHeader } from "@/app/components/PageHeader";
+import { StorefrontPageHeader } from "../../../components/StorefrontPageHeader";
 import { cache } from "@/lib/cache";
 import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
 import { getTranslations } from "next-intl/server";
@@ -91,7 +91,7 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
 
   return (
     <>
-      <PageHeader>{t("header")}</PageHeader>
+      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
       <DynamicBreadcrumb
         segments={[
           { label: tb("home"), href: "/" },
@@ -100,7 +100,7 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
           { label: tb("products") },
         ]}
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <ProductsSuspense products={products} tenantSlug={tenant?.slug ?? ""} />
       </div>
     </>

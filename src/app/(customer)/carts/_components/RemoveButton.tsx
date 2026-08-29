@@ -14,6 +14,9 @@ export function RemoveButton({ productId }: { productId: number }) {
   return (
     <button
       disabled={isPending}
+      type="button"
+      aria-label="Remove item from cart"
+      className="flex size-11 shrink-0 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive disabled:opacity-50"
       onClick={() => {
         startTransition(async () => {
           const quantity = await removeProduct(productId);
@@ -23,7 +26,7 @@ export function RemoveButton({ productId }: { productId: number }) {
         });
       }}
     >
-      <CircleX className="cursor-pointer" />
+      <CircleX aria-hidden="true" />
     </button>
   );
 }

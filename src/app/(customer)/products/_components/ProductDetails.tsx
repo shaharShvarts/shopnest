@@ -87,55 +87,59 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   );
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="columns-2 xs:columns-1 gap-4">
-        <div className="image-container mb-4 border-gray-200 border rounded-lg overflow-hidden">
+    <section className="mx-auto w-full max-w-6xl">
+      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start lg:gap-8">
+        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-muted p-2 sm:p-4">
           {normalizedImageUrl ? (
             <Image
               src={normalizedImageUrl}
               alt={product.name}
-              width={500}
-              height={500}
+              width={720}
+              height={720}
               unoptimized
-              className="transition-transform duration-300 hover:scale-105"
-              sizes="100vw"
+              className="h-auto max-h-[70vh] w-full max-w-2xl object-contain lg:max-h-[560px]"
+              sizes="(min-width: 1024px) 50vw, 100vw"
             />
           ) : (
-            <div className="flex min-h-80 items-center justify-center bg-muted text-muted-foreground">
+            <div className="flex min-h-64 w-full items-center justify-center text-muted-foreground sm:min-h-80">
               Image unavailable
             </div>
           )}
         </div>
         <div
           className={cn(
-            "flex flex-col justify-start h-full border-gray-200 border rounded-lg overflow-hidden ",
+            "flex min-w-0 flex-col justify-start rounded-lg border border-gray-200 p-4 sm:p-6 lg:min-h-[420px]",
             counter === 0 ? " pointer-events-none opacity-50" : ""
           )}
         >
-          <h1 className="text-3xl font-bold mb-2 text-gray-800">
+          <h2 className="mb-3 break-words text-2xl font-bold leading-tight text-gray-800 sm:text-3xl lg:text-4xl">
             {product.name}
-          </h1>
-          <h3 className="text-sm font-semibold text-gray-600 mb-6">
+          </h2>
+          <p className="mb-5 text-base font-semibold text-gray-600 sm:text-lg">
             <span>{t("price")} </span>
             {new Intl.NumberFormat("he-IL", {
               style: "currency",
               currency: "ILS",
             }).format(product.price)}
-          </h3>
-          <p className="text-gray-700 mb-4">{product.description}</p>
+          </p>
+          <p className="mb-5 break-words text-sm leading-6 text-gray-700 sm:text-base sm:leading-7">
+            {product.description}
+          </p>
 
           {product.quantity > 1 && (
-            <>
-              <p>{t("quantity", { count: product.quantity })}</p>
-              <Label htmlFor="quantity" className="mt-4">
+            <div className="mt-auto">
+              <p className="text-sm text-gray-600 sm:text-base">
+                {t("quantity", { count: product.quantity })}
+              </p>
+              <Label htmlFor="quantity" className="mt-4 block">
                 {t("quantityLabel")}
               </Label>
-              <div className="flex items-center space-x-2 mt-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button
                   disabled={counter === 0}
                   variant="outline"
-                  className="border-2 border-black py-4 rounded-none"
-                  size="sm"
+                  className="size-11 rounded-md border-2 border-black p-0"
+                  aria-label="Decrease quantity"
                   onClick={() =>
                     setCounter((prev) => (prev > 1 ? prev - 1 : prev))
                   }
@@ -151,13 +155,13 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
                   onChange={(e) => setCounter(Number(e.target.value))}
                   min={1}
                   max={product.quantity}
-                  className="appearance-none w-[60px] text-center !border-2 !border-black !rounded-none focus-visible:outline-none focus-visible:ring-0 focus-visible:border-transparent"
+                  className="h-11 w-16 appearance-none rounded-md !border-2 !border-black text-center focus-visible:ring-2"
                 />
                 <Button
                   variant="outline"
                   disabled={counter === 0}
-                  className="border-2 border-black py-4 rounded-none"
-                  size="sm"
+                  className="size-11 rounded-md border-2 border-black p-0"
+                  aria-label="Increase quantity"
                   onClick={() =>
                     setCounter((prev) =>
                       prev < product.quantity ? prev + 1 : prev
@@ -167,10 +171,10 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
                   <Plus />
                 </Button>
               </div>
-            </>
+            </div>
           )}
           <Button
-            className="mt-6 w-[200px]"
+            className="mt-6 min-h-11 w-full sm:w-auto sm:min-w-52"
             disabled={loading || counter === 0}
             onClick={async () => {
               setLoading(true);
@@ -202,6 +206,6 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
           </Button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
