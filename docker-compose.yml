@@ -10,8 +10,11 @@ services:
     environment:
       DB_HOST: db
       DB_NAME: shopnest
+      SHOPNEST_UPLOADS_DIR: /app/uploads
     depends_on:
       - db
+    volumes:
+      - shopnest_uploads:/app/uploads
 
   db:
     image: postgres:17.0
@@ -36,3 +39,4 @@ services:
 
 volumes:
   pgdata:
+  shopnest_uploads:

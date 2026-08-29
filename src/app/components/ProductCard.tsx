@@ -12,6 +12,9 @@ import { formatCurrency } from "@/lib/formatters";
 import { ProductPreview } from "../(customer)/types";
 import { getTranslations } from "next-intl/server";
 import { TenantLink as Link } from "@/components/TenantLink";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+
+type ProductCardProps = ProductPreview & { tenantSlug?: string };
 
 export async function ProductCard({
   id,
@@ -19,18 +22,27 @@ export async function ProductCard({
   price,
   imageUrl,
   description,
-}: ProductPreview) {
+  tenantSlug = "",
+}: ProductCardProps) {
   const t = await getTranslations("ProductsPage");
+  const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenantSlug);
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">
-        <Image
-          src={imageUrl}
-          alt={name}
-          fill
-          className="object-cover transition-transform duration-300 hover:scale-105"
-          sizes="100vw"
-        />
+        {normalizedImageUrl ? (
+          <Image
+            src={normalizedImageUrl}
+            alt={name}
+            fill
+            unoptimized
+            className="object-cover transition-transform duration-300 hover:scale-105"
+            sizes="100vw"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">
+            Image unavailable
+          </div>
+        )}
       </div>
       <CardHeader className="text-lg font-semibold">
         <CardTitle>{name}</CardTitle>

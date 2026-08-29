@@ -1,7 +1,6 @@
 "use server";
 
 import z from "zod";
-import fs from "fs/promises";
 import { eq } from "drizzle-orm";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { imageSchema, optionalImageSchema } from "./zod";
@@ -9,7 +8,6 @@ import {
   revalidateTenantPath,
   tenantPath,
 } from "@/lib/tenant-context";
-import { fileExists } from "@/lib/fileExists";
 import { subcategories } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
@@ -18,6 +16,10 @@ import {
   validateCategory,
 } from "@/lib/catalog/core";
 import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
+import {
+  deleteCatalogImage,
+  saveCatalogImage,
+} from "@/lib/media/catalog-media";
 
 const zodSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -31,7 +33,7 @@ const editSchema = zodSchema.extend({
 
 // This function handles the addition of a new category
 export async function addSubcategory(_: unknown, formData: FormData) {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
@@ -44,18 +46,23 @@ export async function addSubcategory(_: unknown, formData: FormData) {
 
   const { image, ...rawData } = result.data;
 
-  await fs.mkdir("public/subcategories", { recursive: true });
-  const imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
-  const fullFilePath = `public${imageUrl}`;
-  await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
+  const uploadedImage = await saveCatalogImage({
+    tenantSlug: tenant.slug,
+    kind: "subcategories",
+    file: image,
+  });
 
   // Save category data to the database
   try {
-    await createCatalogSubcategory(store, { ...rawData, imageUrl });
+    await createCatalogSubcategory(store, {
+      ...rawData,
+      imageUrl: uploadedImage.imageUrl,
+    });
   } catch (error: unknown) {
-    if (await fileExists(fullFilePath)) {
-      await fs.unlink(fullFilePath);
-    }
+    await deleteCatalogImage({
+      tenantSlug: tenant.slug,
+      imageUrl: uploadedImage.imageUrl,
+    });
 
     const formError = catalogFormError(error, "subcategory");
 
@@ -79,7 +86,7 @@ export async function editSubcategory(
   _: unknown,
   formData: FormData
 ) {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
@@ -112,15 +119,16 @@ export async function editSubcategory(
   }
 
   const oldCategoryId = subcategory.categoryId;
-  const oldImagePath = `public${subcategory.imageUrl}`;
   let imageUrl = subcategory.imageUrl;
-  let newImagePath: string | null = null;
+  let uploadedImage: Awaited<ReturnType<typeof saveCatalogImage>> | null = null;
 
   if (image) {
-    await fs.mkdir("public/subcategories", { recursive: true });
-    imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
-    newImagePath = `public${imageUrl}`;
-    await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
+    uploadedImage = await saveCatalogImage({
+      tenantSlug: tenant.slug,
+      kind: "subcategories",
+      file: image,
+    });
+    imageUrl = uploadedImage.imageUrl;
   }
 
   // Update subcategory data to the database
@@ -130,8 +138,11 @@ export async function editSubcategory(
       .set({ ...rawData, imageUrl })
       .where(eq(subcategories.id, Number(id)));
   } catch (error: unknown) {
-    if (newImagePath && (await fileExists(newImagePath))) {
-      await fs.unlink(newImagePath);
+    if (uploadedImage) {
+      await deleteCatalogImage({
+        tenantSlug: tenant.slug,
+        imageUrl: uploadedImage.imageUrl,
+      });
     }
     const formError = catalogFormError(error, "subcategory");
 
@@ -143,8 +154,11 @@ export async function editSubcategory(
     };
   }
 
-  if (newImagePath && (await fileExists(oldImagePath))) {
-    await fs.unlink(oldImagePath);
+  if (uploadedImage) {
+    await deleteCatalogImage({
+      tenantSlug: tenant.slug,
+      imageUrl: subcategory.imageUrl,
+    });
   }
 
   await revalidateTenantPath("/");
@@ -174,7 +188,7 @@ export async function ToggleSubcategoryActive(id: number, active: boolean) {
 
 // This function handles the deletion of a subcategory
 export async function deleteSubcategory(id: number): Promise<string> {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   let subcategory;
   try {
     [subcategory] = await db
@@ -190,14 +204,10 @@ export async function deleteSubcategory(id: number): Promise<string> {
 
   if (!subcategory) notFound();
 
-  const imageUrl = subcategory?.imageUrl ?? "";
-
-  const fullFilePath = `public${imageUrl}`;
-
-  // Delete the image file from the server
-  if (await fileExists(fullFilePath)) {
-    await fs.unlink(fullFilePath);
-  }
+  await deleteCatalogImage({
+    tenantSlug: tenant.slug,
+    imageUrl: subcategory.imageUrl,
+  });
 
   await revalidateTenantPath("/");
   await revalidateTenantPath("/subcategories");

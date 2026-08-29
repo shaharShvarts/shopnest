@@ -1,11 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import { useDropzone } from "react-dropzone";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Upload } from "lucide-react";
 import { isValidImage } from "@/lib/isValidImage";
 import { useRef } from "react";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+import { AdminImagePreview } from "./AdminImagePreview";
+import { useTenant } from "@/context/TenantContext";
 
 type ImageUploadProps = {
   initialImage?: string;
@@ -13,8 +15,13 @@ type ImageUploadProps = {
 
 export function ImageUpload({ initialImage }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const tenant = useTenant();
+  const existingImageUrl = useMemo(
+    () => resolveTenantImageUrl(initialImage, tenant.slug),
+    [initialImage, tenant.slug]
+  );
+  const previewUrl = objectUrl ?? existingImageUrl;
   const validImageTypes =
     process.env.NEXT_PUBLIC_VALID_IMAGE_TYPES?.split("|") ?? [];
 
@@ -41,26 +48,23 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
   });
 
   const handleFileSelect = (image: File | null) => {
-    if (!isValidImage(image)) {
-      setPreviewUrl(null);
-      setFile(null);
+    if (!image || !isValidImage(image)) {
+      setObjectUrl(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
       return false;
     }
 
-    setFile(image);
-    setPreviewUrl(URL.createObjectURL(image as Blob));
+    setObjectUrl(URL.createObjectURL(image));
     return true;
   };
 
-  // Set initial image if provided
   useEffect(() => {
-    if (initialImage && !file) {
-      setPreviewUrl(initialImage);
-    }
-  }, [initialImage, file]);
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [objectUrl]);
 
   return (
     <div
@@ -76,7 +80,7 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
         accept="image/*"
         aria-label="Upload image"
         ref={fileInputRef}
-        required={initialImage == null}
+        required={!existingImageUrl}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
         onChange={(e) => {
           const image = e.target.files?.[0] || null;
@@ -95,18 +99,7 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
         </div>
       ) : (
         <div className="w-full h-full flex items-center justify-center pointer-events-none">
-          {/* <img
-            src={previewUrl}
-            alt="Selected preview"
-            /> */}
-          <Image
-            src={previewUrl}
-            alt="Selected preview"
-            width={400}
-            height={300}
-            priority // optional: improves LCP for above-the-fold images
-            className="object-contain w-full h-full rounded"
-          />
+          <AdminImagePreview src={previewUrl} alt="Selected image preview" />
         </div>
       )}
     </div>

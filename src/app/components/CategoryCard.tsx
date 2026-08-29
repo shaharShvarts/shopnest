@@ -1,8 +1,12 @@
+"use client";
+
 import { TenantLink as Link } from "@/components/TenantLink";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+import { useTenant } from "@/context/TenantContext";
 
 type CategoryCardProps = {
   [key: string]: string | number;
@@ -10,19 +14,31 @@ type CategoryCardProps = {
 
 export function CategoryCard(props: CategoryCardProps) {
   const { id, name, imageUrl } = props;
+  const tenant = useTenant();
+  const normalizedImageUrl = resolveTenantImageUrl(
+    String(imageUrl),
+    tenant.slug
+  );
 
   const t = useTranslations("CategoriesPage");
 
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">
-        <Image
-          src={String(imageUrl)}
-          alt={String(name)}
-          fill
-          className="object-cover transition-transform duration-300 hover:scale-105"
-          sizes="100vw"
-        />
+        {normalizedImageUrl ? (
+          <Image
+            src={normalizedImageUrl}
+            alt={String(name)}
+            fill
+            unoptimized
+            className="object-cover transition-transform duration-300 hover:scale-105"
+            sizes="100vw"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">
+            Image unavailable
+          </div>
+        )}
       </div>
       <CardHeader className="text-lg font-semibold">
         <CardTitle className="flex justify-center">{name}</CardTitle>

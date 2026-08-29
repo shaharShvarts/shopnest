@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { categories } from "@/drizzle/schema";
 import CategoryForm from "../../_components/CategoryForm";
-import { PageHeader } from "@/app/components/PageHeader";
 import { notFound } from "next/navigation";
+import { AdminFormHeader } from "../../../_components/AdminFormHeader";
 
 type EditCategoryProps = {
   params: Promise<{ id: number }>;
@@ -23,7 +23,11 @@ export default async function EditCategoryPage({ params }: EditCategoryProps) {
 
   return (
     <>
-      <PageHeader>Edit Category</PageHeader>
+      <AdminFormHeader
+        title="Edit Category"
+        backHref="/admin/categories"
+        backLabel="Back to Categories"
+      />
       <CategoryForm category={category} />
     </>
   );

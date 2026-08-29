@@ -15,6 +15,7 @@ export type CategoriesData = {
   isActive: boolean;
   categoryId: number;
   name: string;
+  imageUrl: string;
   productsCount: number;
   subcategoriesCount: number;
 };
@@ -28,6 +29,7 @@ export default async function AdminCategoriesPage() {
           isActive: categories.isActive,
           categoryId: categories.id,
           name: categories.name,
+          imageUrl: categories.imageUrl,
         })
         .from(categories)
         .orderBy(categories.name),

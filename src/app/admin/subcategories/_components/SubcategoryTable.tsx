@@ -24,6 +24,7 @@ import {
   ToggleSubcategoryActive,
 } from "../../_actions/subcategories";
 import { SubcategoriesData } from "../page";
+import { AdminImagePreview } from "../../_components/AdminImagePreview";
 
 type SubcategoryTableProps = {
   subcategoriesData: SubcategoriesData[];
@@ -45,6 +46,7 @@ export function SubcategoryTable({ subcategoriesData }: SubcategoryTableProps) {
             <span className="sr-only">Status</span>
           </TableHead>
           <TableHead>Name</TableHead>
+          <TableHead>Image</TableHead>
           <TableHead>category</TableHead>
           <TableHead>Products</TableHead>
           <TableHead className="w-0">
@@ -55,7 +57,14 @@ export function SubcategoryTable({ subcategoriesData }: SubcategoryTableProps) {
 
       <TableBody>
         {subcategoriesData.map(
-          ({ isActive, subcategoryId, name, productsCount, categoryName }) => (
+          ({
+            isActive,
+            subcategoryId,
+            name,
+            imageUrl,
+            productsCount,
+            categoryName,
+          }) => (
             <TableRow key={subcategoryId}>
               <TableCell>
                 <span className="sr-only">
@@ -65,6 +74,9 @@ export function SubcategoryTable({ subcategoriesData }: SubcategoryTableProps) {
               </TableCell>
 
               <TableCell>{name}</TableCell>
+              <TableCell>
+                <AdminImagePreview src={imageUrl} alt={name} compact />
+              </TableCell>
               <TableCell>{categoryName}</TableCell>
               <TableCell>{productsCount}</TableCell>
 

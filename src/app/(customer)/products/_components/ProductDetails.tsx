@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/context/TenantContext";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
 // const getProductQTY = async (productId: number) => {
 //   const res = await fetch(`/api/reservations?productId=${productId}`, {
@@ -80,19 +81,30 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   const router = useRouter();
   const t = useTranslations("ProductDetails");
   const tenant = useTenant();
+  const normalizedImageUrl = resolveTenantImageUrl(
+    product.imageUrl,
+    tenant.slug
+  );
 
   return (
     <div className="container mx-auto p-4">
       <div className="columns-2 xs:columns-1 gap-4">
         <div className="image-container mb-4 border-gray-200 border rounded-lg overflow-hidden">
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            width={500}
-            height={500}
-            className="transition-transform duration-300 hover:scale-105"
-            sizes="100vw"
-          />
+          {normalizedImageUrl ? (
+            <Image
+              src={normalizedImageUrl}
+              alt={product.name}
+              width={500}
+              height={500}
+              unoptimized
+              className="transition-transform duration-300 hover:scale-105"
+              sizes="100vw"
+            />
+          ) : (
+            <div className="flex min-h-80 items-center justify-center bg-muted text-muted-foreground">
+              Image unavailable
+            </div>
+          )}
         </div>
         <div
           className={cn(
