@@ -59,13 +59,14 @@ export default async function HomeLayout({
             >
               <CartIcon />
             </Link>
-            <Link
-              href={`/login`}
-              aria-label="Account"
-              className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500"
+            <span
+              role="img"
+              aria-label="Customer accounts are not available yet"
+              title="Customer accounts are not available yet"
+              className="flex size-11 shrink-0 items-center justify-center rounded-md text-gray-500"
             >
-              <UserRound className="text-gray-800 hover:text-rose-800" />
-            </Link>
+              <UserRound aria-hidden="true" />
+            </span>
           </div>
         </nav>
       </header>

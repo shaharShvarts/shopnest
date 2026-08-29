@@ -26,10 +26,49 @@ test("storefront header stays compact while preserving all controls", async () =
   assert.match(layout, /LanguageSelector/);
   assert.match(layout, /CartIcon/);
   assert.match(layout, /UserRound/);
+  assert.doesNotMatch(layout, /href=\{?[`"']\/login/);
+  assert.match(layout, /Customer accounts are not available yet/);
   assert.match(layout, /aria-label="View shopping cart"[\s\S]*?size-11/);
   assert.match(language, /hidden sm:inline/);
   assert.match(language, /h-11 min-w-11/);
   assert.match(cart, /min-h-5 min-w-5/);
+});
+
+test("storefront navigation targets only implemented customer routes", async () => {
+  const sources = await Promise.all([
+    read("src/app/(customer)/layout.tsx"),
+    read("src/app/(customer)/components/Footer.tsx"),
+    read("src/app/(customer)/components/CookieConsent.tsx"),
+    read("src/app/(customer)/components/CartTable.tsx"),
+    read("src/app/(customer)/categories/[id]/products/page.tsx"),
+    read("src/app/(customer)/products/[id]/details/page.tsx"),
+    read("src/app/components/CategoryCard.tsx"),
+    read("src/app/components/ProductCard.tsx"),
+  ]);
+  const source = sources.join("\n");
+  const targetPattern = /\bhref(?:=|:)\s*\{?(["'`])([^"'`]+)\1\}?/g;
+  const targets = [...source.matchAll(targetPattern)]
+    .map((match) => match[2])
+    .filter((target) => target.startsWith("/"));
+  const implementedCustomerRoutes = [
+    /^\/$/,
+    /^\/carts$/,
+    /^\/categories$/,
+    /^\/checkout$/,
+    /^\/privacy-policy$/,
+    /^\/categories\/\$\{id\}\/products$/,
+    /^\/categories\/\$\{product\.categoryId\}\/products$/,
+    /^\/products\/\$\{id\}\/details$/,
+  ];
+
+  assert.ok(targets.length > 0, "expected storefront navigation targets");
+  for (const target of targets) {
+    assert.ok(
+      implementedCustomerRoutes.some((route) => route.test(target)),
+      `storefront navigation references missing route: ${target}`
+    );
+  }
+  assert.doesNotMatch(source, /\/(?:admin\/)?login\b/);
 });
 
 test("category and product grids cover mobile through large desktop", async () => {
