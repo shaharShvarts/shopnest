@@ -15,6 +15,7 @@ import {
   type TenantControlRecord,
 } from "../src/lib/admin-auth/core.ts";
 import { hashAdminPassword } from "../src/lib/admin-auth/password.mjs";
+import { provisionAdminAccount } from "../scripts/lib/admin-account-provisioning.mjs";
 
 const validPassword = "correct horse battery staple";
 const passwordHash = await hashAdminPassword(validPassword);
@@ -137,6 +138,53 @@ test("suspended and disabled tenants block tenant admins", () => {
   );
 });
 
+test("updating a tenant admin replaces panda-pop and gift-shop with panda-pop", async () => {
+  const repository = provisioningRepository("tenant_admin", [
+    "panda-pop",
+    "gift-shop",
+  ]);
+
+  await provision(repository, "tenant_admin", ["panda-pop"]);
+
+  assert.deepEqual([...repository.assignments.get(1)!], ["panda-pop"]);
+  assert.deepEqual(repository.transactionEvents, ["BEGIN", "COMMIT"]);
+});
+
+test("changing tenant_admin to super_admin clears tenant assignments", async () => {
+  const repository = provisioningRepository("tenant_admin", [
+    "panda-pop",
+    "gift-shop",
+  ]);
+
+  await provision(repository, "super_admin", []);
+
+  assert.equal(repository.users.get(1)!.role, "super_admin");
+  assert.deepEqual([...repository.assignments.get(1)!], []);
+});
+
+test("changing super_admin to tenant_admin creates only requested assignments", async () => {
+  const repository = provisioningRepository("super_admin", []);
+
+  await provision(repository, "tenant_admin", ["gift-shop"]);
+
+  assert.equal(repository.users.get(1)!.role, "tenant_admin");
+  assert.deepEqual([...repository.assignments.get(1)!], ["gift-shop"]);
+});
+
+test("assignment replacement revokes existing sessions", async () => {
+  const repository = provisioningRepository("tenant_admin", [
+    "panda-pop",
+    "gift-shop",
+  ]);
+  const session = await createAdminSession(repository, 1);
+  assert.ok(await resolveAdminSession(repository, session.token));
+
+  await provision(repository, "tenant_admin", ["panda-pop"]);
+
+  assert.equal(await resolveAdminSession(repository, session.token), null);
+  assert.deepEqual([...repository.assignments.get(1)!], ["panda-pop"]);
+});
+
 function tenantAdmin(): AdminUserRecord {
   return {
     id: 1,
@@ -160,9 +208,14 @@ function tenantPrincipal(): AdminPrincipal {
 class FakeAdminRepository implements AdminAuthRepository {
   users = new Map<number, AdminUserRecord>();
   sessions = new Map<string, StoredAdminSession>();
+  assignments = new Map<number, Set<string>>();
+  transactionEvents: string[] = [];
 
   constructor(users: AdminUserRecord[]) {
-    for (const user of users) this.users.set(user.id, { ...user });
+    for (const user of users) {
+      this.users.set(user.id, { ...user });
+      this.assignments.set(user.id, new Set(["panda-pop"]));
+    }
   }
 
   async findAdminByEmail(email: string) {
@@ -186,7 +239,7 @@ class FakeAdminRepository implements AdminAuthRepository {
         email: user.email,
         role: user.role,
         isActive: user.isActive,
-        tenantSlugs: ["panda-pop"],
+        tenantSlugs: [...(this.assignments.get(user.id) ?? [])],
       },
     });
   }
@@ -197,11 +250,83 @@ class FakeAdminRepository implements AdminAuthRepository {
     const currentUser = this.users.get(session.user.id)!;
     return {
       ...session,
-      user: { ...session.user, isActive: currentUser.isActive },
+      user: {
+        ...session.user,
+        role: currentUser.role,
+        isActive: currentUser.isActive,
+        tenantSlugs: [...(this.assignments.get(currentUser.id) ?? [])],
+      },
     };
   }
 
   async deleteSessionByTokenHash(tokenHash: string) {
     this.sessions.delete(tokenHash);
   }
+
+  async query(sql: string, parameters: unknown[] = []) {
+    const normalizedSql = sql.replace(/\s+/g, " ").trim();
+    if (normalizedSql === "BEGIN" || normalizedSql === "COMMIT") {
+      this.transactionEvents.push(normalizedSql);
+      return { rows: [] };
+    }
+    if (normalizedSql === "ROLLBACK") {
+      this.transactionEvents.push(normalizedSql);
+      return { rows: [] };
+    }
+    if (normalizedSql.startsWith("INSERT INTO public.admin_users")) {
+      const [email, nextPasswordHash, role] = parameters as [
+        string,
+        string,
+        AdminUserRecord["role"],
+      ];
+      const user = [...this.users.values()].find(
+        (candidate) => candidate.email === email
+      );
+      if (!user) throw new Error("The test expects an existing admin");
+      user.passwordHash = nextPasswordHash;
+      user.role = role;
+      user.isActive = true;
+      return { rows: [{ id: user.id }] };
+    }
+    if (normalizedSql.startsWith("DELETE FROM public.admin_sessions")) {
+      const [adminUserId] = parameters as [number];
+      for (const [tokenHash, session] of this.sessions) {
+        if (session.user.id === adminUserId) this.sessions.delete(tokenHash);
+      }
+      return { rows: [] };
+    }
+    if (normalizedSql.startsWith("DELETE FROM public.admin_user_tenants")) {
+      const [adminUserId] = parameters as [number];
+      this.assignments.set(adminUserId, new Set());
+      return { rows: [] };
+    }
+    if (normalizedSql.startsWith("INSERT INTO public.admin_user_tenants")) {
+      const [adminUserId, slug] = parameters as [number, string];
+      this.assignments.get(adminUserId)!.add(slug);
+      return { rows: [] };
+    }
+    throw new Error(`Unexpected SQL in test: ${normalizedSql}`);
+  }
+}
+
+function provisioningRepository(
+  role: AdminUserRecord["role"],
+  tenantSlugs: string[]
+) {
+  const repository = new FakeAdminRepository([{ ...tenantAdmin(), role }]);
+  repository.assignments.set(1, new Set(tenantSlugs));
+  return repository;
+}
+
+async function provision(
+  repository: FakeAdminRepository,
+  role: AdminUserRecord["role"],
+  tenantSlugs: string[]
+) {
+  await provisionAdminAccount(repository, {
+    email: "admin@example.com",
+    passwordHash,
+    role,
+    tenantSlugs,
+  });
 }
