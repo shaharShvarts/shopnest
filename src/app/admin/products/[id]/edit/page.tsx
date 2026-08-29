@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getDb } from "@/drizzle/db";
+import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { categories, products } from "@/drizzle/schema";
 import ProductForm from "../../_components/ProductForm";
 import { PageHeader } from "@/app/components/PageHeader";
@@ -10,7 +10,7 @@ type EditCategoryProps = {
 
 export default async function EditProductPage({ params }: EditCategoryProps) {
   const { id } = await params;
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
 
   const [productResult, categoryList] = await Promise.all([
     db

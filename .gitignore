@@ -46,6 +46,7 @@ next-env.d.ts
 
 *.sql
 !src/drizzle/migrations/*.sql
+!src/drizzle/control-migrations/*.sql
 
 local-old-migrations/
 icountToken.txt

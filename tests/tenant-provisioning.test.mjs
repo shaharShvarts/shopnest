@@ -9,6 +9,7 @@ import {
 import {
   assertMigrationHash,
   assertSafeTenantSchema,
+  assertTenantMigrationSql,
   hashMigrationSql,
   readDrizzleMigrations,
   scopeMigrationSql,
@@ -21,6 +22,23 @@ test("configured tenant slugs map to safe PostgreSQL schemas", () => {
     "dvorik_collection"
   );
   assert.equal(resolveConfiguredTenant("gift-shop")?.schema, "gift_shop");
+});
+
+test("control-plane tables cannot be included in tenant migrations", () => {
+  assert.throws(
+    () =>
+      assertTenantMigrationSql(
+        "admin.sql",
+        'CREATE TABLE "admin_sessions" ("id" uuid);'
+      ),
+    /contains a control-plane table/
+  );
+  assert.doesNotThrow(() =>
+    assertTenantMigrationSql(
+      "products.sql",
+      'CREATE TABLE "products" ("id" integer);'
+    )
+  );
 });
 
 test("invalid and unconfigured tenants are rejected", () => {
@@ -92,6 +110,26 @@ test("all checked-in Drizzle SQL migrations can be tenant-scoped", async () => {
 
   assert.ok(migrations.length > 0);
   for (const migration of migrations) {
+    assertTenantMigrationSql(migration.fileName, migration.sql);
     assert.doesNotMatch(scopeMigrationSql(migration.sql, "gift_shop"), /public/);
   }
+});
+
+test("public control-plane migrations are stored separately", async () => {
+  const repositoryRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    ".."
+  );
+  const controlMigrations = await readDrizzleMigrations(
+    path.join(repositoryRoot, "src", "drizzle", "control-migrations")
+  );
+  const tenantMigrations = await readDrizzleMigrations(
+    path.join(repositoryRoot, "src", "drizzle", "migrations")
+  );
+
+  assert.match(controlMigrations.map((migration) => migration.sql).join("\n"), /admin_users/);
+  assert.doesNotMatch(
+    tenantMigrations.map((migration) => migration.sql).join("\n"),
+    /admin_users|admin_sessions|admin_user_tenants/
+  );
 });

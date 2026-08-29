@@ -19,10 +19,12 @@ export const LEGACY_ROUTE_SEGMENTS = new Set([
   "privacy-policy",
   "products",
   "shipping",
+  "shopnest",
 ]);
 
 export const TENANT_HEADER = "x-shopnest-tenant-slug";
 export const TENANT_SCHEMA_HEADER = "x-shopnest-tenant-schema";
+export const INTERNAL_PATH_HEADER = "x-shopnest-internal-path";
 
 export type Tenant = ValidatedTenant;
 
