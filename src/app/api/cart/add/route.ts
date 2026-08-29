@@ -5,10 +5,11 @@ import {
   cartProducts,
   categories,
   products,
-  reservations,
   subcategories,
 } from "@/drizzle/schema";
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { DrizzleInventoryStore } from "@/lib/inventory/drizzle-store";
+import { InventoryService } from "@/lib/inventory/core";
 
 type RequestBody = {
   productId: number;
@@ -25,6 +26,18 @@ export async function POST(req: NextRequest) {
   const db = await getDb();
   const { productId, quantity } = (await req.json()) as RequestBody;
 
+  if (
+    !Number.isSafeInteger(productId) ||
+    productId <= 0 ||
+    !Number.isSafeInteger(quantity) ||
+    quantity <= 0
+  ) {
+    return NextResponse.json(
+      { error: "Product and quantity must be positive whole numbers." },
+      { status: 400 }
+    );
+  }
+
   const userId = req.cookies.get("user_id")?.value;
   const sessionId = req.cookies.get("session_id")?.value;
   const identifier = userId ?? sessionId;
@@ -33,6 +46,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Missing user/session ID" },
       { status: 400 }
+    );
+  }
+
+  const [product] = await db
+    .select({ price: products.price })
+    .from(products)
+    .innerJoin(categories, eq(products.categoryId, categories.id))
+    .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
+    .where(
+      and(
+        eq(products.id, productId),
+        eq(products.isActive, true),
+        eq(products.isAvailable, true),
+        isNull(products.deletedAt),
+        eq(categories.isActive, true),
+        isNull(categories.deletedAt),
+        or(
+          isNull(products.subcategoryId),
+          and(
+            eq(subcategories.isActive, true),
+            isNull(subcategories.deletedAt)
+          )
+        )
+      )
+    )
+    .limit(1);
+
+  if (!product) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  const inventory = await new InventoryService(
+    new DrizzleInventoryStore(db)
+  ).getAvailability(productId);
+  if (!inventory.purchasable || quantity > inventory.available) {
+    return NextResponse.json(
+      {
+        error:
+          inventory.available === 0
+            ? "Product is out of stock."
+            : `Only ${inventory.available} item(s) are currently available.`,
+      },
+      { status: 409 }
     );
   }
 
@@ -55,35 +111,6 @@ export async function POST(req: NextRequest) {
   }
 
   const cartId = cart[0].id;
-
-  const [product] = await db
-    .select({ price: products.price })
-    .from(products)
-    .innerJoin(categories, eq(products.categoryId, categories.id))
-    .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
-    .where(
-      and(
-        eq(products.id, productId),
-        eq(products.isActive, true),
-        eq(products.isAvailable, true),
-        gt(products.quantity, 0),
-        isNull(products.deletedAt),
-        eq(categories.isActive, true),
-        isNull(categories.deletedAt),
-        or(
-          isNull(products.subcategoryId),
-          and(
-            eq(subcategories.isActive, true),
-            isNull(subcategories.deletedAt)
-          )
-        )
-      )
-    )
-    .limit(1);
-
-  if (!product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
-  }
 
   const productPrice = product.price;
   const itemTotal = productPrice * quantity;
@@ -113,19 +140,6 @@ export async function POST(req: NextRequest) {
       totalPrice: sql`${carts.totalPrice} + ${itemTotal}`,
     })
     .where(eq(carts.id, cartId));
-
-  const type = "Cart";
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-  await db
-    .update(reservations)
-    .set({ type, expiresAt })
-    .where(
-      and(
-        eq(reservations.productId, productId),
-        eq(reservations.userId, identifier)
-      )
-    );
 
   return NextResponse.json(
     { success: true, message: "Product added to cart" },

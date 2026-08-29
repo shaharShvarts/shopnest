@@ -12,7 +12,6 @@ import { useRouter } from "next/navigation";
 import { fetchedProduct } from "../[id]/details/page";
 import { useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useTenant } from "@/context/TenantContext";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
@@ -59,7 +58,7 @@ type ProductDetailsProps = {
 };
 
 export default function ProductDetails({ product }: ProductDetailsProps) {
-  const [counter, setCounter] = useState(product.quantity);
+  const [counter, setCounter] = useState(product.quantity > 0 ? 1 : 0);
   const [loading, setLoading] = useState(false);
 
   // useEffect(() => {
@@ -106,12 +105,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
             </div>
           )}
         </div>
-        <div
-          className={cn(
-            "flex min-w-0 flex-col justify-start rounded-lg border border-gray-200 p-4 sm:p-6 lg:min-h-[420px]",
-            counter === 0 ? " pointer-events-none opacity-50" : ""
-          )}
-        >
+        <div className="flex min-w-0 flex-col justify-start rounded-lg border border-gray-200 p-4 sm:p-6 lg:min-h-[420px]">
           <h2 className="mb-3 break-words text-2xl font-bold leading-tight text-gray-800 sm:text-3xl lg:text-4xl">
             {product.name}
           </h2>
@@ -126,7 +120,12 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
             {product.description}
           </p>
 
-          {product.quantity > 1 && (
+          {product.quantity === 0 && (
+            <p className="mt-auto font-semibold text-destructive" role="status">
+              Out of stock
+            </p>
+          )}
+          {product.quantity > 0 && (
             <div className="mt-auto">
               <p className="text-sm text-gray-600 sm:text-base">
                 {t("quantity", { count: product.quantity })}
@@ -136,7 +135,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
               </Label>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button
-                  disabled={counter === 0}
+                  disabled={counter <= 1}
                   variant="outline"
                   className="size-11 rounded-md border-2 border-black p-0"
                   aria-label="Decrease quantity"
@@ -150,16 +149,23 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
                   type="number"
                   id="quantity"
                   name="quantity"
-                  disabled={counter === 0}
-                  value={counter ?? 0} // fallback to 0 if undefined
-                  onChange={(e) => setCounter(Number(e.target.value))}
+                  disabled={product.quantity === 0}
+                  value={counter}
+                  onChange={(event) => {
+                    const value = event.currentTarget.valueAsNumber;
+                    setCounter(
+                      Number.isFinite(value)
+                        ? Math.min(product.quantity, Math.max(1, value))
+                        : 1
+                    );
+                  }}
                   min={1}
                   max={product.quantity}
                   className="h-11 w-16 appearance-none rounded-md !border-2 !border-black text-center focus-visible:ring-2"
                 />
                 <Button
                   variant="outline"
-                  disabled={counter === 0}
+                  disabled={counter >= product.quantity}
                   className="size-11 rounded-md border-2 border-black p-0"
                   aria-label="Increase quantity"
                   onClick={() =>

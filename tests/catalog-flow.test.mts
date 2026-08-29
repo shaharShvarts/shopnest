@@ -220,7 +220,9 @@ class FakeCatalogStore implements CatalogStore {
   }
 
   async createProduct(input: NewCatalogProduct) {
-    this.products.push({ ...input, id: this.products.length + 1 });
+    const id = this.products.length + 1;
+    this.products.push({ ...input, id });
+    return id;
   }
 }
 
@@ -249,6 +251,8 @@ function productInput(
     description: "Description",
     price: 1000,
     quantity: 5,
+    lowStockThreshold: 10,
+    criticalStockThreshold: 4,
     imageUrl,
     categoryId: 1,
     subcategoryId: null,

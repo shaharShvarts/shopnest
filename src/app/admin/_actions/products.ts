@@ -11,17 +11,21 @@ import {
 import { products } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
-import {
-  createCatalogProduct,
-  validateProductPlacement,
-} from "@/lib/catalog/core";
+import { validateProductPlacement } from "@/lib/catalog/core";
 import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
 import {
   deleteCatalogImage,
   saveCatalogImage,
 } from "@/lib/media/catalog-media";
+import {
+  adjustInventoryInTransaction,
+  initializeInventoryAlertsInTransaction,
+  InventoryError,
+} from "@/lib/inventory/core";
+import { DrizzleInventoryTransaction } from "@/lib/inventory/drizzle-store";
+import { DatabaseOnlyInventoryNotificationService } from "@/lib/inventory/notifications";
 
-const productSchema = z.object({
+const productFields = {
   name: z.string().trim().min(1, "Name is required"),
   price: z.coerce
     .number()
@@ -30,9 +34,18 @@ const productSchema = z.object({
   quantity: z.coerce
     .number()
     .int("Quantity must be a whole number")
-    .positive("Quantity must be greater than zero"),
+    .min(0, "Quantity must be a non-negative number"),
+  lowStockThreshold: z.coerce
+    .number()
+    .int("Low-stock threshold must be a whole number")
+    .min(0, "Low-stock threshold must be non-negative")
+    .default(10),
+  criticalStockThreshold: z.coerce
+    .number()
+    .int("Critical-stock threshold must be a whole number")
+    .min(0, "Critical-stock threshold must be non-negative")
+    .default(4),
   description: z.string().trim().optional(),
-  image: imageSchema,
   categoryId: z.coerce.number().int().positive("Category is required"),
   subcategoryId: z.preprocess((val) => {
     if (val === "" || val === "0" || val === undefined || val === null) {
@@ -40,11 +53,28 @@ const productSchema = z.object({
     }
     return Number(val);
   }, z.number().int().positive("Invalid subcategory").nullable()),
-});
+};
 
-const editSchema = productSchema.extend({
-  image: optionalImageSchema,
-});
+function validateThresholdOrder(
+  data: { lowStockThreshold: number; criticalStockThreshold: number },
+  context: z.RefinementCtx
+) {
+  if (data.criticalStockThreshold > data.lowStockThreshold) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["criticalStockThreshold"],
+      message: "Critical-stock threshold cannot exceed low-stock threshold",
+    });
+  }
+}
+
+const productSchema = z
+  .object({ ...productFields, image: imageSchema })
+  .superRefine(validateThresholdOrder);
+
+const editSchema = z
+  .object({ ...productFields, image: optionalImageSchema })
+  .superRefine(validateThresholdOrder);
 
 export async function addProduct(_: unknown, formData: FormData) {
   const { db, tenant } = await requireTenantAdminDb();
@@ -60,6 +90,20 @@ export async function addProduct(_: unknown, formData: FormData) {
 
   const { image, ...rawData } = result.data;
 
+  try {
+    await validateProductPlacement(
+      store,
+      rawData.categoryId,
+      rawData.subcategoryId
+    );
+  } catch (error) {
+    const formError = catalogFormError(error, "product");
+    return {
+      success: false,
+      errors: { [formError.field]: [formError.message] },
+    };
+  }
+
   const uploadedImage = await saveCatalogImage({
     tenantSlug: tenant.slug,
     kind: "products",
@@ -67,9 +111,17 @@ export async function addProduct(_: unknown, formData: FormData) {
   });
 
   try {
-    await createCatalogProduct(store, {
-      ...rawData,
-      imageUrl: uploadedImage.imageUrl,
+    await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(products)
+        .values({ ...rawData, imageUrl: uploadedImage.imageUrl })
+        .returning({ id: products.id });
+      await initializeInventoryAlertsInTransaction(
+        new DrizzleInventoryTransaction(tx),
+        created.id,
+        new Date(),
+        new DatabaseOnlyInventoryNotificationService()
+      );
     });
   } catch (error: unknown) {
     await deleteCatalogImage({
@@ -141,16 +193,45 @@ export async function editProduct(id: number, _: unknown, formData: FormData) {
   }
 
   try {
-    await db
-      .update(products)
-      .set({ ...rawData, imageUrl })
-      .where(eq(products.id, id));
+    await db.transaction(async (tx) => {
+      await adjustInventoryInTransaction(
+        new DrizzleInventoryTransaction(tx),
+        id,
+        {
+          physical: rawData.quantity,
+          lowStockThreshold: rawData.lowStockThreshold,
+          criticalStockThreshold: rawData.criticalStockThreshold,
+        },
+        new DatabaseOnlyInventoryNotificationService()
+      );
+      await tx
+        .update(products)
+        .set({
+          name: rawData.name,
+          description: rawData.description,
+          price: rawData.price,
+          categoryId: rawData.categoryId,
+          subcategoryId: rawData.subcategoryId,
+          imageUrl,
+        })
+        .where(eq(products.id, id));
+    });
   } catch (error: unknown) {
     if (uploadedImage) {
       await deleteCatalogImage({
         tenantSlug: tenant.slug,
         imageUrl: uploadedImage.imageUrl,
       });
+    }
+    if (error instanceof InventoryError) {
+      const field =
+        error.code === "invalid_thresholds"
+          ? "criticalStockThreshold"
+          : "quantity";
+      return {
+        success: false,
+        errors: { [field]: [error.message] },
+      };
     }
     const formError = catalogFormError(error, "product");
 

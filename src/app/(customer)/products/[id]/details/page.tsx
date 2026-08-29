@@ -1,11 +1,13 @@
 import { getDb } from "@/drizzle/db";
 import { categories, products, subcategories } from "@/drizzle/schema";
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
 import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
 import { StorefrontPageHeader } from "../../../components/StorefrontPageHeader";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { InventoryService } from "@/lib/inventory/core";
+import { DrizzleInventoryStore } from "@/lib/inventory/drizzle-store";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -40,7 +42,6 @@ const fetchProductById = async (id: string) => {
         eq(products.id, Number(id)),
         eq(products.isActive, true),
         eq(products.isAvailable, true),
-        gt(products.quantity, 0),
         isNull(products.deletedAt),
         eq(categories.isActive, true),
         isNull(categories.deletedAt),
@@ -54,10 +55,22 @@ const fetchProductById = async (id: string) => {
       )
     )
     .limit(1);
-  return product;
+  if (!product) return undefined;
+
+  const availability = await new InventoryService(
+    new DrizzleInventoryStore(db)
+  ).getAvailability(product.id);
+
+  return {
+    ...product,
+    quantity: availability.available,
+    inventoryStatus: availability.status,
+  };
 };
 
-export type fetchedProduct = Awaited<ReturnType<typeof fetchProductById>>;
+export type fetchedProduct = NonNullable<
+  Awaited<ReturnType<typeof fetchProductById>>
+>;
 
 export default async function ProductsPage({ params }: Params) {
   const { id } = await params;

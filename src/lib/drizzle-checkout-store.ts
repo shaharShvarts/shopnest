@@ -13,6 +13,9 @@ import type {
   CheckoutTransaction,
   NewCheckoutOrder,
 } from "./checkout/create-order";
+import { reserveInventoryInTransaction } from "./inventory/core";
+import { getInventoryReservationDurationMs } from "./inventory/config";
+import { DrizzleInventoryTransaction } from "./inventory/drizzle-store";
 
 type TenantDatabase = ReturnType<typeof getDbForTenant>;
 
@@ -23,11 +26,15 @@ function identityCondition(identity: CheckoutIdentity) {
 }
 
 export class DrizzleCheckoutStore implements CheckoutStore {
-  constructor(private readonly database: TenantDatabase) {}
+  constructor(
+    private readonly database: TenantDatabase,
+    private readonly reservationDurationMs = getInventoryReservationDurationMs()
+  ) {}
 
   transaction<T>(
     callback: (transaction: CheckoutTransaction) => Promise<T>
   ): Promise<T> {
+    const reservationDurationMs = this.reservationDurationMs;
     return this.database.transaction(async (tx) => {
       const transaction: CheckoutTransaction = {
         async lockSubmission(checkoutToken) {
@@ -79,6 +86,16 @@ export class DrizzleCheckoutStore implements CheckoutStore {
             .from(cartProducts)
             .leftJoin(products, eq(cartProducts.productId, products.id))
             .where(eq(cartProducts.cartId, cartId));
+        },
+
+        async reserveInventory(input) {
+          await reserveInventoryInTransaction(
+            new DrizzleInventoryTransaction(tx),
+            {
+              ...input,
+              durationMs: reservationDurationMs,
+            }
+          );
         },
 
         async createOrder(order: NewCheckoutOrder) {

@@ -199,6 +199,7 @@ class FakeCheckoutStore implements CheckoutStore {
           : null,
       getCartItems: async (cartId) =>
         cartId === this.cart.id ? structuredClone(this.items) : [],
+      reserveInventory: async () => undefined,
       createOrder: async (order) => {
         const stored = { ...order, id: this.orders.length + 1 };
         this.orders.push(stored);
