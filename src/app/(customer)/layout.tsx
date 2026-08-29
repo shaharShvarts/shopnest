@@ -6,6 +6,11 @@ import LanguageSelector from "../components/LanguageSelector";
 import DvorikLogo from "../components/DvorikLogo";
 import Footer from "./components/Footer";
 import CookieConsent from "./components/CookieConsent";
+import { forbidden } from "next/navigation";
+import {
+  AdminAuthorizationError,
+  requireActiveTenantStorefront,
+} from "@/lib/admin-auth/server";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +24,15 @@ export default async function HomeLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  try {
+    await requireActiveTenantStorefront();
+  } catch (error) {
+    if (error instanceof AdminAuthorizationError && error.status === 403) {
+      forbidden();
+    }
+    throw error;
+  }
+
   return (
     <CartProvider>
       <header dir="ltr" className="sticky top-0 bg-white z-50 ltr shadow-md">

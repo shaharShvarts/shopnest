@@ -1,6 +1,6 @@
 import { TenantLink as Link } from "@/components/TenantLink";
 import { Suspense } from "react";
-import { getDb } from "@/drizzle/db";
+import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import AdminLoading from "../loading";
 import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export type ProductData = {
 };
 
 export default async function AdminProductsPage() {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const productData: ProductData[] = await db
     .select({
       name: products.name,

@@ -1,6 +1,6 @@
 import { TenantLink as Link } from "@/components/TenantLink";
 import { Suspense } from "react";
-import { getDb } from "@/drizzle/db";
+import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import AdminLoading from "../loading";
 import { count, eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export type CategoriesData = {
 };
 
 export default async function AdminCategoriesPage() {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const categoriesData: CategoriesData[] = await db
     .select({
       isActive: categories.isActive,

@@ -1,4 +1,10 @@
+import { headers } from "next/headers";
+import { forbidden, notFound, redirect } from "next/navigation";
 import { Nav, NavLink } from "../components/Nav";
+import { Button } from "@/components/ui/button";
+import { logoutCurrentAdmin } from "./_actions/auth";
+import { getTenantAdminAccess } from "@/lib/admin-auth/server";
+import { INTERNAL_PATH_HEADER } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -7,11 +13,19 @@ export const metadata = {
   description: "Admin",
 };
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
+  const internalPath = (await headers()).get(INTERNAL_PATH_HEADER);
+  if (internalPath === "/admin/login") return children;
+
+  const access = await getTenantAdminAccess();
+  if (!access.tenant) notFound();
+  if (access.decision === "unauthenticated") {
+    redirect(`${access.tenant.basePath}/admin/login`);
+  }
+  if (access.decision !== "allowed") forbidden();
+
   return (
     <>
       <Nav>
@@ -21,6 +35,9 @@ export default function AdminLayout({
         <NavLink href="/admin/products">Products</NavLink>
         <NavLink href="/admin/users">Customers</NavLink>
         <NavLink href="/admin/orders">Sales</NavLink>
+        <form action={logoutCurrentAdmin} className="flex items-center ml-4">
+          <Button type="submit" variant="secondary">Logout</Button>
+        </form>
       </Nav>
       <div className="mx-auto px-4 container my-6">{children}</div>
     </>

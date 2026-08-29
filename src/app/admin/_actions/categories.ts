@@ -3,7 +3,7 @@
 import z from "zod";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
-import { getDb } from "@/drizzle/db";
+import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { imageSchema } from "./zod";
 import { revalidateTenantPath } from "@/lib/tenant-context";
 import { fileExists } from "@/lib/fileExists";
@@ -40,7 +40,7 @@ export async function addCategory(
   _: unknown,
   formData: FormData
 ): Promise<AddCategoryResult> {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -94,7 +94,7 @@ export async function addCategory(
 }
 
 export async function editCategory(id: number, _: unknown, formData: FormData) {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -166,7 +166,7 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
 }
 
 export async function ToggleCategoryActive(id: number, active: boolean) {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   await db
     .update(categories)
     .set({ isActive: active })
@@ -179,7 +179,7 @@ export async function ToggleCategoryActive(id: number, active: boolean) {
 
 // This function handles the deletion of a category
 export async function deleteCategory(id: number): Promise<string> {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const [category] = await db
     .delete(categories)
     .where(eq(categories.id, Number(id)))

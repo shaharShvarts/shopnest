@@ -9,12 +9,17 @@
     "lint": "next lint",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "control-plane:generate": "drizzle-kit generate --config drizzle.control.config.ts",
+    "control-plane:migrate": "node scripts/control-plane-migrate.mjs",
+    "admin:create": "node scripts/admin-create.mjs",
+    "admin:revoke": "node scripts/admin-revoke.mjs",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "tenant:create": "node scripts/tenant-create.mjs",
     "tenant:list": "node scripts/tenant-list.mjs",
     "tenant:test": "node --test tests/tenant-provisioning.test.mjs",
-    "checkout:test": "node --experimental-strip-types --test tests/checkout-order.test.mts"
+    "checkout:test": "node --experimental-strip-types --test tests/checkout-order.test.mts",
+    "admin-auth:test": "node --experimental-strip-types --test tests/admin-auth.test.mts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

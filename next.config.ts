@@ -7,6 +7,7 @@ const bodySizeLimit = maxSize > 1 ? (`${maxSize}mb` as const) : "5mb";
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   experimental: {
+    authInterrupts: true,
     serverActions: {
       bodySizeLimit,
     },

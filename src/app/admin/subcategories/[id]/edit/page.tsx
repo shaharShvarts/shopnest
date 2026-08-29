@@ -1,4 +1,4 @@
-import { getDb } from "@/drizzle/db";
+import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { eq } from "drizzle-orm";
 import { categories, subcategories } from "@/drizzle/schema";
 import SubcategoryForm from "../../_components/SubcategoryForm";
@@ -12,7 +12,7 @@ export default async function EditSubcategoryPage({
   params,
 }: EditSubcategoryProps) {
   const { id } = await params;
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
 
   const [subcategoryResult, categoryList] = await Promise.all([
     db

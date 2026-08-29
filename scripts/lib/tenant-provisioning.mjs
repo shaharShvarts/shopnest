@@ -5,6 +5,8 @@ import { Pool } from "pg";
 
 const SAFE_SCHEMA_PATTERN = /^[a-z0-9_]+$/;
 const MIGRATIONS_TABLE = "__drizzle_migrations";
+const CONTROL_PLANE_TABLE_PATTERN =
+  /\b(admin_users|admin_user_tenants|admin_sessions|tenants)\b/i;
 
 export function assertSafeTenantSchema(schema) {
   if (
@@ -46,6 +48,14 @@ export function hashMigrationSql(sql) {
 export function assertMigrationHash(fileName, storedHash, sql) {
   if (storedHash !== hashMigrationSql(sql)) {
     throw new Error(`Migration ${fileName} changed after it was applied`);
+  }
+}
+
+export function assertTenantMigrationSql(fileName, sql) {
+  if (CONTROL_PLANE_TABLE_PATTERN.test(sql)) {
+    throw new Error(
+      `Tenant migration ${fileName} contains a control-plane table`
+    );
   }
 }
 
@@ -127,6 +137,7 @@ export async function provisionTenant({
     `);
 
     for (const migration of migrations) {
+      assertTenantMigrationSql(migration.fileName, migration.sql);
       const existing = await client.query(
         `SELECT hash FROM ${historyTable} WHERE created_at = $1 LIMIT 1`,
         [migration.createdAt]

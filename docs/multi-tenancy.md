@@ -6,7 +6,8 @@ single-store routes.
 ## Routing
 
 - `/<nest>` serves the existing storefront.
-- `/<nest>/admin` serves the existing Basic Auth-protected admin UI.
+- `/<nest>/admin` serves the tenant-authorized admin UI and redirects an
+  unauthenticated user to `/<nest>/admin/login`.
 - Nested storefront, admin, and API paths keep the same tenant prefix.
 - `/` and `/admin` continue to use the database's default schema.
 
@@ -16,9 +17,14 @@ with underscores. For example, `panda-pop` uses schema `panda_pop`, and
 `dvorik-collection` uses schema `dvorik_collection`. Invalid slugs and schema
 names longer than PostgreSQL's 63-character identifier limit are rejected.
 
-Only tenants in `CONFIGURED_TENANT_SLUGS` are accepted. The MVP allowlist is
+Only tenants in `CONFIGURED_TENANT_SLUGS` are accepted for routing and
+provisioning. The MVP allowlist is
 `panda-pop`, `dvorik-collection`, and `gift-shop`. Unknown tenant paths return
 404 before request context or database-pool creation.
+
+The central `public.tenants` registry is authoritative for tenant status,
+display name, and admin authorization. See [admin-authentication.md](./admin-authentication.md)
+for the control-plane migration and access model.
 
 ## Database provisioning
 
@@ -83,11 +89,13 @@ Existing migrations and legacy `public` tables are not modified.
 
 ## Current limitations
 
-- Tenant discovery/provisioning is operational; there is no tenant-management
-  UI or public tenant registry yet.
+- Tenant discovery/provisioning still uses the static routing allowlist while
+  status and authorization use the public registry. Both must be updated when
+  onboarding a tenant until dynamic middleware discovery is introduced.
 - Uploaded image files still share the application's `public` filesystem,
   although their database references are tenant-isolated.
-- Admin credentials remain the existing global Basic Auth credentials.
+- Tenant-management and suspension-management UI are reserved for a future
+  `/shopnest/admin` release.
 - Payments are intentionally unchanged and are not part of this foundation.
 - Existing top-level application route names are reserved and cannot be used
   as tenant slugs.

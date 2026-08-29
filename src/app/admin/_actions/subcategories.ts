@@ -3,7 +3,7 @@
 import z from "zod";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
-import { getDb } from "@/drizzle/db";
+import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { imageSchema } from "./zod";
 import {
   revalidateTenantPath,
@@ -31,7 +31,7 @@ type DbError = Error & {
 
 // This function handles the addition of a new category
 export async function addSubcategory(_: unknown, formData: FormData) {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -87,7 +87,7 @@ export async function editSubcategory(
   _: unknown,
   formData: FormData
 ) {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -158,7 +158,7 @@ export async function editSubcategory(
 
 // This function handles the editing of an existing category
 export async function ToggleSubcategoryActive(id: number, active: boolean) {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   await db
     .update(subcategories)
     .set({ isActive: active })
@@ -170,7 +170,7 @@ export async function ToggleSubcategoryActive(id: number, active: boolean) {
 
 // This function handles the deletion of a subcategory
 export async function deleteSubcategory(id: number): Promise<string> {
-  const db = await getDb();
+  const { db } = await requireTenantAdminDb();
   const [subcategory] = await db
     .delete(subcategories)
     .where(eq(subcategories.id, Number(id)))
