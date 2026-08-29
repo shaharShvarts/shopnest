@@ -1,9 +1,12 @@
+"use client";
+
 import { TenantLink as Link } from "@/components/TenantLink";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+import { useTenant } from "@/context/TenantContext";
 
 type CategoryCardProps = {
   [key: string]: string | number;
@@ -11,7 +14,11 @@ type CategoryCardProps = {
 
 export function CategoryCard(props: CategoryCardProps) {
   const { id, name, imageUrl } = props;
-  const normalizedImageUrl = normalizeImageUrl(String(imageUrl));
+  const tenant = useTenant();
+  const normalizedImageUrl = resolveTenantImageUrl(
+    String(imageUrl),
+    tenant.slug
+  );
 
   const t = useTranslations("CategoriesPage");
 

@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
 import { useEffect, useState } from "react";
-import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+import { useTenant } from "@/context/TenantContext";
 
 type AdminImagePreviewProps = {
   src?: string | null;
@@ -16,7 +17,8 @@ export function AdminImagePreview({
   alt,
   compact = false,
 }: AdminImagePreviewProps) {
-  const normalizedSrc = normalizeImageUrl(src);
+  const tenant = useTenant();
+  const normalizedSrc = resolveTenantImageUrl(src, tenant.slug);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => setFailed(false), [normalizedSrc]);

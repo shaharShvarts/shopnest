@@ -5,8 +5,9 @@ import { useState, useEffect, useMemo } from "react";
 import { Upload } from "lucide-react";
 import { isValidImage } from "@/lib/isValidImage";
 import { useRef } from "react";
-import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 import { AdminImagePreview } from "./AdminImagePreview";
+import { useTenant } from "@/context/TenantContext";
 
 type ImageUploadProps = {
   initialImage?: string;
@@ -15,9 +16,10 @@ type ImageUploadProps = {
 export function ImageUpload({ initialImage }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const tenant = useTenant();
   const existingImageUrl = useMemo(
-    () => normalizeImageUrl(initialImage),
-    [initialImage]
+    () => resolveTenantImageUrl(initialImage, tenant.slug),
+    [initialImage, tenant.slug]
   );
   const previewUrl = objectUrl ?? existingImageUrl;
   const validImageTypes =

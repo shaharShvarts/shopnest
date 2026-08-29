@@ -12,7 +12,9 @@ import { formatCurrency } from "@/lib/formatters";
 import { ProductPreview } from "../(customer)/types";
 import { getTranslations } from "next-intl/server";
 import { TenantLink as Link } from "@/components/TenantLink";
-import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+
+type ProductCardProps = ProductPreview & { tenantSlug?: string };
 
 export async function ProductCard({
   id,
@@ -20,9 +22,10 @@ export async function ProductCard({
   price,
   imageUrl,
   description,
-}: ProductPreview) {
+  tenantSlug = "",
+}: ProductCardProps) {
   const t = await getTranslations("ProductsPage");
-  const normalizedImageUrl = normalizeImageUrl(imageUrl);
+  const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenantSlug);
   return (
     <Card className="flex overflow-hidden flex-col">
       <div className="relative w-full aspect-video">

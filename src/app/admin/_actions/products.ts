@@ -1,7 +1,6 @@
 "use server";
 
 import z from "zod";
-import fs from "fs/promises";
 import { eq } from "drizzle-orm";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { imageSchema, optionalImageSchema } from "./zod";
@@ -10,7 +9,6 @@ import {
   tenantPath,
 } from "@/lib/tenant-context";
 import { products } from "@/drizzle/schema";
-import { fileExists } from "@/lib/fileExists";
 import { notFound, redirect } from "next/navigation";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
 import {
@@ -18,8 +16,10 @@ import {
   validateProductPlacement,
 } from "@/lib/catalog/core";
 import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
-import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
-import { publicImageFilePath } from "@/lib/images/image-files";
+import {
+  deleteCatalogImage,
+  saveCatalogImage,
+} from "@/lib/media/catalog-media";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -47,7 +47,7 @@ const editSchema = productSchema.extend({
 });
 
 export async function addProduct(_: unknown, formData: FormData) {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
   const result = productSchema.safeParse(Object.fromEntries(formData));
 
@@ -60,17 +60,22 @@ export async function addProduct(_: unknown, formData: FormData) {
 
   const { image, ...rawData } = result.data;
 
-  await fs.mkdir("public/products", { recursive: true });
-  const imageUrl = `/products/${crypto.randomUUID()}-${image.name}`;
-  const fullFilePath = publicImageFilePath(imageUrl)!;
-  await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
+  const uploadedImage = await saveCatalogImage({
+    tenantSlug: tenant.slug,
+    kind: "products",
+    file: image,
+  });
 
   try {
-    await createCatalogProduct(store, { ...rawData, imageUrl });
+    await createCatalogProduct(store, {
+      ...rawData,
+      imageUrl: uploadedImage.imageUrl,
+    });
   } catch (error: unknown) {
-    if (await fileExists(fullFilePath)) {
-      await fs.unlink(fullFilePath);
-    }
+    await deleteCatalogImage({
+      tenantSlug: tenant.slug,
+      imageUrl: uploadedImage.imageUrl,
+    });
 
     const formError = catalogFormError(error, "product");
 
@@ -87,7 +92,7 @@ export async function addProduct(_: unknown, formData: FormData) {
 }
 
 export async function editProduct(id: number, _: unknown, formData: FormData) {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
@@ -123,15 +128,16 @@ export async function editProduct(id: number, _: unknown, formData: FormData) {
   }
 
   const oldCategoryId = productRow.categoryId;
-  const oldImagePath = publicImageFilePath(productRow.imageUrl);
-  let imageUrl = normalizeImageUrl(productRow.imageUrl) ?? productRow.imageUrl;
-  let newImagePath: string | null = null;
+  let imageUrl = productRow.imageUrl;
+  let uploadedImage: Awaited<ReturnType<typeof saveCatalogImage>> | null = null;
 
   if (image) {
-    await fs.mkdir("public/products", { recursive: true });
-    imageUrl = `/products/${crypto.randomUUID()}-${image.name}`;
-    newImagePath = publicImageFilePath(imageUrl)!;
-    await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
+    uploadedImage = await saveCatalogImage({
+      tenantSlug: tenant.slug,
+      kind: "products",
+      file: image,
+    });
+    imageUrl = uploadedImage.imageUrl;
   }
 
   try {
@@ -140,8 +146,11 @@ export async function editProduct(id: number, _: unknown, formData: FormData) {
       .set({ ...rawData, imageUrl })
       .where(eq(products.id, id));
   } catch (error: unknown) {
-    if (newImagePath && (await fileExists(newImagePath))) {
-      await fs.unlink(newImagePath);
+    if (uploadedImage) {
+      await deleteCatalogImage({
+        tenantSlug: tenant.slug,
+        imageUrl: uploadedImage.imageUrl,
+      });
     }
     const formError = catalogFormError(error, "product");
 
@@ -151,8 +160,11 @@ export async function editProduct(id: number, _: unknown, formData: FormData) {
     };
   }
 
-  if (newImagePath && oldImagePath && (await fileExists(oldImagePath))) {
-    await fs.unlink(oldImagePath);
+  if (uploadedImage) {
+    await deleteCatalogImage({
+      tenantSlug: tenant.slug,
+      imageUrl: productRow.imageUrl,
+    });
   }
 
   await revalidateTenantPath("/");
@@ -180,7 +192,7 @@ export async function ToggleProductActive(id: number, active: boolean) {
 }
 
 export async function deleteProduct(id: number): Promise<string> {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   let productRow;
   try {
     [productRow] = await db
@@ -196,11 +208,10 @@ export async function deleteProduct(id: number): Promise<string> {
 
   if (!productRow) notFound();
 
-  const fullFilePath = publicImageFilePath(productRow.imageUrl);
-
-  if (fullFilePath && (await fileExists(fullFilePath))) {
-    await fs.unlink(fullFilePath);
-  }
+  await deleteCatalogImage({
+    tenantSlug: tenant.slug,
+    imageUrl: productRow.imageUrl,
+  });
 
   await revalidateTenantPath("/");
   await revalidateTenantPath("/products");

@@ -1,19 +1,19 @@
 "use server";
 
 import z from "zod";
-import fs from "fs/promises";
 import { eq } from "drizzle-orm";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { imageSchema, optionalImageSchema } from "./zod";
 import { revalidateTenantPath } from "@/lib/tenant-context";
-import { fileExists } from "@/lib/fileExists";
 import { categories } from "@/drizzle/schema";
 import { notFound } from "next/navigation";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
 import { createCatalogCategory } from "@/lib/catalog/core";
 import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
-import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
-import { publicImageFilePath } from "@/lib/images/image-files";
+import {
+  deleteCatalogImage,
+  saveCatalogImage,
+} from "@/lib/media/catalog-media";
 
 const zodSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -39,7 +39,7 @@ export async function addCategory(
   _: unknown,
   formData: FormData
 ): Promise<AddCategoryResult> {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -51,20 +51,22 @@ export async function addCategory(
 
   const { image, ...rawData } = result.data;
 
-  await fs.mkdir("public/categories", { recursive: true });
-  const imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
-  const fullFilePath = publicImageFilePath(imageUrl)!;
-  await fs.writeFile(fullFilePath, Buffer.from(await image.arrayBuffer()));
+  const uploadedImage = await saveCatalogImage({
+    tenantSlug: tenant.slug,
+    kind: "categories",
+    file: image,
+  });
 
   try {
     await createCatalogCategory(new DrizzleCatalogStore(db), {
       ...rawData,
-      imageUrl,
+      imageUrl: uploadedImage.imageUrl,
     });
   } catch (error) {
-    if (await fileExists(fullFilePath)) {
-      await fs.unlink(fullFilePath);
-    }
+    await deleteCatalogImage({
+      tenantSlug: tenant.slug,
+      imageUrl: uploadedImage.imageUrl,
+    });
 
     const formError = catalogFormError(error, "category");
 
@@ -87,7 +89,7 @@ export async function addCategory(
 }
 
 export async function editCategory(id: number, _: unknown, formData: FormData) {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -107,15 +109,16 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
 
   if (!category) notFound();
 
-  const oldImagePath = publicImageFilePath(category.imageUrl);
-  let imageUrl = normalizeImageUrl(category.imageUrl) ?? category.imageUrl;
-  let newImagePath: string | null = null;
+  let imageUrl = category.imageUrl;
+  let uploadedImage: Awaited<ReturnType<typeof saveCatalogImage>> | null = null;
 
   if (image) {
-    await fs.mkdir("public/categories", { recursive: true });
-    imageUrl = `/categories/${crypto.randomUUID()}-${image.name}`;
-    newImagePath = publicImageFilePath(imageUrl)!;
-    await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
+    uploadedImage = await saveCatalogImage({
+      tenantSlug: tenant.slug,
+      kind: "categories",
+      file: image,
+    });
+    imageUrl = uploadedImage.imageUrl;
   }
 
   try {
@@ -124,8 +127,11 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
       .set({ ...rawData, imageUrl })
       .where(eq(categories.id, Number(id)));
   } catch (error) {
-    if (newImagePath && (await fileExists(newImagePath))) {
-      await fs.unlink(newImagePath);
+    if (uploadedImage) {
+      await deleteCatalogImage({
+        tenantSlug: tenant.slug,
+        imageUrl: uploadedImage.imageUrl,
+      });
     }
     const formError = catalogFormError(error, "category");
 
@@ -137,8 +143,11 @@ export async function editCategory(id: number, _: unknown, formData: FormData) {
     };
   }
 
-  if (newImagePath && oldImagePath && (await fileExists(oldImagePath))) {
-    await fs.unlink(oldImagePath);
+  if (uploadedImage) {
+    await deleteCatalogImage({
+      tenantSlug: tenant.slug,
+      imageUrl: category.imageUrl,
+    });
   }
 
   await revalidateTenantPath("/");
@@ -170,7 +179,7 @@ export async function ToggleCategoryActive(id: number, active: boolean) {
 
 // This function handles the deletion of a category
 export async function deleteCategory(id: number): Promise<string> {
-  const { db } = await requireTenantAdminDb();
+  const { db, tenant } = await requireTenantAdminDb();
   let category;
   try {
     [category] = await db
@@ -186,12 +195,10 @@ export async function deleteCategory(id: number): Promise<string> {
 
   if (!category) notFound();
 
-  const fullFilePath = publicImageFilePath(category.imageUrl);
-
-  // Delete the image file from the server
-  if (fullFilePath && (await fileExists(fullFilePath))) {
-    await fs.unlink(fullFilePath);
-  }
+  await deleteCatalogImage({
+    tenantSlug: tenant.slug,
+    imageUrl: category.imageUrl,
+  });
 
   await revalidateTenantPath("/");
   await revalidateTenantPath("/categories");

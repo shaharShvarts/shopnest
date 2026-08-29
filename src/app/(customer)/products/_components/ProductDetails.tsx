@@ -14,7 +14,7 @@ import { useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/context/TenantContext";
-import { normalizeImageUrl } from "@/lib/images/image-url.mjs";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
 // const getProductQTY = async (productId: number) => {
 //   const res = await fetch(`/api/reservations?productId=${productId}`, {
@@ -81,7 +81,10 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   const router = useRouter();
   const t = useTranslations("ProductDetails");
   const tenant = useTenant();
-  const normalizedImageUrl = normalizeImageUrl(product.imageUrl);
+  const normalizedImageUrl = resolveTenantImageUrl(
+    product.imageUrl,
+    tenant.slug
+  );
 
   return (
     <div className="container mx-auto p-4">
