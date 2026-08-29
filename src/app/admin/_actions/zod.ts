@@ -1,12 +1,13 @@
 import z from "zod";
 import prettyBytes from "pretty-bytes";
+import { SUPPORTED_IMAGE_CONTENT_TYPES } from "@/lib/images/image-url.mjs";
 
 const maxFileSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE ?? 0);
 
 export const imageSchema = z.custom<File>(
   (file) =>
     file instanceof File &&
-    file.type.startsWith("image/") &&
+    SUPPORTED_IMAGE_CONTENT_TYPES.includes(file.type) &&
     file.size > 0 &&
     file.size <= maxFileSize,
   {

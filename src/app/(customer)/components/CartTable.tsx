@@ -14,12 +14,17 @@ import { Button } from "@/components/ui/button";
 import { TenantLink as Link } from "@/components/TenantLink";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
 type cartDataProps = {
   cartData: CartPageProps[];
+  tenantSlug: string;
 };
 
-export default async function CartTable({ cartData }: cartDataProps) {
+export default async function CartTable({
+  cartData,
+  tenantSlug,
+}: cartDataProps) {
   const locale = await getLocale();
   const t = await getTranslations("CartPage");
   const totalQuantity = cartData.reduce((sum, item) => sum + item.quantity, 0);
@@ -63,12 +68,11 @@ export default async function CartTable({ cartData }: cartDataProps) {
                   <div className="flex min-w-0 items-center gap-3">
                     <RemoveButton productId={item.id} />
                     <div className="relative size-14 shrink-0 overflow-hidden rounded bg-muted">
-                      <Image
-                        src={item.imageUrl}
+                      <CartProductImage
+                        imageUrl={item.imageUrl}
                         alt=""
-                        fill
-                        className="object-cover"
                         sizes="56px"
+                        tenantSlug={tenantSlug}
                       />
                     </div>
                     <span className="break-words whitespace-normal">
@@ -94,12 +98,11 @@ export default async function CartTable({ cartData }: cartDataProps) {
             className="grid min-w-0 grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-lg border p-3"
           >
             <div className="relative aspect-square w-20 overflow-hidden rounded-md bg-muted">
-              <Image
-                src={item.imageUrl}
+              <CartProductImage
+                imageUrl={item.imageUrl}
                 alt={item.name}
-                fill
-                className="object-cover"
                 sizes="80px"
+                tenantSlug={tenantSlug}
               />
             </div>
             <div className="min-w-0 space-y-2">
@@ -147,5 +150,38 @@ export default async function CartTable({ cartData }: cartDataProps) {
         </Button>
       </div>
     </>
+  );
+}
+
+function CartProductImage({
+  imageUrl,
+  alt,
+  sizes,
+  tenantSlug,
+}: {
+  imageUrl: string;
+  alt: string;
+  sizes: string;
+  tenantSlug: string;
+}) {
+  const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenantSlug);
+
+  if (!normalizedImageUrl) {
+    return (
+      <span className="flex h-full items-center justify-center text-xs text-muted-foreground">
+        Image unavailable
+      </span>
+    );
+  }
+
+  return (
+    <Image
+      src={normalizedImageUrl}
+      alt={alt}
+      fill
+      unoptimized
+      className="object-cover"
+      sizes={sizes}
+    />
   );
 }

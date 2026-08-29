@@ -56,8 +56,31 @@ test("cart switches from cards on mobile to a table on larger screens", async ()
   assert.match(cart, /grid-cols-\[5rem_minmax\(0,1fr\)\]/);
   assert.match(cart, /min-h-11 w-full sm:w-auto/);
   assert.match(page, /imageUrl: products\.imageUrl/);
+  assert.match(page, /tenantSlug=\{tenant\?\.slug \?\? ""\}/);
+  assert.match(cart, /resolveTenantImageUrl\(imageUrl, tenantSlug\)/);
+  assert.doesNotMatch(cart, /src=\{item\.imageUrl\}/);
   assert.match(remove, /aria-label="Remove item from cart"/);
   assert.match(remove, /size-11/);
+});
+
+test("responsive storefront images use the shared tenant-aware resolver", async () => {
+  const [category, product, details, productPage] = await Promise.all([
+    read("src/app/components/CategoryCard.tsx"),
+    read("src/app/components/ProductCard.tsx"),
+    read("src/app/(customer)/products/_components/ProductDetails.tsx"),
+    read("src/app/(customer)/categories/[id]/products/page.tsx"),
+  ]);
+
+  assert.match(category, /resolveTenantImageUrl\([\s\S]*tenant\.slug/);
+  assert.match(product, /resolveTenantImageUrl\(imageUrl, tenantSlug\)/);
+  assert.match(details, /resolveTenantImageUrl\([\s\S]*tenant\.slug/);
+  assert.match(productPage, /tenantSlug=\{tenant\?\.slug \?\? ""\}/);
+  assert.match(category, /aspect-\[4\/3\][\s\S]*normalizedImageUrl/);
+  assert.match(product, /aspect-\[4\/3\][\s\S]*normalizedImageUrl/);
+  assert.match(details, /grid-cols-1[^\"]*lg:grid-cols-2/);
+  for (const source of [category, product, details]) {
+    assert.doesNotMatch(source, /src=\{(?:String\()?imageUrl\)?\}/);
+  }
 });
 
 test("checkout and shipping fields stack on narrow screens", async () => {

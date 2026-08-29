@@ -78,12 +78,13 @@ export type ProductPageProps = Awaited<
 
 export default async function ProductsPage({ params }: ProductsPageProps) {
   const { id } = await params;
+  const tenant = await getTenant();
   const t = await getTranslations("ProductsPage");
   const tb = await getTranslations("ProductsPage.Breadcrumbs");
 
   const catalog = await fetchCategoryWithProducts(
     Number(id),
-    await getTenant()
+    tenant
   );
   if (!catalog) notFound();
   const { categoryName, products } = catalog;
@@ -100,7 +101,7 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
         ]}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <ProductsSuspense products={products} />
+        <ProductsSuspense products={products} tenantSlug={tenant?.slug ?? ""} />
       </div>
     </>
   );
@@ -108,10 +109,11 @@ export default async function ProductsPage({ params }: ProductsPageProps) {
 
 type productsProps = {
   products: ProductPageProps[];
+  tenantSlug: string;
 };
 
-async function ProductsSuspense({ products }: productsProps) {
+async function ProductsSuspense({ products, tenantSlug }: productsProps) {
   return products.map((product) => (
-    <ProductCard key={product.id} {...product} />
+    <ProductCard key={product.id} {...product} tenantSlug={tenantSlug} />
   ));
 }

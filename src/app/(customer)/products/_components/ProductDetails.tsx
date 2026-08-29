@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/context/TenantContext";
+import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
 // const getProductQTY = async (productId: number) => {
 //   const res = await fetch(`/api/reservations?productId=${productId}`, {
@@ -80,19 +81,30 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   const router = useRouter();
   const t = useTranslations("ProductDetails");
   const tenant = useTenant();
+  const normalizedImageUrl = resolveTenantImageUrl(
+    product.imageUrl,
+    tenant.slug
+  );
 
   return (
     <section className="mx-auto w-full max-w-6xl">
       <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start lg:gap-8">
         <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-muted p-2 sm:p-4">
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            width={720}
-            height={720}
-            className="h-auto max-h-[70vh] w-full max-w-2xl object-contain lg:max-h-[560px]"
-            sizes="(min-width: 1024px) 50vw, 100vw"
-          />
+          {normalizedImageUrl ? (
+            <Image
+              src={normalizedImageUrl}
+              alt={product.name}
+              width={720}
+              height={720}
+              unoptimized
+              className="h-auto max-h-[70vh] w-full max-w-2xl object-contain lg:max-h-[560px]"
+              sizes="(min-width: 1024px) 50vw, 100vw"
+            />
+          ) : (
+            <div className="flex min-h-64 w-full items-center justify-center text-muted-foreground sm:min-h-80">
+              Image unavailable
+            </div>
+          )}
         </div>
         <div
           className={cn(

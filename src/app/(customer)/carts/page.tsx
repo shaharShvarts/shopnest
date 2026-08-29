@@ -5,6 +5,7 @@ import { cartProducts, products } from "@/drizzle/schema";
 import CartTable from "../components/CartTable";
 import { getTranslations } from "next-intl/server";
 import { StorefrontPageHeader } from "../components/StorefrontPageHeader";
+import { getTenant } from "@/lib/tenant-context";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");
@@ -26,6 +27,7 @@ export type CartPageProps = {
 
 export default async function CartPage() {
   const t = await getTranslations("CartPage");
+  const tenant = await getTenant();
   const db = await getDb();
   const cartId = await fetchCartId();
   if (!cartId) return null;
@@ -46,7 +48,7 @@ export default async function CartPage() {
   return (
     <>
       <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
-      <CartTable cartData={cartData} />
+      <CartTable cartData={cartData} tenantSlug={tenant?.slug ?? ""} />
     </>
   );
 }

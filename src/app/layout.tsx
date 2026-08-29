@@ -37,7 +37,10 @@ export default async function RootLayout({
           montserrat.variable
         )}
       >
-        <TenantProvider basePath={tenant?.basePath ?? ""}>
+        <TenantProvider
+          basePath={tenant?.basePath ?? ""}
+          slug={tenant?.slug ?? ""}
+        >
           <NextIntlClientProvider messages={messages}>
             {children}
           </NextIntlClientProvider>

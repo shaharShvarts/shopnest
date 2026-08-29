@@ -26,6 +26,7 @@ import {
   ToggleCategoryActive,
 } from "../../_actions/categories";
 import { CategoriesData } from "../page";
+import { AdminImagePreview } from "../../_components/AdminImagePreview";
 
 type CategoryTableProps = {
   categoriesData: CategoriesData[];
@@ -47,6 +48,7 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
             <span className="sr-only">Status</span>
           </TableHead>
           <TableHead>Name</TableHead>
+          <TableHead>Image</TableHead>
           <TableHead>Subcategories</TableHead>
           <TableHead>Products</TableHead>
           <TableHead className="w-0">
@@ -61,6 +63,7 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
             isActive,
             categoryId,
             name,
+            imageUrl,
             productsCount,
             subcategoriesCount,
           }) => (
@@ -73,6 +76,9 @@ export function CategoryTable({ categoriesData }: CategoryTableProps) {
               </TableCell>
 
               <TableCell>{name}</TableCell>
+              <TableCell>
+                <AdminImagePreview src={imageUrl} alt={name} compact />
+              </TableCell>
               <TableCell>{subcategoriesCount}</TableCell>
               <TableCell>{productsCount}</TableCell>
 

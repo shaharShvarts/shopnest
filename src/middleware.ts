@@ -52,5 +52,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|static|favicon.ico|.*\\..*).*)"],
+  matcher: [
+    "/:tenant/media/:path*",
+    "/((?!_next|static|favicon.ico|.*\\..*).*)",
+  ],
 };
