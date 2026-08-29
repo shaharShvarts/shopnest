@@ -4,7 +4,12 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  type SetStateAction,
+  useActionState,
+  useEffect,
+  useState,
+} from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Category, Product, Subcategory } from "@/drizzle/schema";
 import { Combobox } from "../../_components/Combobox";
@@ -30,10 +35,6 @@ export default function ProductForm({
     errors: {},
   });
 
-  const prevCategoryId = useRef<string | null>(
-    product?.categoryId.toString() || null
-  );
-
   const [categoryId, setCategoryId] = useState<string | null>(
     product?.categoryId.toString() || null
   );
@@ -45,29 +46,47 @@ export default function ProductForm({
   const [subcategoryList, setSubcategoryList] = useState<Subcategory[]>([]);
 
   useEffect(() => {
-    // Reset subcategory list when categoryId changes
-    if (categoryId === "") {
+    if (!categoryId) {
       setSubcategoryId("");
       setSubcategoryList([]);
-      return; // Exit early
+      return;
     }
 
-    if (categoryId) {
-      (async () => {
-        const res = await fetch(
-          tenant.path(`/api/subcategories?categoryId=${categoryId}`)
-        );
-        const data: Subcategory[] = await res.json();
-        setSubcategoryList(data);
+    const controller = new AbortController();
+    void (async () => {
+      const res = await fetch(
+        tenant.path(`/api/subcategories?categoryId=${categoryId}`),
+        { signal: controller.signal }
+      );
+      if (!res.ok) {
+        setSubcategoryList([]);
+        return;
+      }
+      const data = (await res.json()) as Subcategory[];
+      setSubcategoryList(data);
+      setSubcategoryId((current) =>
+        current && data.some((item) => item.id.toString() === current)
+          ? current
+          : ""
+      );
+    })().catch((error: unknown) => {
+      if (error instanceof Error && error.name !== "AbortError") {
+        setSubcategoryList([]);
+      }
+    });
 
-        if (prevCategoryId.current !== categoryId) {
-          setSubcategoryId("");
-        }
-
-        prevCategoryId.current = categoryId;
-      })();
-    }
+    return () => controller.abort();
   }, [categoryId, tenant]);
+
+  function changeCategory(value: SetStateAction<string | null>) {
+    const nextValue =
+      typeof value === "function" ? value(categoryId) : value;
+    if (nextValue !== categoryId) {
+      setSubcategoryId("");
+      setSubcategoryList([]);
+    }
+    setCategoryId(nextValue);
+  }
 
   return (
     <form action={formAction} className="space-y-8">
@@ -98,7 +117,7 @@ export default function ProductForm({
 
       <div className="flex justify-items-start items-center gap-4">
         <div className="space-y-2">
-          <p>Category</p>
+          <Label htmlFor="categoryId">Category</Label>
           <Input
             type="hidden"
             name="categoryId"
@@ -106,7 +125,7 @@ export default function ProductForm({
           ></Input>
           <Combobox
             list={categoryList}
-            setId={setCategoryId}
+            setId={changeCategory}
             selected={categoryId}
           />
           {state.errors?.categoryId && (
@@ -116,7 +135,7 @@ export default function ProductForm({
           )}
         </div>
         <div className="space-y-2">
-          <p>Subcategory</p>
+          <Label htmlFor="subcategoryId">Subcategory (optional)</Label>
           <Input
             type="hidden"
             name="subcategoryId"

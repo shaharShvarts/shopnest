@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/drizzle/db";
-import { carts, cartProducts, products, reservations } from "@/drizzle/schema";
-import { and, eq, sql } from "drizzle-orm";
+import {
+  carts,
+  cartProducts,
+  categories,
+  products,
+  reservations,
+  subcategories,
+} from "@/drizzle/schema";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 
 type RequestBody = {
   productId: number;
@@ -52,7 +59,26 @@ export async function POST(req: NextRequest) {
   const [product] = await db
     .select({ price: products.price })
     .from(products)
-    .where(eq(products.id, productId))
+    .innerJoin(categories, eq(products.categoryId, categories.id))
+    .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
+    .where(
+      and(
+        eq(products.id, productId),
+        eq(products.isActive, true),
+        eq(products.isAvailable, true),
+        gt(products.quantity, 0),
+        isNull(products.deletedAt),
+        eq(categories.isActive, true),
+        isNull(categories.deletedAt),
+        or(
+          isNull(products.subcategoryId),
+          and(
+            eq(subcategories.isActive, true),
+            isNull(subcategories.deletedAt)
+          )
+        )
+      )
+    )
     .limit(1);
 
   if (!product) {

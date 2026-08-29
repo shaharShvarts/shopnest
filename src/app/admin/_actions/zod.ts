@@ -15,3 +15,9 @@ export const imageSchema = z.custom<File>(
     )} and not empty`,
   }
 );
+
+export const optionalImageSchema = z.preprocess(
+  (value) =>
+    value instanceof File && value.size === 0 ? undefined : value,
+  imageSchema.optional()
+);

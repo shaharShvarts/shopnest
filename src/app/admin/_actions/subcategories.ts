@@ -4,7 +4,7 @@ import z from "zod";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
-import { imageSchema } from "./zod";
+import { imageSchema, optionalImageSchema } from "./zod";
 import {
   revalidateTenantPath,
   tenantPath,
@@ -12,26 +12,27 @@ import {
 import { fileExists } from "@/lib/fileExists";
 import { subcategories } from "@/drizzle/schema";
 import { notFound, redirect } from "next/navigation";
+import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
+import {
+  createCatalogSubcategory,
+  validateCategory,
+} from "@/lib/catalog/core";
+import { catalogFormError, isForeignKeyViolation } from "@/lib/catalog/errors";
 
 const zodSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().trim().min(1, "Name is required"),
   image: imageSchema,
   categoryId: z.coerce.number().int().positive("Category ID is required"),
 });
 
 const editSchema = zodSchema.extend({
-  image: z.instanceof(File).optional(),
+  image: optionalImageSchema,
 });
-
-type DbError = Error & {
-  cause?: {
-    code?: string;
-  };
-};
 
 // This function handles the addition of a new category
 export async function addSubcategory(_: unknown, formData: FormData) {
   const { db } = await requireTenantAdminDb();
+  const store = new DrizzleCatalogStore(db);
   const result = zodSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -50,34 +51,25 @@ export async function addSubcategory(_: unknown, formData: FormData) {
 
   // Save category data to the database
   try {
-    await db.insert(subcategories).values({ ...rawData, imageUrl });
+    await createCatalogSubcategory(store, { ...rawData, imageUrl });
   } catch (error: unknown) {
     if (await fileExists(fullFilePath)) {
       await fs.unlink(fullFilePath);
     }
 
-    let errorMessage = "Something went wrong.";
-
-    if (error instanceof Error) {
-      const err = error as DbError;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause?.code === "23505") {
-        errorMessage = `A subcategory with this name already exists. Try a different name!`;
-      } else if (err.message) {
-        errorMessage = error.message;
-      }
-    }
+    const formError = catalogFormError(error, "subcategory");
 
     return {
       success: false,
       errors: {
-        name: [errorMessage],
+        [formError.field]: [formError.message],
       },
     };
   }
 
   await revalidateTenantPath("/");
   await revalidateTenantPath("/subcategories");
+  await revalidateTenantPath(`/categories/${rawData.categoryId}/products`);
   redirect(await tenantPath("/admin/subcategories"));
 }
 
@@ -88,6 +80,7 @@ export async function editSubcategory(
   formData: FormData
 ) {
   const { db } = await requireTenantAdminDb();
+  const store = new DrizzleCatalogStore(db);
   const result = editSchema.safeParse(Object.fromEntries(formData));
 
   if (!result.success) {
@@ -106,17 +99,28 @@ export async function editSubcategory(
     .where(eq(subcategories.id, Number(id)))
     .limit(1);
 
-  let imageUrl = subcategory?.imageUrl ?? "";
-  const fullFilePath = `public${imageUrl}`;
+  if (!subcategory) notFound();
 
-  if (image != null && image.size > 0) {
-    if (await fileExists(fullFilePath)) {
-      await fs.unlink(fullFilePath);
-    }
+  try {
+    await validateCategory(store, rawData.categoryId);
+  } catch (error) {
+    const formError = catalogFormError(error, "subcategory");
+    return {
+      success: false,
+      errors: { [formError.field]: [formError.message] },
+    };
+  }
 
+  const oldCategoryId = subcategory.categoryId;
+  const oldImagePath = `public${subcategory.imageUrl}`;
+  let imageUrl = subcategory.imageUrl;
+  let newImagePath: string | null = null;
+
+  if (image) {
+    await fs.mkdir("public/subcategories", { recursive: true });
     imageUrl = `/subcategories/${crypto.randomUUID()}-${image.name}`;
-    const newFilePath = `public${imageUrl}`; // recompute path
-    await fs.writeFile(newFilePath, Buffer.from(await image.arrayBuffer()));
+    newImagePath = `public${imageUrl}`;
+    await fs.writeFile(newImagePath, Buffer.from(await image.arrayBuffer()));
   }
 
   // Update subcategory data to the database
@@ -126,55 +130,63 @@ export async function editSubcategory(
       .set({ ...rawData, imageUrl })
       .where(eq(subcategories.id, Number(id)));
   } catch (error: unknown) {
-    const newFilePath = `public${imageUrl}`; // recompute path
-    if (await fileExists(newFilePath)) {
-      await fs.unlink(newFilePath);
+    if (newImagePath && (await fileExists(newImagePath))) {
+      await fs.unlink(newImagePath);
     }
-
-    let errorMessage = "Something went wrong.";
-
-    if (error instanceof Error) {
-      const err = error as DbError;
-      // Unique constraint violation and clean up the uploaded image
-      if (err.cause?.code === "23505") {
-        errorMessage = `A subcategory with this name already exists. Try a different name!`;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-    }
+    const formError = catalogFormError(error, "subcategory");
 
     return {
       success: false,
       errors: {
-        name: [errorMessage],
+        [formError.field]: [formError.message],
       },
     };
   }
 
+  if (newImagePath && (await fileExists(oldImagePath))) {
+    await fs.unlink(oldImagePath);
+  }
+
   await revalidateTenantPath("/");
   await revalidateTenantPath("/subcategories");
+  await revalidateTenantPath(`/categories/${oldCategoryId}/products`);
+  if (rawData.categoryId !== oldCategoryId) {
+    await revalidateTenantPath(`/categories/${rawData.categoryId}/products`);
+  }
   redirect(await tenantPath("/admin/subcategories"));
 }
 
 // This function handles the editing of an existing category
 export async function ToggleSubcategoryActive(id: number, active: boolean) {
   const { db } = await requireTenantAdminDb();
-  await db
+  const [updated] = await db
     .update(subcategories)
     .set({ isActive: active })
-    .where(eq(subcategories.id, Number(id)));
+    .where(eq(subcategories.id, Number(id)))
+    .returning({ categoryId: subcategories.categoryId });
+
+  if (!updated) notFound();
 
   await revalidateTenantPath("/");
   await revalidateTenantPath("/subcategories");
+  await revalidateTenantPath(`/categories/${updated.categoryId}/products`);
 }
 
 // This function handles the deletion of a subcategory
 export async function deleteSubcategory(id: number): Promise<string> {
   const { db } = await requireTenantAdminDb();
-  const [subcategory] = await db
-    .delete(subcategories)
-    .where(eq(subcategories.id, Number(id)))
-    .returning();
+  let subcategory;
+  try {
+    [subcategory] = await db
+      .delete(subcategories)
+      .where(eq(subcategories.id, Number(id)))
+      .returning();
+  } catch (error) {
+    if (isForeignKeyViolation(error)) {
+      return "Subcategory cannot be deleted while it has products.";
+    }
+    throw error;
+  }
 
   if (!subcategory) notFound();
 
@@ -189,5 +201,6 @@ export async function deleteSubcategory(id: number): Promise<string> {
 
   await revalidateTenantPath("/");
   await revalidateTenantPath("/subcategories");
+  await revalidateTenantPath(`/categories/${subcategory.categoryId}/products`);
   return `Subcategory ${subcategory.name} was successfully deleted.`;
 }

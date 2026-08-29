@@ -1,6 +1,6 @@
 import { getDbForTenant } from "@/drizzle/db";
 import { cache } from "@/lib/cache";
-import { eq, desc } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { categories } from "@/drizzle/schema";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/app/components/PageHeader";
@@ -27,7 +27,7 @@ const fetchActiveCategories = cache(
         imageUrl: categories.imageUrl,
       })
       .from(categories)
-      .where(eq(categories.isActive, true))
+      .where(and(eq(categories.isActive, true), isNull(categories.deletedAt)))
       .orderBy(desc(categories.name));
   },
   ["/categories", "getCategories"],

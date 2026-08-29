@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { categories, subcategories } from "@/drizzle/schema";
 import SubcategoryForm from "../../_components/SubcategoryForm";
 import { PageHeader } from "@/app/components/PageHeader";
+import { notFound } from "next/navigation";
 
 type EditSubcategoryProps = {
   params: Promise<{ id: number }>;
@@ -24,6 +25,7 @@ export default async function EditSubcategoryPage({
   ]);
 
   const subcategory = subcategoryResult[0];
+  if (!subcategory) notFound();
 
   return (
     <>
