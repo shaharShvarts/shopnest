@@ -84,6 +84,17 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
     product.imageUrl,
     tenant.slug
   );
+  const stockMessage = product.customerStockMessage;
+  const stockText =
+    stockMessage.kind === "few_left"
+      ? t("stockFew")
+      : stockMessage.kind === "exact"
+        ? t("stockExact", { count: stockMessage.quantity })
+        : stockMessage.kind === "last_one"
+          ? t("stockLast")
+          : stockMessage.kind === "out_of_stock"
+            ? t("stockOut")
+            : null;
 
   return (
     <section className="mx-auto w-full max-w-6xl">
@@ -120,16 +131,13 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
             {product.description}
           </p>
 
-          {product.quantity === 0 && (
+          {stockText && (
             <p className="mt-auto font-semibold text-destructive" role="status">
-              Out of stock
+              {stockText}
             </p>
           )}
           {product.quantity > 0 && (
             <div className="mt-auto">
-              <p className="text-sm text-gray-600 sm:text-base">
-                {t("quantity", { count: product.quantity })}
-              </p>
               <Label htmlFor="quantity" className="mt-4 block">
                 {t("quantityLabel")}
               </Label>

@@ -15,6 +15,7 @@ import { TenantLink as Link } from "@/components/TenantLink";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+import { QuantityControl } from "../carts/_components/QuantityControl";
 
 type cartDataProps = {
   cartData: CartPageProps[];
@@ -83,7 +84,9 @@ export default async function CartTable({
                 <TableCell className="max-w-md whitespace-normal">
                   {item.description}
                 </TableCell>
-                <TableCell>{item.quantity}</TableCell>
+                <TableCell>
+                  <QuantityControl productId={item.id} quantity={item.quantity} available={item.available} />
+                </TableCell>
                 <TableCell>{formatPrice(item.price)}</TableCell>
               </TableRow>
             ))}
@@ -120,7 +123,9 @@ export default async function CartTable({
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <dt className="text-muted-foreground">{t("th_quantity")}</dt>
-                  <dd className="font-medium">{item.quantity}</dd>
+                  <dd className="font-medium">
+                    <QuantityControl productId={item.id} quantity={item.quantity} available={item.available} />
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">{t("th_price")}</dt>

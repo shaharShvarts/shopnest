@@ -10,6 +10,10 @@
   "ProductsPage": {
     "header": "Products",
     "button": "Product Details",
+    "stockFew": "Only a few left in stock",
+    "stockExact": "Only {count} left in stock",
+    "stockLast": "Last one in stock",
+    "stockOut": "Out of stock",
     "Breadcrumbs": {
       "home": "Home",
       "categories": "Categories",
@@ -31,6 +35,7 @@
     "th_price": "Price",
     "summary_label": "Total",
     "button": "Proceed to purchase",
+    "stock_available": "Only {count} units are currently available.",
     "Metadata": {
       "title": "My Cart",
       "description": "Cart contents awaiting purchase"
@@ -72,6 +77,10 @@
     "quantityLabel": "quantity:",
     "quantity": "The current quantity is: {count}",
     "addToCartButton": "Add to cart",
-    "addToCartSuccess": "Product added to cart successfully!"
+    "addToCartSuccess": "Product added to cart successfully!",
+    "stockFew": "Only a few left in stock",
+    "stockExact": "Only {count} left in stock",
+    "stockLast": "Last one in stock",
+    "stockOut": "Out of stock"
   }
 }

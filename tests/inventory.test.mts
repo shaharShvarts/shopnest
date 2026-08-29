@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   calculateInventoryAvailability,
   getInventoryStatus,
+  getCustomerStockMessage,
   InventoryError,
   InventoryService,
   filterInventoryByStatus,
@@ -37,10 +38,20 @@ test("negative physical quantity is rejected", () => {
   );
 });
 
-test("adding to cart does not create a reservation", async () => {
+test("Add to Cart creates a soft reservation in the protected transaction", async () => {
   const route = await source("../src/app/api/cart/add/route.ts");
-  assert.doesNotMatch(route, /insert\(reservations\)|update\(reservations\)/);
-  assert.match(route, /new InventoryService/);
+  assert.match(route, /reserveCartInventoryInTransaction/);
+  assert.match(route, /db\.transaction/);
+  assert.match(route, /lockReservationAttempt/);
+});
+
+test("customer stock messaging follows the independent display policy", () => {
+  const policy = { warningThreshold: 10, exactThreshold: 5 };
+  assert.deepEqual(getCustomerStockMessage(11, policy), { kind: "none" });
+  assert.deepEqual(getCustomerStockMessage(10, policy), { kind: "few_left" });
+  assert.deepEqual(getCustomerStockMessage(5, policy), { kind: "exact", quantity: 5 });
+  assert.deepEqual(getCustomerStockMessage(1, policy), { kind: "last_one" });
+  assert.deepEqual(getCustomerStockMessage(0, policy), { kind: "out_of_stock" });
 });
 
 test("physical=10 and reserved=3 produces available=7", () => {
@@ -65,6 +76,126 @@ test("active non-expired reservations reduce available stock", async () => {
   const result = await new InventoryService(store).getAvailability(1, t0);
   assert.equal(result.reserved, 3);
   assert.equal(result.available, 7);
+});
+
+test("cart soft reservation reduces availability for another cart", async () => {
+  const store = inventoryStore(product(1, 3));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(2));
+  assert.equal((await service.getAvailability(1, t0)).available, 1);
+  const ownView = await service.getAvailabilityBatchForCart(
+    [1],
+    { ownerKey: "owner-a", cartId: "cart-a" },
+    t0
+  );
+  assert.equal(ownView.get(1)?.available, 3);
+});
+
+test("another owner cannot steal a cart soft reservation", async () => {
+  const store = inventoryStore(product(1, 3));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(1));
+  await assert.rejects(
+    service.reserveCartInventory(cartHold(2, later(1), "cart-a", "owner-b")),
+    (error: unknown) => inventoryCode(error, "reservation_owner_mismatch")
+  );
+  assert.equal(store.reservations[0].ownerKey, "owner-a");
+  assert.equal(store.reservations[0].quantity, 1);
+});
+
+test("two simultaneous cart holds cannot both reserve the final unit", async () => {
+  const store = inventoryStore(product(1, 1));
+  const service = new InventoryService(store);
+  const results = await Promise.allSettled([
+    service.reserveCartInventory(cartHold(1, t0, "cart-a", "owner-a")),
+    service.reserveCartInventory(cartHold(1, t0, "cart-b", "owner-b")),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal(results.filter((result) => result.status === "rejected").length, 1);
+});
+
+test("soft reservation idle expiry releases stock logically without deleting cart data", async () => {
+  const store = inventoryStore(product(1, 1));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(1));
+  assert.equal((await service.getAvailability(1, later(61))).available, 1);
+  assert.equal(store.reservations.length, 1);
+  const cartPage = await source("../src/app/(customer)/carts/page.tsx");
+  assert.doesNotMatch(cartPage, /delete\(cartProducts\)/);
+});
+
+test("meaningful cart activity refreshes idle expiry", async () => {
+  const store = inventoryStore(product(1, 2));
+  const service = new InventoryService(store);
+  const first = await service.reserveCartInventory(cartHold(1));
+  const refreshed = await service.reserveCartInventory(cartHold(1, later(45)));
+  assert.equal(first.expiresAt.toISOString(), later(60).toISOString());
+  assert.equal(refreshed.expiresAt.toISOString(), later(105).toISOString());
+  assert.equal(refreshed.lastActivityAt.toISOString(), later(45).toISOString());
+});
+
+test("passive availability reads do not extend a cart reservation", async () => {
+  const store = inventoryStore(product(1, 2));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(1));
+  const expiresAt = store.reservations[0].expiresAt.toISOString();
+  await service.getAvailability(1, later(30));
+  assert.equal(store.reservations[0].expiresAt.toISOString(), expiresAt);
+});
+
+test("soft reservation refresh never exceeds its absolute maximum", async () => {
+  const store = inventoryStore(product(1, 2));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(1));
+  await service.reserveCartInventory(cartHold(1, later(45)));
+  const refreshed = await service.reserveCartInventory(cartHold(1, later(90)));
+  assert.equal(refreshed.expiresAt.toISOString(), later(120).toISOString());
+  assert.equal(refreshed.maxExpiresAt.toISOString(), later(120).toISOString());
+});
+
+test("increasing and decreasing cart quantity adjusts the same soft hold", async () => {
+  const store = inventoryStore(product(1, 5));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(2));
+  await service.reserveCartInventory(cartHold(4, later(1)));
+  assert.equal((await service.getAvailability(1, later(1))).available, 1);
+  await service.reserveCartInventory(cartHold(1, later(2)));
+  assert.equal((await service.getAvailability(1, later(2))).available, 4);
+  assert.equal(store.reservations.length, 1);
+});
+
+test("removing a product releases its soft reservation immediately", async () => {
+  const store = inventoryStore(product(1, 3), product(2, 3));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory({
+    ...cartHold(1),
+    items: [{ productId: 1, quantity: 1 }, { productId: 2, quantity: 1 }],
+  });
+  await service.reserveCartInventory({ ...cartHold(1, later(1)), items: [{ productId: 2, quantity: 1 }] });
+  assert.equal((await service.getAvailability(1, later(1))).available, 3);
+  assert.equal((await service.getAvailability(2, later(1))).available, 2);
+});
+
+test("cart hold transitions to checkout without double counting", async () => {
+  const store = inventoryStore(product(1, 5));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(2));
+  const hard = await service.transitionCartToCheckout(attempt("checkout-a", 2));
+  assert.equal(hard.purpose, "checkout");
+  assert.equal(hard.expiresAt.toISOString(), later(1).toISOString());
+  assert.equal((await service.getAvailability(1, t0)).reserved, 2);
+  assert.equal(store.reservations.filter((item) => item.state === "active").length, 1);
+  assert.equal(store.reservations.find((item) => item.purpose === "cart")?.state, "released");
+});
+
+test("checkout refresh remains idempotent after cart transition", async () => {
+  const store = inventoryStore(product(1, 5));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(2));
+  await service.transitionCartToCheckout(attempt("checkout-a", 2));
+  await service.transitionCartToCheckout({ ...attempt("checkout-a", 2), now: later(1) });
+  assert.equal(store.reservations.filter((item) => item.purpose === "checkout").length, 1);
+  assert.equal((await service.getAvailability(1, later(1))).reserved, 2);
 });
 
 test("cannot reserve more than available inventory", async () => {
@@ -276,15 +407,38 @@ test("tenant inventory stores are isolated", async () => {
   assert.equal((await pandaPop.getAvailability(1, t0)).available, 2);
 });
 
+test("the same cart ID in another tenant cannot affect the first tenant", async () => {
+  const giftStore = inventoryStore(product(1, 2));
+  const pandaStore = inventoryStore(product(1, 2));
+  await new InventoryService(giftStore).reserveCartInventory(cartHold(2));
+  await new InventoryService(pandaStore).reserveCartInventory(cartHold(1));
+  assert.equal((await new InventoryService(giftStore).getAvailability(1, t0)).available, 0);
+  assert.equal((await new InventoryService(pandaStore).getAvailability(1, t0)).available, 1);
+});
+
+test("admin cannot reduce physical stock below all active soft and hard reservations", async () => {
+  const store = inventoryStore(product(1, 6));
+  const service = new InventoryService(store);
+  await service.reserveCartInventory(cartHold(2, t0, "cart-a", "owner-a"));
+  await service.reserveInventory(attempt("checkout-b", 2, "cart-b", "owner-b"));
+  await assert.rejects(
+    service.adjustInventory(1, { physical: 3, now: t0 }),
+    (error: unknown) => inventoryCode(error, "insufficient_stock")
+  );
+  assert.equal(store.products.get(1)?.physical, 6);
+});
+
 test("out-of-stock Add to Cart is rejected server-side", async () => {
   const route = await source("../src/app/api/cart/add/route.ts");
-  assert.match(route, /inventory\.available === 0/);
-  assert.match(route, /status: 409/);
+  assert.match(route, /reserveCartInventoryInTransaction/);
+  assert.match(route, /error instanceof InventoryError/);
+  assert.match(route, /\? 404 : 409/);
 });
 
 test("cart quantity above availability is rejected server-side", async () => {
   const route = await source("../src/app/api/cart/add/route.ts");
-  assert.match(route, /quantity > inventory\.available/);
+  assert.match(route, /requestedQuantity/);
+  assert.match(route, /reserveCartInventoryInTransaction/);
 });
 
 test("invalid inventory thresholds are rejected", () => {
@@ -330,16 +484,21 @@ test("disabled merchant availability prevents reservation", async () => {
   );
 });
 
-test("database migrations and store enforce integrity, binding, and locking", async () => {
-  const [migration, alertMigration, storeSource] = await Promise.all([
+test("database migrations and store enforce integrity, binding, timing, and locking", async () => {
+  const [migration, alertMigration, cartMigration, storeSource] = await Promise.all([
     source("../src/drizzle/migrations/0002_classy_bloodstorm.sql"),
     source("../src/drizzle/migrations/0003_free_vermin.sql"),
+    source("../src/drizzle/migrations/0004_soft_cart_reservations.sql"),
     source("../src/lib/inventory/drizzle-store.ts"),
   ]);
   assert.match(migration, /quantity_non_negative[\s\S]*quantity" >= 0/);
   assert.match(migration, /critical_threshold_not_above_low/);
   assert.match(migration, /reservation_quantity_positive/);
   assert.match(alertMigration, /severity_rank" > 1/);
+  assert.match(cartMigration, /reservation_purpose_valid/);
+  assert.match(cartMigration, /started_at/);
+  assert.match(cartMigration, /last_activity_at/);
+  assert.match(cartMigration, /max_expires_at/);
   assert.match(
     alertMigration,
     /inventory_alert_unresolved_product_unique[\s\S]*\("product_id"\)/
@@ -424,8 +583,9 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
   async getActiveReservationTotals(
     ids: number[],
     now: Date,
-    exclude?: ReservationAttemptIdentity
+    exclude?: ReservationAttemptIdentity | ReservationAttemptIdentity[]
   ) {
+    const excluded = exclude ? (Array.isArray(exclude) ? exclude : [exclude]) : [];
     const totals = new Map<number, number>();
     for (const item of this.reservations) {
       if (
@@ -433,10 +593,12 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
         item.state === "active" &&
         item.expiresAt.getTime() > now.getTime() &&
         !(
-          exclude &&
-          item.checkoutToken === exclude.checkoutToken &&
-          item.cartId === exclude.cartId &&
-          item.ownerKey === exclude.ownerKey
+          excluded.some((attempt) =>
+            item.checkoutToken === attempt.checkoutToken &&
+            item.cartId === attempt.cartId &&
+            item.ownerKey === attempt.ownerKey &&
+            item.purpose === attempt.purpose
+          )
         )
       ) {
         totals.set(item.productId, (totals.get(item.productId) ?? 0) + item.quantity);
@@ -463,7 +625,10 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
       if (existing) {
         Object.assign(existing, {
           quantity: item.quantity,
+          startedAt: structuredClone(item.startedAt),
+          lastActivityAt: structuredClone(item.lastActivityAt),
           expiresAt: structuredClone(item.expiresAt),
+          maxExpiresAt: structuredClone(item.maxExpiresAt),
           state: "active" as const,
         });
       } else {
@@ -486,6 +651,7 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
         item.checkoutToken === attempt.checkoutToken &&
         item.cartId === attempt.cartId &&
         item.ownerKey === attempt.ownerKey &&
+        item.purpose === attempt.purpose &&
         item.state === "active" &&
         !retainedProductIds.includes(item.productId)
       ) item.state = "released";
@@ -503,6 +669,7 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
         item.checkoutToken === attempt.checkoutToken &&
         item.cartId === attempt.cartId &&
         item.ownerKey === attempt.ownerKey &&
+        item.purpose === attempt.purpose &&
         item.state === "active"
       ) {
         item.state = state;
@@ -590,6 +757,23 @@ function attempt(
   };
 }
 
+function cartHold(
+  quantity: number,
+  now = t0,
+  cartId = "cart-a",
+  ownerKey = "owner-a"
+) {
+  return {
+    quantity,
+    cartId,
+    ownerKey,
+    now,
+    idleDurationMs: 60 * 60_000,
+    maxDurationMs: 120 * 60_000,
+    items: [{ productId: 1, quantity }],
+  };
+}
+
 function consume(checkoutToken: string) {
   return { checkoutToken, cartId: "cart-a", ownerKey: "owner-a", now: t0 };
 }
@@ -600,10 +784,14 @@ function reservation(overrides: Partial<InventoryReservationRecord> = {}): Inven
     ownerKey: "owner-a",
     cartId: "cart-a",
     checkoutToken: "existing-attempt",
+    purpose: "checkout",
     productId: 1,
     quantity: 3,
     state: "active",
     expiresAt: later(1),
+    startedAt: t0,
+    lastActivityAt: t0,
+    maxExpiresAt: later(1),
     ...overrides,
   };
 }

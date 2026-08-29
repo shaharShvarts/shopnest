@@ -6,7 +6,7 @@ import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
 import { StorefrontPageHeader } from "../../../components/StorefrontPageHeader";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { InventoryService } from "@/lib/inventory/core";
+import { getCustomerStockMessage, InventoryService } from "@/lib/inventory/core";
 import { DrizzleInventoryStore } from "@/lib/inventory/drizzle-store";
 
 type Params = {
@@ -65,6 +65,7 @@ const fetchProductById = async (id: string) => {
     ...product,
     quantity: availability.available,
     inventoryStatus: availability.status,
+    customerStockMessage: getCustomerStockMessage(availability.available),
   };
 };
 

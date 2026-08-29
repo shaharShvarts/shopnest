@@ -7,6 +7,7 @@ import {
   lte,
   not,
   notInArray,
+  or,
   sql,
 } from "drizzle-orm";
 import type { getDbForTenant } from "@/drizzle/db";
@@ -82,7 +83,9 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
   async getActiveReservationTotals(
     productIds: number[],
     now: Date,
-    excludeAttempt?: ReservationAttemptIdentity
+    excludeAttempts?:
+      | ReservationAttemptIdentity
+      | ReservationAttemptIdentity[]
   ) {
     if (productIds.length === 0) return new Map<number, number>();
     const conditions = [
@@ -90,13 +93,21 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
       eq(reservations.state, "active"),
       gt(reservations.expiresAt, now),
     ];
-    if (excludeAttempt) {
+    if (excludeAttempts) {
+      const attempts = Array.isArray(excludeAttempts)
+        ? excludeAttempts
+        : [excludeAttempts];
       conditions.push(
         not(
-          and(
-            eq(reservations.checkoutToken, excludeAttempt.checkoutToken),
-            eq(reservations.cartId, excludeAttempt.cartId),
-            eq(reservations.ownerKey, excludeAttempt.ownerKey)
+          or(
+            ...attempts.map((attempt) =>
+              and(
+                eq(reservations.checkoutToken, attempt.checkoutToken),
+                eq(reservations.cartId, attempt.cartId),
+                eq(reservations.ownerKey, attempt.ownerKey),
+                eq(reservations.purpose, attempt.purpose)
+              )!
+            )
           )!
         )
       );
@@ -121,10 +132,14 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
         ownerKey: reservations.ownerKey,
         cartId: reservations.cartId,
         checkoutToken: reservations.checkoutToken,
+        purpose: reservations.purpose,
         productId: reservations.productId,
         quantity: reservations.quantity,
         state: reservations.state,
         expiresAt: reservations.expiresAt,
+        startedAt: reservations.startedAt,
+        lastActivityAt: reservations.lastActivityAt,
+        maxExpiresAt: reservations.maxExpiresAt,
       })
       .from(reservations)
       .where(
@@ -139,23 +154,28 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
         .insert(reservations)
         .values({
           ownerKey: reservation.ownerKey,
-          purpose: "Checkout",
+          purpose: reservation.purpose,
           productId: reservation.productId,
           quantity: reservation.quantity,
           cartId: reservation.cartId,
           checkoutToken: reservation.checkoutToken,
           state: "active",
           expiresAt: reservation.expiresAt,
+          startedAt: reservation.startedAt,
+          lastActivityAt: reservation.lastActivityAt,
+          maxExpiresAt: reservation.maxExpiresAt,
           consumedAt: null,
           releasedAt: null,
         })
         .onConflictDoUpdate({
           target: [reservations.checkoutToken, reservations.productId],
           set: {
-            purpose: "Checkout",
             quantity: reservation.quantity,
             state: "active",
             expiresAt: reservation.expiresAt,
+            startedAt: reservation.startedAt,
+            lastActivityAt: reservation.lastActivityAt,
+            maxExpiresAt: reservation.maxExpiresAt,
             consumedAt: null,
             releasedAt: null,
             updatedAt: new Date(),
@@ -173,6 +193,7 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
       eq(reservations.checkoutToken, attempt.checkoutToken),
       eq(reservations.cartId, attempt.cartId),
       eq(reservations.ownerKey, attempt.ownerKey),
+      eq(reservations.purpose, attempt.purpose),
       eq(reservations.state, "active"),
     ];
     if (retainedProductIds.length > 0) {
@@ -201,6 +222,7 @@ export class DrizzleInventoryTransaction implements InventoryTransaction {
           eq(reservations.checkoutToken, attempt.checkoutToken),
           eq(reservations.cartId, attempt.cartId),
           eq(reservations.ownerKey, attempt.ownerKey),
+          eq(reservations.purpose, attempt.purpose),
           eq(reservations.state, "active")
         )
       )

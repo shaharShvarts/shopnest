@@ -2,8 +2,15 @@ import type {
   InventoryAlertType,
   InventoryNotificationStatus,
 } from "@/drizzle/schema/inventoryAlert";
-import type { ReservationState } from "@/drizzle/schema/reservation";
-import { getInventoryReservationDurationMs } from "./config.ts";
+import type {
+  ReservationPurpose,
+  ReservationState,
+} from "@/drizzle/schema/reservation";
+import {
+  getCartReservationDurationsMs,
+  getCheckoutReservationDurationMs,
+  getCustomerStockDisplayPolicy,
+} from "./config.ts";
 import {
   DatabaseOnlyInventoryNotificationService,
   type InventoryNotificationService,
@@ -58,10 +65,14 @@ export type InventoryReservationRecord = {
   ownerKey: string;
   cartId: string | null;
   checkoutToken: string;
+  purpose: ReservationPurpose;
   productId: number;
   quantity: number;
   state: ReservationState;
   expiresAt: Date;
+  startedAt: Date;
+  lastActivityAt: Date;
+  maxExpiresAt: Date;
 };
 
 export type InventoryAlertRecord = {
@@ -74,9 +85,13 @@ export type NewInventoryReservation = {
   ownerKey: string;
   cartId: string;
   checkoutToken: string;
+  purpose: ReservationPurpose;
   productId: number;
   quantity: number;
   expiresAt: Date;
+  startedAt: Date;
+  lastActivityAt: Date;
+  maxExpiresAt: Date;
 };
 
 export type NewInventoryAlert = {
@@ -92,6 +107,7 @@ export type ReservationAttemptIdentity = {
   checkoutToken: string;
   cartId: string;
   ownerKey: string;
+  purpose: ReservationPurpose;
 };
 
 export interface InventoryTransaction {
@@ -101,7 +117,9 @@ export interface InventoryTransaction {
   getActiveReservationTotals(
     productIds: number[],
     now: Date,
-    excludeAttempt?: ReservationAttemptIdentity
+    excludeAttempts?:
+      | ReservationAttemptIdentity
+      | ReservationAttemptIdentity[]
   ): Promise<Map<number, number>>;
   getAttemptReservations(
     checkoutToken: string
@@ -141,15 +159,49 @@ export interface InventoryStore {
 
 export type ReservationItem = { productId: number; quantity: number };
 
-export type ReserveInventoryInput = ReservationAttemptIdentity & {
+export type ReserveInventoryInput = Omit<ReservationAttemptIdentity, "purpose"> & {
   items: ReservationItem[];
   now?: Date;
   durationMs?: number;
 };
 
-export type ConsumeReservationInput = ReservationAttemptIdentity & {
+export type ReserveCartInventoryInput = Omit<
+  ReserveInventoryInput,
+  "checkoutToken" | "durationMs"
+> & {
+  idleDurationMs?: number;
+  maxDurationMs?: number;
+};
+
+export type ConsumeReservationInput = Omit<ReservationAttemptIdentity, "purpose"> & {
   now?: Date;
 };
+
+export type CustomerStockMessage =
+  | { kind: "none" }
+  | { kind: "few_left" }
+  | { kind: "exact"; quantity: number }
+  | { kind: "last_one" }
+  | { kind: "out_of_stock" };
+
+export function getCustomerStockMessage(
+  available: number,
+  policy = getCustomerStockDisplayPolicy()
+): CustomerStockMessage {
+  if (!Number.isSafeInteger(available) || available < 0) {
+    throw new InventoryError(
+      "invalid_quantity",
+      "Available inventory must be a non-negative whole number."
+    );
+  }
+  if (available === 0) return { kind: "out_of_stock" };
+  if (available === 1) return { kind: "last_one" };
+  if (available <= policy.exactThreshold) {
+    return { kind: "exact", quantity: available };
+  }
+  if (available <= policy.warningThreshold) return { kind: "few_left" };
+  return { kind: "none" };
+}
 
 export type InventoryErrorCode =
   | "invalid_quantity"
@@ -256,16 +308,21 @@ export class InventoryService {
   private readonly store: InventoryStore;
   private readonly notificationService: InventoryNotificationService;
   private readonly reservationDurationMs: number;
+  private readonly cartReservationIdleMs: number;
+  private readonly cartReservationMaxMs: number;
 
   constructor(
     store: InventoryStore,
     notificationService: InventoryNotificationService =
       new DatabaseOnlyInventoryNotificationService(),
-    reservationDurationMs = getInventoryReservationDurationMs()
+    reservationDurationMs = getCheckoutReservationDurationMs(),
+    cartDurations = getCartReservationDurationsMs()
   ) {
     this.store = store;
     this.notificationService = notificationService;
     this.reservationDurationMs = reservationDurationMs;
+    this.cartReservationIdleMs = cartDurations.idleMs;
+    this.cartReservationMaxMs = cartDurations.maxMs;
   }
 
   getAvailability(productId: number, now = new Date()) {
@@ -297,9 +354,47 @@ export class InventoryService {
     });
   }
 
+  getAvailabilityBatchForCart(
+    productIds: number[],
+    identity: { ownerKey: string; cartId: string },
+    now = new Date()
+  ) {
+    const ids = uniqueProductIds(productIds);
+    const attempt = cartAttempt(identity);
+    return this.store.transaction(async (tx) => {
+      const products = await tx.getProducts(ids);
+      const totals = await tx.getActiveReservationTotals(ids, now, attempt);
+      return new Map(
+        products.map((product) => [
+          product.id,
+          calculateInventoryAvailability(product, totals.get(product.id) ?? 0),
+        ])
+      );
+    });
+  }
+
   reserveInventory(input: ReserveInventoryInput) {
     return this.store.transaction((tx) =>
       reserveInventoryInTransaction(tx, {
+        ...input,
+        durationMs: input.durationMs ?? this.reservationDurationMs,
+      })
+    );
+  }
+
+  reserveCartInventory(input: ReserveCartInventoryInput) {
+    return this.store.transaction((tx) =>
+      reserveCartInventoryInTransaction(tx, {
+        ...input,
+        idleDurationMs: input.idleDurationMs ?? this.cartReservationIdleMs,
+        maxDurationMs: input.maxDurationMs ?? this.cartReservationMaxMs,
+      })
+    );
+  }
+
+  transitionCartToCheckout(input: ReserveInventoryInput) {
+    return this.store.transaction((tx) =>
+      transitionCartToCheckoutInTransaction(tx, {
         ...input,
         durationMs: input.durationMs ?? this.reservationDurationMs,
       })
@@ -318,9 +413,10 @@ export class InventoryService {
           "No checkout reservation was found."
         );
       }
-      assertAttemptBinding(reservations, input);
+      const attempt = checkoutAttempt(input);
+      assertAttemptBinding(reservations, attempt);
       return tx.markAttemptReservations(
-        input,
+        attempt,
         "released",
         now
       );
@@ -395,11 +491,125 @@ export async function reserveInventoryInTransaction(
 ) {
   const now = input.now ?? new Date();
   validateAttempt(input);
+  assertPositiveDuration(input.durationMs, "Checkout reservation duration");
+  const attempt = checkoutAttempt(input);
+  await tx.lockReservationAttempt(attempt.checkoutToken);
+  const existingAttempt = await tx.getAttemptReservations(
+    attempt.checkoutToken
+  );
+  assertAttemptBinding(existingAttempt, attempt);
+  const expiresAt = new Date(now.getTime() + input.durationMs);
+  return reserveAttemptItems(tx, {
+    attempt,
+    items: input.items,
+    now,
+    startedAt: now,
+    lastActivityAt: now,
+    expiresAt,
+    maxExpiresAt: expiresAt,
+    excludeAttempts: [attempt],
+  });
+}
+
+export async function reserveCartInventoryInTransaction(
+  tx: InventoryTransaction,
+  input: ReserveCartInventoryInput & {
+    idleDurationMs: number;
+    maxDurationMs: number;
+  }
+) {
+  const now = input.now ?? new Date();
+  validateAttempt({ ...input, checkoutToken: input.cartId });
+  assertPositiveDuration(input.idleDurationMs, "Cart idle duration");
+  assertPositiveDuration(input.maxDurationMs, "Cart maximum duration");
+  if (input.maxDurationMs < input.idleDurationMs) {
+    throw new InventoryError(
+      "invalid_attempt",
+      "Cart maximum duration cannot be shorter than its idle duration."
+    );
+  }
+  const attempt = cartAttempt(input);
+  await tx.lockReservationAttempt(attempt.checkoutToken);
+  const existingAttempt = await tx.getAttemptReservations(
+    attempt.checkoutToken
+  );
+  assertAttemptBinding(existingAttempt, attempt);
+
+  const active = existingAttempt.filter(
+    (item) =>
+      item.state === "active" &&
+      item.expiresAt.getTime() > now.getTime() &&
+      item.maxExpiresAt.getTime() > now.getTime()
+  );
+  const startedAt = active.length > 0 ? active[0].startedAt : now;
+  const maxExpiresAt =
+    active.length > 0
+      ? active[0].maxExpiresAt
+      : new Date(now.getTime() + input.maxDurationMs);
+  const expiresAt = new Date(
+    Math.min(now.getTime() + input.idleDurationMs, maxExpiresAt.getTime())
+  );
+
+  return reserveAttemptItems(tx, {
+    attempt,
+    items: input.items,
+    now,
+    startedAt,
+    lastActivityAt: now,
+    expiresAt,
+    maxExpiresAt,
+    excludeAttempts: [attempt],
+  });
+}
+
+export async function transitionCartToCheckoutInTransaction(
+  tx: InventoryTransaction,
+  input: ReserveInventoryInput & { durationMs: number }
+) {
+  const now = input.now ?? new Date();
+  validateAttempt(input);
+  assertPositiveDuration(input.durationMs, "Checkout reservation duration");
+  const cart = cartAttempt(input);
+  const checkout = checkoutAttempt(input);
+  for (const token of [cart.checkoutToken, checkout.checkoutToken].sort()) {
+    await tx.lockReservationAttempt(token);
+  }
+  const [cartReservations, checkoutReservations] = await Promise.all([
+    tx.getAttemptReservations(cart.checkoutToken),
+    tx.getAttemptReservations(checkout.checkoutToken),
+  ]);
+  assertAttemptBinding(cartReservations, cart);
+  assertAttemptBinding(checkoutReservations, checkout);
+  const expiresAt = new Date(now.getTime() + input.durationMs);
+  const result = await reserveAttemptItems(tx, {
+    attempt: checkout,
+    items: input.items,
+    now,
+    startedAt: now,
+    lastActivityAt: now,
+    expiresAt,
+    maxExpiresAt: expiresAt,
+    excludeAttempts: [cart, checkout],
+  });
+  await tx.markAttemptReservations(cart, "released", now);
+  return result;
+}
+
+async function reserveAttemptItems(
+  tx: InventoryTransaction,
+  input: {
+    attempt: ReservationAttemptIdentity;
+    items: ReservationItem[];
+    now: Date;
+    startedAt: Date;
+    lastActivityAt: Date;
+    expiresAt: Date;
+    maxExpiresAt: Date;
+    excludeAttempts: ReservationAttemptIdentity[];
+  }
+) {
   const items = normalizeReservationItems(input.items);
   const productIds = items.map((item) => item.productId);
-  await tx.lockReservationAttempt(input.checkoutToken);
-  const existingAttempt = await tx.getAttemptReservations(input.checkoutToken);
-  assertAttemptBinding(existingAttempt, input);
   const products = await tx.lockProducts(productIds);
   if (products.length !== productIds.length) {
     const found = new Set(products.map((product) => product.id));
@@ -408,8 +618,8 @@ export async function reserveInventoryInTransaction(
 
   const otherReservations = await tx.getActiveReservationTotals(
     productIds,
-    now,
-    input
+    input.now,
+    input.excludeAttempts
   );
   const productMap = new Map(products.map((product) => [product.id, product]));
 
@@ -435,31 +645,45 @@ export async function reserveInventoryInTransaction(
     }
   }
 
-  const expiresAt = new Date(now.getTime() + input.durationMs);
-  if (!(input.durationMs > 0) || Number.isNaN(expiresAt.getTime())) {
+  if (
+    input.startedAt.getTime() > input.lastActivityAt.getTime() ||
+    input.lastActivityAt.getTime() > input.expiresAt.getTime() ||
+    input.expiresAt.getTime() > input.maxExpiresAt.getTime()
+  ) {
     throw new InventoryError(
       "invalid_attempt",
-      "Reservation duration must be positive."
+      "Reservation timestamps are inconsistent."
     );
   }
 
   await tx.upsertReservations(
     items.map((item) => ({
-      ownerKey: input.ownerKey,
-      cartId: input.cartId,
-      checkoutToken: input.checkoutToken,
+      ownerKey: input.attempt.ownerKey,
+      cartId: input.attempt.cartId,
+      checkoutToken: input.attempt.checkoutToken,
+      purpose: input.attempt.purpose,
       productId: item.productId,
       quantity: item.quantity,
-      expiresAt,
+      startedAt: input.startedAt,
+      lastActivityAt: input.lastActivityAt,
+      expiresAt: input.expiresAt,
+      maxExpiresAt: input.maxExpiresAt,
     }))
   );
   await tx.releaseAttemptReservationsExcept(
-    input,
+    input.attempt,
     productIds,
-    now
+    input.now
   );
 
-  return { expiresAt, items };
+  return {
+    purpose: input.attempt.purpose,
+    startedAt: input.startedAt,
+    lastActivityAt: input.lastActivityAt,
+    expiresAt: input.expiresAt,
+    maxExpiresAt: input.maxExpiresAt,
+    items,
+  };
 }
 
 export async function consumeReservationInTransaction(
@@ -469,6 +693,7 @@ export async function consumeReservationInTransaction(
 ) {
   const now = input.now ?? new Date();
   validateAttempt(input);
+  const attempt = checkoutAttempt(input);
   await tx.lockReservationAttempt(input.checkoutToken);
   const initial = await tx.getAttemptReservations(input.checkoutToken);
   if (initial.length === 0) {
@@ -477,12 +702,12 @@ export async function consumeReservationInTransaction(
       "No checkout reservation was found."
     );
   }
-  assertAttemptBinding(initial, input);
+  assertAttemptBinding(initial, attempt);
 
   const productIds = uniqueProductIds(initial.map((item) => item.productId));
   const products = await tx.lockProducts(productIds);
   const reservations = await tx.getAttemptReservations(input.checkoutToken);
-  assertAttemptBinding(reservations, input);
+  assertAttemptBinding(reservations, attempt);
   if (
     reservations.some(
       (reservation) =>
@@ -500,7 +725,7 @@ export async function consumeReservationInTransaction(
   const otherTotals = await tx.getActiveReservationTotals(
     productIds,
     now,
-    input
+    attempt
   );
   const availabilityAfter = new Map<number, InventoryAvailability>();
 
@@ -528,7 +753,7 @@ export async function consumeReservationInTransaction(
   }
 
   const consumed = await tx.markAttemptReservations(
-    input,
+    attempt,
     "consumed",
     now
   );
@@ -689,6 +914,35 @@ function validateAttempt(input: {
   }
 }
 
+function assertPositiveDuration(durationMs: number, label: string) {
+  if (!(durationMs > 0) || !Number.isFinite(durationMs)) {
+    throw new InventoryError(
+      "invalid_attempt",
+      `${label} must be positive.`
+    );
+  }
+}
+
+function checkoutAttempt(input: {
+  ownerKey: string;
+  cartId: string;
+  checkoutToken: string;
+}): ReservationAttemptIdentity {
+  return { ...input, purpose: "checkout" };
+}
+
+function cartAttempt(input: {
+  ownerKey: string;
+  cartId: string;
+}): ReservationAttemptIdentity {
+  return {
+    ownerKey: input.ownerKey,
+    cartId: input.cartId,
+    checkoutToken: input.cartId,
+    purpose: "cart",
+  };
+}
+
 function assertAttemptBinding(
   reservations: InventoryReservationRecord[],
   attempt: ReservationAttemptIdentity
@@ -703,6 +957,12 @@ function assertAttemptBinding(
     throw new InventoryError(
       "reservation_owner_mismatch",
       "The checkout token is already bound to a different owner."
+    );
+  }
+  if (reservations.some((item) => item.purpose !== attempt.purpose)) {
+    throw new InventoryError(
+      "invalid_attempt",
+      "The reservation token is already bound to a different purpose."
     );
   }
 }

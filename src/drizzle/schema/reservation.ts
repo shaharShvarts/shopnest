@@ -21,6 +21,8 @@ export const reservationStates = [
   "expired",
 ] as const;
 export type ReservationState = (typeof reservationStates)[number];
+export const reservationPurposes = ["cart", "checkout"] as const;
+export type ReservationPurpose = (typeof reservationPurposes)[number];
 export const reservationStateEnum = pgEnum(
   "reservation_state",
   reservationStates
@@ -31,7 +33,10 @@ export const reservations = pgTable(
   {
     id: id(),
     ownerKey: varchar("user_id").notNull(),
-    purpose: varchar("type").notNull().default("Checkout"),
+    purpose: varchar("type")
+      .$type<ReservationPurpose>()
+      .notNull()
+      .default("checkout"),
     productId: integer("product_id")
       .references(() => products.id, { onDelete: "cascade" })
       .notNull(),
@@ -41,7 +46,14 @@ export const reservations = pgTable(
     }),
     checkoutToken: uuid("checkout_token").notNull(),
     state: reservationStateEnum().notNull().default("active"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    maxExpiresAt: timestamp("max_expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     releasedAt: timestamp("released_at", { withTimezone: true }),
     createdAt,
@@ -49,6 +61,14 @@ export const reservations = pgTable(
   },
   (table) => [
     check("reservation_quantity_positive", sql`${table.quantity} > 0`),
+    check(
+      "reservation_purpose_valid",
+      sql`${table.purpose} in ('cart', 'checkout')`
+    ),
+    check(
+      "reservation_expiry_order_valid",
+      sql`${table.startedAt} <= ${table.lastActivityAt} and ${table.lastActivityAt} <= ${table.expiresAt} and ${table.expiresAt} <= ${table.maxExpiresAt}`
+    ),
     uniqueIndex("reservation_attempt_product_unique").on(
       table.checkoutToken,
       table.productId

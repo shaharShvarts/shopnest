@@ -1,105 +1,97 @@
 "use server";
 
-// import z from "zod";
-// import type { AddToCartState } from "../products/_components/ProductDetails";
-import {
-  // addProductToCart,
-  deleteProductFromCart,
-  fetchCartId,
-  getProductPrice,
-  // reserveProduct,
-  updateTotalPrice,
-} from "./cartVerification";
+import { cookies } from "next/headers";
+import { and, eq, sql } from "drizzle-orm";
+import { getDb } from "@/drizzle/db";
+import { cartProducts, carts, products } from "@/drizzle/schema";
+import { getCartReservationDurationsMs } from "@/lib/inventory/config";
+import { InventoryError, reserveCartInventoryInTransaction } from "@/lib/inventory/core";
+import { DrizzleInventoryTransaction } from "@/lib/inventory/drizzle-store";
 import { revalidateTenantPath } from "@/lib/tenant-context";
-// import { cookies } from "next/headers";
-
-// const productSchema = z.object({
-//   quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
-//   productId: z.coerce
-//     .number()
-//     .int()
-//     .positive("Product ID must be a positive integer"),
-// });
 
 export async function removeProduct(productId: number) {
-  // 1. fetch the cart ID
-  const cartId = await fetchCartId();
-  if (!cartId) return;
-
-  // 2. - Delete the item and get its quantity
-  const quantity = await deleteProductFromCart(cartId, productId);
-
-  // 3. Fetch the product price
-  const product = await getProductPrice(productId);
-  if (!product.success) return;
-
-  // 4. Multiply and negate the total
-  const itemTotal = -product.price * quantity;
-
-  // 5. Update the cart’s total price
-  await updateTotalPrice(cartId, itemTotal);
-
-  await revalidateTenantPath("/");
-  await revalidateTenantPath("/carts");
-  return quantity;
+  const result = await mutateCartProduct(productId, 0);
+  return result.success ? -result.quantityDelta : 0;
 }
 
-// export async function addToCart(
-//   prevState: AddToCartState,
-//   formData: FormData
-// ): Promise<AddToCartState> {
-//   const result = productSchema.safeParse(Object.fromEntries(formData));
+export async function updateProductQuantity(productId: number, quantity: number) {
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+    return { success: false as const, error: "Quantity must be a positive whole number." };
+  }
+  return mutateCartProduct(productId, quantity);
+}
 
-//   if (!result.success) {
-//     return {
-//       success: false,
-//       errors: result.error.flatten().fieldErrors,
-//     };
-//   }
+async function mutateCartProduct(productId: number, targetQuantity: number) {
+  if (!Number.isSafeInteger(productId) || productId <= 0) {
+    return { success: false as const, error: "Invalid product." };
+  }
+  const cookieStore = await cookies();
+  const rawUserId = cookieStore.get("user_id")?.value;
+  const sessionId = cookieStore.get("session_id")?.value;
+  const userId = rawUserId ? Number(rawUserId) : null;
+  if ((!userId && !sessionId) || (rawUserId && !Number.isSafeInteger(userId))) {
+    return { success: false as const, error: "Unable to identify the cart owner." };
+  }
+  const ownerKey = userId ? `user:${userId}` : `session:${sessionId}`;
+  const durations = getCartReservationDurationsMs();
+  const db = await getDb();
 
-//   const { productId, quantity } = result.data;
-//   const userId = (await cookies()).get("user_id")?.value;
-//   const sessionId = (await cookies()).get("session_id")?.value;
+  try {
+    const result = await db.transaction(async (tx) => {
+      const cartBy = userId ? eq(carts.userId, userId) : eq(carts.sessionId, sessionId!);
+      const [cart] = await tx.select({ id: carts.id }).from(carts)
+        .where(and(cartBy, eq(carts.isActive, true))).limit(1).for("update");
+      if (!cart) throw new Error("No active cart was found.");
 
-//   if (!userId && !sessionId)
-//     return {
-//       success: false,
-//       errors: { cart: ["unable to find the client"] },
-//     };
+      const inventoryTx = new DrizzleInventoryTransaction(tx);
+      await inventoryTx.lockReservationAttempt(cart.id);
+      const currentItems = await tx.select({
+        productId: cartProducts.productId,
+        quantity: cartProducts.quantity,
+      }).from(cartProducts).where(eq(cartProducts.cartId, cart.id));
+      const current = currentItems.find((item) => item.productId === productId);
+      if (!current) throw new Error("The product is not in this cart.");
+      const nextItems = currentItems
+        .map((item) => item.productId === productId ? { ...item, quantity: targetQuantity } : item)
+        .filter((item) => item.quantity > 0);
 
-//   // 1. Find or create cart by userId or sessionId
-//   const reservedProduct = await reserveProduct(productId);
-//   if (!reservedProduct)
-//     return {
-//       success: false,
-//       errors: { cart: ["This product cannot be reserved for the cart."] },
-//     };
+      if (nextItems.length > 0) {
+        await reserveCartInventoryInTransaction(inventoryTx, {
+          ownerKey, cartId: cart.id, items: nextItems,
+          idleDurationMs: durations.idleMs, maxDurationMs: durations.maxMs,
+        });
+      } else {
+        await inventoryTx.markAttemptReservations(
+          { ownerKey, cartId: cart.id, checkoutToken: cart.id, purpose: "cart" },
+          "released",
+          new Date()
+        );
+      }
 
-//   // 2. Find or create cart by userId or sessionId
-//   const cartId = await fetchCartId(userId, sessionId);
+      if (targetQuantity === 0) {
+        await tx.delete(cartProducts).where(and(
+          eq(cartProducts.cartId, cart.id), eq(cartProducts.productId, productId)
+        ));
+      } else {
+        await tx.update(cartProducts).set({ quantity: targetQuantity, updatedAt: new Date() })
+          .where(and(eq(cartProducts.cartId, cart.id), eq(cartProducts.productId, productId)));
+      }
+      const [total] = await tx.select({
+        value: sql<number>`coalesce(sum(${cartProducts.quantity} * ${products.price}), 0)::int`,
+      }).from(cartProducts).innerJoin(products, eq(cartProducts.productId, products.id))
+        .where(eq(cartProducts.cartId, cart.id));
+      await tx.update(carts).set({ totalPrice: Number(total.value), updatedAt: new Date() })
+        .where(eq(carts.id, cart.id));
+      return { quantityDelta: targetQuantity - current.quantity };
+    });
 
-//   if (!cartId)
-//     return {
-//       success: false,
-//       errors: { cart: ["Unable to create or fetch cart"] },
-//     };
-
-//   // 3. Add product to cart
-//   const cartProduct = await addProductToCart(productId, quantity, cartId);
-//   if (!cartProduct.success) return cartProduct;
-
-//   // 4. Get product price
-//   const product = await getProductPrice(productId);
-//   if (!product.success) return product;
-
-//   const itemTotal = product.price * quantity;
-
-//   const updataPrice = await updateTotalPrice(cartId, itemTotal);
-
-//   if (!updataPrice.success) return updataPrice;
-
-//   return {
-//     success: true,
-//     errors: {},
-//   };
-// }
+    await revalidateTenantPath("/");
+    await revalidateTenantPath("/carts");
+    return { success: true as const, ...result };
+  } catch (error) {
+    const message = error instanceof InventoryError || error instanceof Error
+      ? error.message
+      : "Unable to update the cart.";
+    return { success: false as const, error: message };
+  }
+}
