@@ -3,7 +3,7 @@ import { cache } from "@/lib/cache";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { categories } from "@/drizzle/schema";
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/app/components/PageHeader";
+import { StorefrontPageHeader } from "../components/StorefrontPageHeader";
 import CategoriesGrid from "../components/CategoriesGrid";
 import { getTenant } from "@/lib/tenant-context";
 import type { Tenant } from "@/lib/tenant";
@@ -43,7 +43,7 @@ export default async function CategoriesPage() {
   const t = await getTranslations("CategoriesPage");
   return (
     <>
-      <PageHeader>{t("header")}</PageHeader>
+      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
       <CategoriesGrid categories={categories} />
     </>
   );

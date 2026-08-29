@@ -3,7 +3,7 @@ import { categories, products, subcategories } from "@/drizzle/schema";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
 import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
-import { PageHeader } from "@/app/components/PageHeader";
+import { StorefrontPageHeader } from "../../../components/StorefrontPageHeader";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -68,7 +68,7 @@ export default async function ProductsPage({ params }: Params) {
 
   return (
     <>
-      <PageHeader>{t("header")}</PageHeader>
+      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
       <DynamicBreadcrumb
         segments={[
           { label: tb("home"), href: "/" },

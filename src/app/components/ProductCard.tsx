@@ -22,25 +22,27 @@ export async function ProductCard({
 }: ProductPreview) {
   const t = await getTranslations("ProductsPage");
   return (
-    <Card className="flex overflow-hidden flex-col">
-      <div className="relative w-full aspect-video">
+    <Card className="flex min-w-0 overflow-hidden flex-col">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
         <Image
           src={imageUrl}
           alt={name}
           fill
           className="object-cover transition-transform duration-300 hover:scale-105"
-          sizes="100vw"
+          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
         />
       </div>
-      <CardHeader className="text-lg font-semibold">
-        <CardTitle>{name}</CardTitle>
+      <CardHeader className="min-w-0 p-4 text-lg font-semibold">
+        <CardTitle className="break-words text-base sm:text-lg">{name}</CardTitle>
         <CardDescription>{formatCurrency(price)}</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="line-clamp-4">{description}</p>
+      <CardContent className="min-w-0 flex-grow px-4 pb-4">
+        <p className="line-clamp-4 break-words text-sm sm:text-base">
+          {description}
+        </p>
       </CardContent>
-      <CardFooter>
-        <Button asChild size="lg" className="w-full">
+      <CardFooter className="p-4 pt-0">
+        <Button asChild size="lg" className="min-h-11 w-full">
           <Link href={`/products/${id}/details`}>{t("button")}</Link>
         </Button>
       </CardFooter>

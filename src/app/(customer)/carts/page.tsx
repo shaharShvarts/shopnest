@@ -4,7 +4,7 @@ import { fetchCartId } from "../_actions/cartVerification";
 import { cartProducts, products } from "@/drizzle/schema";
 import CartTable from "../components/CartTable";
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/app/components/PageHeader";
+import { StorefrontPageHeader } from "../components/StorefrontPageHeader";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");
@@ -21,6 +21,7 @@ export type CartPageProps = {
   price: number;
   description: string | null;
   quantity: number;
+  imageUrl: string;
 };
 
 export default async function CartPage() {
@@ -36,6 +37,7 @@ export default async function CartPage() {
       price: products.price,
       description: products.description,
       quantity: cartProducts.quantity,
+      imageUrl: products.imageUrl,
     })
     .from(cartProducts)
     .innerJoin(products, eq(cartProducts.productId, products.id))
@@ -43,7 +45,7 @@ export default async function CartPage() {
 
   return (
     <>
-      <PageHeader>{t("header")}</PageHeader>
+      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
       <CartTable cartData={cartData} />
     </>
   );

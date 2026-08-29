@@ -23,12 +23,14 @@ export default function CheckoutTable({
 
   if (state.success && state.order) {
     return (
-      <section className="max-w-2xl mx-auto rounded border p-6 space-y-3">
-        <h2 className="text-2xl font-semibold text-green-700">
+      <section className="mx-auto w-full max-w-2xl space-y-3 rounded-lg border p-4 sm:p-6">
+        <h2 className="text-xl font-semibold text-green-700 sm:text-2xl">
           Order confirmed
         </h2>
         <p>Your order number is:</p>
-        <p className="text-xl font-mono font-semibold">{state.order.number}</p>
+        <p className="break-all font-mono text-lg font-semibold sm:text-xl">
+          {state.order.number}
+        </p>
         <p>Total: {formatCurrency(state.order.totalPrice)}</p>
         <p className="text-sm text-muted-foreground">
           Payment is still pending. No payment has been collected.
@@ -38,29 +40,35 @@ export default function CheckoutTable({
   }
 
   return (
-    <form action={formAction} className="space-y-6 max-w-2xl mx-auto">
+    <form action={formAction} className="mx-auto w-full max-w-2xl space-y-5 sm:space-y-6">
       <input type="hidden" name="submission_token" value={submissionToken} />
 
-      <section>
-        <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
+      <section className="rounded-lg border p-4 sm:p-6">
+        <h2 className="mb-4 text-lg font-semibold sm:text-xl">
+          Contact Information
+        </h2>
         <input
           name="email"
           type="email"
           placeholder="Email Address"
           autoComplete="email"
           required
-          className="w-full border p-2 rounded"
+          className="min-h-11 w-full rounded border p-2"
         />
         <FieldErrors errors={state.errors.email} />
       </section>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-4">Shipping Address</h2>
+      <section className="rounded-lg border p-4 sm:p-6">
+        <h2 className="mb-4 text-lg font-semibold sm:text-xl">
+          Shipping Address
+        </h2>
         <ShippingAddress prefix="shipping" />
       </section>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-4">Shipping Method</h2>
+      <section className="rounded-lg border p-4 sm:p-6">
+        <h2 className="mb-4 text-lg font-semibold sm:text-xl">
+          Shipping Method
+        </h2>
         <div className="space-y-2">
           <ShippingOption value="regular" label="Regular (3–5 business days)" />
           <ShippingOption
@@ -72,8 +80,8 @@ export default function CheckoutTable({
         <FieldErrors errors={state.errors.shipping_method} />
       </section>
 
-      <section className="border p-4 rounded space-y-2">
-        <h2 className="text-xl font-semibold">Payment</h2>
+      <section className="space-y-2 rounded-lg border p-4 sm:p-6">
+        <h2 className="text-lg font-semibold sm:text-xl">Payment</h2>
         <p className="text-sm text-muted-foreground">
           Payment will remain pending. Online payment is not part of this
           checkout yet.
@@ -91,9 +99,15 @@ export default function CheckoutTable({
 
 function ShippingOption({ value, label }: { value: string; label: string }) {
   return (
-    <label className="flex items-center gap-2">
-      <input type="radio" name="shipping_method" value={value} required />
-      <span>{label}</span>
+    <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border p-3 focus-within:ring-2 focus-within:ring-ring">
+      <input
+        type="radio"
+        name="shipping_method"
+        value={value}
+        required
+        className="size-4 shrink-0"
+      />
+      <span className="min-w-0 break-words">{label}</span>
     </label>
   );
 }
@@ -106,7 +120,12 @@ function FieldErrors({ errors }: { errors?: string[] }) {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} aria-disabled={pending}>
+    <Button
+      type="submit"
+      disabled={pending}
+      aria-disabled={pending}
+      className="min-h-11 w-full sm:w-auto sm:min-w-44"
+    >
       {pending ? "Creating order..." : "Place Order"}
     </Button>
   );

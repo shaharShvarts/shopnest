@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/popover";
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 export type LanguageOption = {
   label: string;
@@ -43,19 +44,29 @@ export default function LanguageSelector() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-[180px] justify-around">
-          <img src={selected?.flag} width="30" alt={selected?.label} />
-          {selected?.label}
+        <Button
+          variant="outline"
+          aria-label={`Language: ${selected?.label ?? "Select language"}`}
+          className="h-11 min-w-11 gap-1 px-2 sm:w-[180px] sm:justify-around sm:px-3"
+        >
+          <Image
+            src={selected?.flag ?? languages[0].flag}
+            width={26}
+            height={20}
+            alt=""
+            className="shrink-0"
+          />
+          <span className="hidden sm:inline">{selected?.label}</span>
           <ChevronsUpDownIcon className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[180px] p-0">
+      <PopoverContent className="w-44 max-w-[calc(100vw-1.5rem)] p-0 sm:w-[180px]">
         <Command>
           <CommandInput placeholder="Search language..." />
           <CommandGroup>
             {languages.map((lang) => (
               <CommandItem
-                className="flex justify-around items-around"
+                className="flex min-h-11 items-center justify-around"
                 key={lang.value}
                 onSelect={() => {
                   setSelected(lang);
@@ -71,8 +82,13 @@ export default function LanguageSelector() {
                     lang.value === selected?.value ? "opacity-100" : "opacity-0"
                   )}
                 />
-                <img src={lang.flag} width="30" alt={lang?.label} />
-                <div className="w-[60px] text-right mr-2">{lang.label}</div>
+                <Image
+                  src={lang.flag}
+                  width={30}
+                  height={22}
+                  alt=""
+                />
+                <div className="w-[60px] text-end">{lang.label}</div>
               </CommandItem>
             ))}
           </CommandGroup>

@@ -1,4 +1,4 @@
-import { PageHeader } from "../components/PageHeader";
+import { StorefrontPageHeader } from "./components/StorefrontPageHeader";
 import { getTranslations } from "next-intl/server";
 
 export async function generateMetadata() {
@@ -21,7 +21,7 @@ export default async function CategoriesPage() {
   // const t = await getTranslations("CategoriesPage");
   return (
     <>
-      <PageHeader>Home Page</PageHeader>
+      <StorefrontPageHeader>Home Page</StorefrontPageHeader>
       {/* <CategoriesGrid categories={categories} /> */}
     </>
   );

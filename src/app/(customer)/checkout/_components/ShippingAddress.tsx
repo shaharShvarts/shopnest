@@ -1,50 +1,52 @@
 export default function ShippingAddress({ prefix }: { prefix: string }) {
+  const inputClassName = "min-h-11 w-full rounded border p-2";
+
   return (
-    <section>
-      <div className="grid grid-cols-2 gap-4">
+    <section className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <input
           name={`${prefix}_name`}
           placeholder="First Name"
           autoComplete="given-name"
           required
-          className="border p-2 rounded"
+          className={inputClassName}
         />
         <input
           name={`${prefix}_lastName`}
           placeholder="Last Name"
           autoComplete="family-name"
           required
-          className="border p-2 rounded"
+          className={inputClassName}
         />
       </div>
       <input
         name={`${prefix}_company`}
         placeholder="Company (optional)"
-        className="w-full border p-2 rounded mt-4"
+        className={inputClassName}
       />
       <input
         name={`${prefix}_address`}
         placeholder="Address"
         autoComplete="street-address"
         required
-        className="w-full border p-2 rounded mt-4"
+        className={inputClassName}
       />
       <input
         name={`${prefix}_apartment`}
         placeholder="Apartment, suite, etc. (optional)"
-        className="w-full border p-2 rounded mt-4"
+        className={inputClassName}
       />
-      <div className="grid grid-cols-3 gap-4 mt-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <input
           name={`${prefix}_city`}
           placeholder="City"
           autoComplete="address-level2"
           required
-          className="border p-2 rounded"
+          className={inputClassName}
         />
         <select
           name={`${prefix}_state`}
-          className="border p-2 rounded"
+          className={inputClassName}
           autoComplete="country-name"
           required
         >
@@ -56,7 +58,7 @@ export default function ShippingAddress({ prefix }: { prefix: string }) {
           placeholder="ZIP Code"
           autoComplete="postal-code"
           required
-          className="border p-2 rounded"
+          className={inputClassName}
         />
       </div>
       <input
@@ -65,7 +67,7 @@ export default function ShippingAddress({ prefix }: { prefix: string }) {
         type="tel"
         autoComplete="tel"
         required
-        className="w-full border p-2 rounded mt-4"
+        className={inputClassName}
       />
     </section>
   );
