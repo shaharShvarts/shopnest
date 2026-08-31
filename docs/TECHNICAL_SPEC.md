@@ -18,6 +18,20 @@ Storefront and tenant-admin routes are rooted at `/<tenant>` and `/<tenant>/admi
 
 Runtime catalog media is tenant-scoped. A tenant's product/category media URL and storage path cannot resolve through another tenant. The control plane for administrator identities and assignments is separate from tenant business schemas. Existing Basic Auth and tenant-aware admin authorization remain security boundaries; storefront cart identity uses the existing user/session cookie model.
 
+## Storefront search — CURRENT / AGREED
+
+ShopNest provides tenant-aware product search at `/<tenant>/search?q=<query>`. Search database access is created only from the trusted server-side tenant context; the URL and form never accept a schema or database selector. Results, inventory, and media therefore remain isolated to the current tenant.
+
+The current implementation uses parameterized PostgreSQL `ILIKE` matching across product name, product description, category name, and subcategory name. Queries are trimmed server-side, limited to 100 characters, and empty queries return a prompt rather than the entire catalog. The initial result limit is 24, with a service boundary that can support pagination and filters later.
+
+Search applies the same storefront visibility rules as normal catalog pages: product and category must be active and not deleted, merchant-disabled products are excluded, and an attached subcategory must be active and not deleted. A product with zero **available** inventory remains visible and is labeled out of stock. All result stock data comes from the central inventory service, including physical, reserved, available, status, and the existing customer stock-message policy. Search reuses the shared responsive product card and tenant-aware media resolver.
+
+Product-name matches are listed before description/category/subcategory-only matches, followed by stable product name and ID ordering. No new index is added for the leading-wildcard `ILIKE` query because a normal B-tree index would not accelerate that pattern reliably.
+
+### Search evolution — FUTURE / OPEN
+
+Typo tolerance, autocomplete, search suggestions, recent searches, popular searches, advanced category/subcategory/price/availability filters, and relevance/ranking tuning are not implemented. PostgreSQL `pg_trgm`, PostgreSQL full-text search, and external search infrastructure remain **FUTURE / OPEN** options that require demonstrated scale or product need. No external search service is currently part of ShopNest.
+
 ## Inventory definitions — CURRENT / AGREED
 
 - **Physical stock** is the merchant-owned on-hand quantity stored on the product. Zero is valid; negative stock is invalid.

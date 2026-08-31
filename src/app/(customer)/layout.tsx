@@ -11,6 +11,8 @@ import {
   AdminAuthorizationError,
   requireActiveTenantStorefront,
 } from "@/lib/admin-auth/server";
+import { tenantPath } from "@/lib/tenant-context";
+import { SearchForm } from "./search/_components/SearchForm";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,7 @@ export default async function HomeLayout({
     }
     throw error;
   }
+  const searchAction = await tenantPath("/search");
 
   return (
     <CartProvider>
@@ -39,7 +42,7 @@ export default async function HomeLayout({
         dir="ltr"
         className="sticky top-0 z-50 bg-white shadow-md"
       >
-        <nav className="container mx-auto flex min-w-0 items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3">
+        <nav className="container mx-auto flex min-w-0 flex-wrap items-center justify-between gap-2 px-3 py-2 sm:flex-nowrap sm:gap-4 sm:px-4 sm:py-3">
           <Link
             href={"/"}
             aria-label="ShopNest home"
@@ -50,6 +53,9 @@ export default async function HomeLayout({
               className="size-11 transition-colors hover:fill-[#C2410C] sm:size-16"
             />
           </Link>
+          <div className="order-3 min-w-0 basis-full sm:order-none sm:max-w-xl sm:flex-1">
+            <SearchForm action={searchAction} compact />
+          </div>
           <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-3">
             <LanguageSelector />
             <Link

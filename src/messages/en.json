@@ -82,5 +82,20 @@
     "stockExact": "Only {count} left in stock",
     "stockLast": "Last one in stock",
     "stockOut": "Out of stock"
+  },
+  "SearchPage": {
+    "search": "Search",
+    "searchProducts": "Search products",
+    "searchResults": "Search results",
+    "resultsFor": "Results for “{query}”",
+    "noProductsFound": "No products found",
+    "tryAnotherSearch": "Try another search.",
+    "prompt": "What are you looking for?",
+    "promptDetail": "Enter a product, category, or description to start searching.",
+    "queryTooLong": "The search is too long",
+    "Metadata": {
+      "title": "Search products",
+      "description": "Search the active ShopNest product catalog"
+    }
   }
 }

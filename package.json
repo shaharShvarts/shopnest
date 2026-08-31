@@ -23,7 +23,8 @@
     "admin-auth:test": "node --experimental-strip-types --test tests/admin-auth.test.mts",
     "catalog:test": "node --experimental-strip-types --test tests/catalog-flow.test.mts",
     "storefront-ui:test": "node --experimental-strip-types --test tests/storefront-responsive.test.mts",
-    "admin-ui:test": "node --experimental-strip-types --test tests/admin-images-navigation.test.mts"
+    "admin-ui:test": "node --experimental-strip-types --test tests/admin-images-navigation.test.mts",
+    "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
