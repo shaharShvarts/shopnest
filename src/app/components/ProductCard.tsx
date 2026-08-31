@@ -1,19 +1,13 @@
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
 import Image from "next/image";
-import { formatCurrency } from "@/lib/formatters";
-import { ProductPreview } from "../(customer)/types";
+import { ImageIcon } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { TenantLink as Link } from "@/components/TenantLink";
+import { TenantLink } from "@/components/TenantLink";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/formatters";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 import { getCustomerStockMessage } from "@/lib/inventory/core";
+import type { ProductPreview } from "../(customer)/types";
+import { AddToCartButton } from "./AddToCartButton";
 
 type ProductCardProps = ProductPreview & { tenantSlug?: string };
 
@@ -22,7 +16,6 @@ export async function ProductCard({
   name,
   price,
   imageUrl,
-  description,
   quantity,
   inventoryStatus,
   tenantSlug = "",
@@ -40,44 +33,60 @@ export async function ProductCard({
           : stockMessage.kind === "few_left"
             ? t("stockFew")
             : null;
+  const outOfStock =
+    quantity <= 0 || inventoryStatus === "out_of_stock";
+
   return (
-    <Card className="flex min-w-0 overflow-hidden flex-col">
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+    <Card className="group relative min-w-0 gap-0 overflow-hidden rounded-2xl border-0 py-0 shadow-sm ring-1 ring-black/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-primary">
+      <TenantLink
+        href={`/products/${id}/details`}
+        aria-label={t("viewProduct", { name })}
+        className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none"
+      >
+        <span className="sr-only">{t("viewProduct", { name })}</span>
+      </TenantLink>
+
+      <div className="pointer-events-none relative aspect-square w-full overflow-hidden bg-muted">
         {normalizedImageUrl ? (
           <Image
             src={normalizedImageUrl}
             alt={name}
             fill
             unoptimized
-            className="object-cover transition-transform duration-300 hover:scale-105"
-            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 430px) 50vw, 100vw"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">
-            Image unavailable
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImageIcon aria-hidden="true" className="size-8" />
+            <span className="text-sm">{t("imageUnavailable")}</span>
           </div>
         )}
       </div>
-      <CardHeader className="min-w-0 p-4 text-lg font-semibold">
-        <CardTitle className="break-words text-base sm:text-lg">{name}</CardTitle>
-        <CardDescription>{formatCurrency(price)}</CardDescription>
-        {stockText && <p className="text-sm font-semibold text-destructive">{stockText}</p>}
-      </CardHeader>
-      <CardContent className="min-w-0 flex-grow px-4 pb-4">
-        <p className="line-clamp-4 break-words text-sm sm:text-base">
-          {description}
+
+      <CardContent className="pointer-events-none relative z-0 flex min-h-32 flex-1 flex-col gap-2 p-4">
+        <h3 className="line-clamp-2 break-words text-base font-semibold leading-snug sm:text-lg">
+          {name}
+        </h3>
+        <p className="text-lg font-bold tracking-tight sm:text-xl">
+          {formatCurrency(price)}
         </p>
+        <div className="mt-auto min-h-5">
+          {stockText && (
+            <p
+              className={`text-sm font-medium ${
+                outOfStock ? "text-destructive" : "text-amber-700"
+              }`}
+              role="status"
+            >
+              {stockText}
+            </p>
+          )}
+        </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0">
-        {quantity <= 0 || inventoryStatus === "out_of_stock" ? (
-          <Button size="lg" className="min-h-11 w-full" disabled>
-            {t("stockOut")}
-          </Button>
-        ) : (
-          <Button asChild size="lg" className="min-h-11 w-full">
-            <Link href={`/products/${id}/details`}>{t("button")}</Link>
-          </Button>
-        )}
+
+      <CardFooter className="relative z-10 p-4 pt-0">
+        <AddToCartButton productId={id} disabled={outOfStock} />
       </CardFooter>
     </Card>
   );
@@ -85,23 +94,15 @@ export async function ProductCard({
 
 export async function ProductCardSkeleton() {
   return (
-    <Card className="flex min-w-0 animate-pulse flex-col overflow-hidden">
-      <div className="aspect-[4/3] w-full bg-gray-300" />
-      <CardHeader className="p-4">
-        <CardTitle>
-          <div className="w-3/4 h-6 rounded-full bg-gray-300" />
-        </CardTitle>
-        <CardDescription>
-          <div className="w-1/2 h-4 rounded-full bg-gray-300" />
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2 px-4 pb-4">
-        <div className="w-full h-4 rounded-full bg-gray-300" />
-        <div className="w-full h-4 rounded-full bg-gray-300" />
-        <div className="w-full h-4 rounded-full bg-gray-300" />
+    <Card className="min-w-0 animate-pulse gap-0 overflow-hidden rounded-2xl border-0 py-0 shadow-sm ring-1 ring-black/5">
+      <div className="aspect-square w-full bg-gray-200" />
+      <CardContent className="space-y-3 p-4">
+        <div className="h-5 w-3/4 rounded-full bg-gray-200" />
+        <div className="h-6 w-1/2 rounded-full bg-gray-200" />
+        <div className="h-4 w-2/3 rounded-full bg-gray-200" />
       </CardContent>
       <CardFooter className="p-4 pt-0">
-        <Button className="min-h-11 w-full" disabled size="lg"></Button>
+        <div className="h-11 w-full rounded-xl bg-gray-200" />
       </CardFooter>
     </Card>
   );

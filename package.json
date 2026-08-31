@@ -24,7 +24,8 @@
     "catalog:test": "node --experimental-strip-types --test tests/catalog-flow.test.mts",
     "storefront-ui:test": "node --experimental-strip-types --test tests/storefront-responsive.test.mts",
     "admin-ui:test": "node --experimental-strip-types --test tests/admin-images-navigation.test.mts",
-    "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts"
+    "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts",
+    "storefront-catalog:test": "node --experimental-strip-types --test tests/storefront-catalog.test.mts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

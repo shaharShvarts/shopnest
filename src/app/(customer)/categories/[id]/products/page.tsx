@@ -1,121 +1,139 @@
-import { getDbForTenant } from "@/drizzle/db";
-import { and, desc, eq, isNull, or } from "drizzle-orm";
-import { categories, products, subcategories } from "@/drizzle/schema";
-import { ProductCard } from "@/app/components/ProductCard";
-import { StorefrontPageHeader } from "../../../components/StorefrontPageHeader";
-import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
-import { getTranslations } from "next-intl/server";
-import { getTenant } from "@/lib/tenant-context";
-import type { Tenant } from "@/lib/tenant";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
+import { StorefrontPageHeader } from "@/app/(customer)/components/StorefrontPageHeader";
+import { ProductCard } from "@/app/components/ProductCard";
+import { SubcategoryCard } from "@/app/components/SubcategoryCard";
+import { getDbForTenant } from "@/drizzle/db";
 import { InventoryService } from "@/lib/inventory/core";
 import { DrizzleInventoryStore } from "@/lib/inventory/drizzle-store";
+import { getCategoryCatalog } from "@/lib/storefront-catalog/core";
+import { DrizzleStorefrontCatalogStore } from "@/lib/storefront-catalog/drizzle-store";
+import { getTenant } from "@/lib/tenant-context";
 
 type ProductsPageProps = {
   params: Promise<{ id: string }>;
 };
 
-const fetchCategoryWithProducts = async (id: number, tenant: Tenant | null) => {
-  const db = getDbForTenant(tenant);
-  const [category] = await db
-    .select({ name: categories.name })
-    .from(categories)
-    .where(
-      and(
-        eq(categories.id, id),
-        eq(categories.isActive, true),
-        isNull(categories.deletedAt)
-      )
-    )
-    .limit(1);
-  if (!category) return null;
-
-  const productArr = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      description: products.description,
-      price: products.price,
-      imageUrl: products.imageUrl,
-      quantity: products.quantity,
-    })
-    .from(products)
-    .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
-    .where(
-      and(
-        eq(products.categoryId, id),
-        eq(products.isActive, true),
-        eq(products.isAvailable, true),
-        isNull(products.deletedAt),
-        or(
-          isNull(products.subcategoryId),
-          and(
-            eq(subcategories.isActive, true),
-            isNull(subcategories.deletedAt)
-          )
-        )
-      )
-    )
-    .orderBy(desc(products.name));
-
-  const availability = await new InventoryService(
-    new DrizzleInventoryStore(db)
-  ).getAvailabilityBatch(productArr.map((product) => product.id));
-
-  return {
-    categoryName: category.name,
-    products: productArr.map((product) => ({
-      ...product,
-      quantity: availability.get(product.id)?.available ?? 0,
-      inventoryStatus:
-        availability.get(product.id)?.status ?? "out_of_stock",
-    })),
-  };
-};
-
-export type ProductPageProps = Awaited<
-  ReturnType<typeof fetchCategoryWithProducts>
-> extends infer Result
-  ? Result extends { products: Array<infer Product> }
-    ? Product
-    : never
-  : never;
-
 export default async function ProductsPage({ params }: ProductsPageProps) {
   const { id } = await params;
   const tenant = await getTenant();
-  const t = await getTranslations("ProductsPage");
-  const tb = await getTranslations("ProductsPage.Breadcrumbs");
+  if (!tenant) notFound();
 
-  const catalog = await fetchCategoryWithProducts(Number(id), tenant);
+  const db = getDbForTenant(tenant);
+  const catalog = await getCategoryCatalog(
+    new DrizzleStorefrontCatalogStore(db),
+    new InventoryService(new DrizzleInventoryStore(db)),
+    Number(id)
+  );
   if (!catalog) notFound();
-  const { categoryName, products } = catalog;
+
+  const t = await getTranslations("CatalogUX");
+  const tb = await getTranslations("ProductsPage.Breadcrumbs");
+  const { category, subcategories, directProducts } = catalog;
+  const isCompletelyEmpty =
+    subcategories.length === 0 && directProducts.length === 0;
 
   return (
-    <>
-      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
-      <DynamicBreadcrumb
-        segments={[
-          { label: tb("home"), href: "/" },
-          { label: tb("categories"), href: "/categories" },
-          { label: categoryName, href: `/categories/${id}/products` },
-          { label: tb("products") },
-        ]}
-      />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <ProductsSuspense products={products} tenantSlug={tenant?.slug ?? ""} />
+    <div className="space-y-8 sm:space-y-10">
+      <div>
+        <DynamicBreadcrumb
+          segments={[
+            { label: tb("home"), href: "/" },
+            { label: category.name },
+          ]}
+        />
+        <StorefrontPageHeader>{category.name}</StorefrontPageHeader>
       </div>
-    </>
+
+      {isCompletelyEmpty ? (
+        <CatalogEmptyState
+          title={t("emptyCategory")}
+          detail={t("emptyCategoryDetail")}
+        />
+      ) : (
+        <>
+          {subcategories.length > 0 && (
+            <section aria-labelledby="subcategory-heading" className="space-y-4">
+              <SectionHeading
+                id="subcategory-heading"
+                title={t("shopByCategory")}
+                detail={t("shopByCategoryDetail")}
+              />
+              <div className="grid min-w-0 grid-cols-1 gap-4 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {subcategories.map((subcategory) => (
+                  <SubcategoryCard key={subcategory.id} {...subcategory} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section aria-labelledby="direct-products-heading" className="space-y-4">
+            <SectionHeading
+              id="direct-products-heading"
+              title={t("products")}
+              detail={t("directProductsDetail")}
+            />
+            {directProducts.length > 0 ? (
+              <div className="grid min-w-0 grid-cols-1 gap-4 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {directProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    {...product}
+                    tenantSlug={tenant.slug}
+                  />
+                ))}
+              </div>
+            ) : (
+              <CatalogEmptyState
+                title={t("noDirectProducts")}
+                detail={t("chooseSubcategory")}
+                compact
+              />
+            )}
+          </section>
+        </>
+      )}
+    </div>
   );
 }
 
-type productsProps = {
-  products: ProductPageProps[];
-  tenantSlug: string;
-};
+function SectionHeading({
+  id,
+  title,
+  detail,
+}: {
+  id: string;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <h2 id={id} className="text-xl font-bold tracking-tight sm:text-2xl">
+        {title}
+      </h2>
+      <p className="text-sm text-muted-foreground sm:text-base">{detail}</p>
+    </div>
+  );
+}
 
-async function ProductsSuspense({ products, tenantSlug }: productsProps) {
-  return products.map((product) => (
-    <ProductCard key={product.id} {...product} tenantSlug={tenantSlug} />
-  ));
+function CatalogEmptyState({
+  title,
+  detail,
+  compact = false,
+}: {
+  title: string;
+  detail: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl bg-muted/60 text-center ${
+        compact ? "p-5" : "p-8 sm:p-12"
+      }`}
+    >
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+    </div>
+  );
 }

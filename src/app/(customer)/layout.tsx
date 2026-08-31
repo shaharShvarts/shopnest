@@ -13,6 +13,7 @@ import {
 } from "@/lib/admin-auth/server";
 import { tenantPath } from "@/lib/tenant-context";
 import { SearchForm } from "./search/_components/SearchForm";
+import { getTranslations } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
 
@@ -35,33 +36,40 @@ export default async function HomeLayout({
     throw error;
   }
   const searchAction = await tenantPath("/search");
+  const catalogT = await getTranslations("CatalogUX");
 
   return (
     <CartProvider>
-      <header
-        dir="ltr"
-        className="sticky top-0 z-50 bg-white shadow-md"
-      >
-        <nav className="container mx-auto flex min-w-0 flex-wrap items-center justify-between gap-2 px-3 py-2 sm:flex-nowrap sm:gap-4 sm:px-4 sm:py-3">
-          <Link
-            href={"/"}
-            aria-label="ShopNest home"
-            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
-          >
-            <DvorikLogo
-              fill="#6D3F03"
-              className="size-11 transition-colors hover:fill-[#C2410C] sm:size-16"
-            />
-          </Link>
+      <header className="sticky top-0 z-50 border-b bg-white/95 shadow-sm backdrop-blur">
+        <nav className="container mx-auto flex min-w-0 flex-wrap items-center justify-between gap-2 px-3 py-2 sm:flex-nowrap sm:gap-4 sm:px-4">
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/"
+              aria-label="ShopNest home"
+              className="group flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-1 font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <DvorikLogo
+                fill="currentColor"
+                className="size-10 text-amber-900 transition-colors group-hover:text-amber-700 sm:size-12"
+              />
+              <span className="hidden text-lg tracking-tight md:inline">ShopNest</span>
+            </Link>
+            <Link
+              href="/categories"
+              className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium text-foreground hover:bg-muted md:flex"
+            >
+              {catalogT("catalog")}
+            </Link>
+          </div>
           <div className="order-3 min-w-0 basis-full sm:order-none sm:max-w-xl sm:flex-1">
             <SearchForm action={searchAction} compact />
           </div>
           <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-3">
             <LanguageSelector />
             <Link
-              href={`/carts`}
+              href="/carts"
               aria-label="View shopping cart"
-              className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500"
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <CartIcon />
             </Link>

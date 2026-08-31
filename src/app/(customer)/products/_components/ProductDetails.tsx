@@ -1,57 +1,19 @@
 "use client";
 
-import Image from "next/image";
-import { toast } from "react-toastify";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-// import { addToCart } from "../../_actions/carts";
 import { useState } from "react";
-import { useCart } from "@/context/CartContext";
-import { useRouter } from "next/navigation";
-import { fetchedProduct } from "../[id]/details/page";
+import Image from "next/image";
+import { ImageIcon, LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Minus, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useCart } from "@/context/CartContext";
 import { useTenant } from "@/context/TenantContext";
+import { formatCurrency } from "@/lib/formatters";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
-
-// const getProductQTY = async (productId: number) => {
-//   const res = await fetch(`/api/reservations?productId=${productId}`, {
-//     method: "GET",
-//   });
-
-//   if (!res.ok) {
-//     if (res.status === 409) return res.json();
-//     const errorData = await res.json();
-//     console.log("Backend error:", errorData);
-
-//     throw new Error(errorData.error || "Reservation failed");
-//   }
-
-//   return res.json();
-// };
-
-const addProductToCart = async (
-  apiPath: string,
-  productId: number,
-  quantity: number
-) => {
-  const res = await fetch(apiPath, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ productId, quantity }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json();
-    console.log("Backend error:", errorData);
-
-    throw new Error(errorData.error || "Cart adding failed");
-  }
-
-  return res.json();
-};
+import type { fetchedProduct } from "../[id]/details/page";
 
 type ProductDetailsProps = {
   product: fetchedProduct;
@@ -60,25 +22,10 @@ type ProductDetailsProps = {
 export default function ProductDetails({ product }: ProductDetailsProps) {
   const [counter, setCounter] = useState(product.quantity > 0 ? 1 : 0);
   const [loading, setLoading] = useState(false);
-
-  // useEffect(() => {
-  //   const fetchQuantity = async () => {
-  //     try {
-  //       const productQuantity = await getProductQTY(product.id);
-  //       setCounter(productQuantity.quantity);
-  //     } catch (error) {
-  //       const err = error as Error;
-  //       console.log(err.message || "Reservation error");
-  //       alert(err.message || "Failed to reserve product. Please try again.");
-  //     }
-  //   };
-
-  //   fetchQuantity();
-  // }, [counter]);
-
   const { setCartCount } = useCart();
   const router = useRouter();
   const t = useTranslations("ProductDetails");
+  const catalogT = useTranslations("CatalogUX");
   const tenant = useTenant();
   const normalizedImageUrl = resolveTenantImageUrl(
     product.imageUrl,
@@ -95,129 +42,158 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
           : stockMessage.kind === "out_of_stock"
             ? t("stockOut")
             : null;
+  const returnPath = product.subcategoryId
+    ? `/categories/${product.categoryId}/subcategories/${product.subcategoryId}`
+    : `/categories/${product.categoryId}/products`;
 
   return (
-    <section className="mx-auto w-full max-w-6xl">
-      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start lg:gap-8">
-        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-muted p-2 sm:p-4">
+    <section className="mx-auto w-full max-w-7xl">
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)] lg:items-start lg:gap-10">
+        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-2xl bg-muted/70 p-3 sm:p-6">
           {normalizedImageUrl ? (
             <Image
               src={normalizedImageUrl}
               alt={product.name}
-              width={720}
-              height={720}
+              width={900}
+              height={900}
               unoptimized
-              className="h-auto max-h-[70vh] w-full max-w-2xl object-contain lg:max-h-[560px]"
-              sizes="(min-width: 1024px) 50vw, 100vw"
+              priority
+              className="h-auto max-h-[72vh] w-full object-contain lg:max-h-[680px]"
+              sizes="(min-width: 1024px) 58vw, 100vw"
             />
           ) : (
-            <div className="flex min-h-64 w-full items-center justify-center text-muted-foreground sm:min-h-80">
-              Image unavailable
+            <div className="flex min-h-72 w-full flex-col items-center justify-center gap-3 text-muted-foreground sm:min-h-[30rem]">
+              <ImageIcon aria-hidden="true" className="size-12" />
+              <span>{catalogT("imageUnavailable")}</span>
             </div>
           )}
         </div>
-        <div className="flex min-w-0 flex-col justify-start rounded-lg border border-gray-200 p-4 sm:p-6 lg:min-h-[420px]">
-          <h2 className="mb-3 break-words text-2xl font-bold leading-tight text-gray-800 sm:text-3xl lg:text-4xl">
-            {product.name}
-          </h2>
-          <p className="mb-5 text-base font-semibold text-gray-600 sm:text-lg">
-            <span>{t("price")} </span>
-            {new Intl.NumberFormat("he-IL", {
-              style: "currency",
-              currency: "ILS",
-            }).format(product.price)}
-          </p>
-          <p className="mb-5 break-words text-sm leading-6 text-gray-700 sm:text-base sm:leading-7">
-            {product.description}
-          </p>
 
-          {stockText && (
-            <p className="mt-auto font-semibold text-destructive" role="status">
-              {stockText}
+        <div className="min-w-0 space-y-6 lg:sticky lg:top-28">
+          <div className="space-y-4">
+            <h1 className="break-words text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              {product.name}
+            </h1>
+            <p className="text-2xl font-bold tracking-tight sm:text-3xl">
+              {formatCurrency(product.price)}
             </p>
-          )}
-          {product.quantity > 0 && (
-            <div className="mt-auto">
-              <Label htmlFor="quantity" className="mt-4 block">
-                {t("quantityLabel")}
-              </Label>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Button
-                  disabled={counter <= 1}
-                  variant="outline"
-                  className="size-11 rounded-md border-2 border-black p-0"
-                  aria-label="Decrease quantity"
-                  onClick={() =>
-                    setCounter((prev) => (prev > 1 ? prev - 1 : prev))
-                  }
-                >
-                  <Minus />
-                </Button>
-                <Input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  disabled={product.quantity === 0}
-                  value={counter}
-                  onChange={(event) => {
-                    const value = event.currentTarget.valueAsNumber;
-                    setCounter(
-                      Number.isFinite(value)
-                        ? Math.min(product.quantity, Math.max(1, value))
-                        : 1
-                    );
-                  }}
-                  min={1}
-                  max={product.quantity}
-                  className="h-11 w-16 appearance-none rounded-md !border-2 !border-black text-center focus-visible:ring-2"
-                />
-                <Button
-                  variant="outline"
-                  disabled={counter >= product.quantity}
-                  className="size-11 rounded-md border-2 border-black p-0"
-                  aria-label="Increase quantity"
-                  onClick={() =>
-                    setCounter((prev) =>
-                      prev < product.quantity ? prev + 1 : prev
-                    )
-                  }
-                >
-                  <Plus />
-                </Button>
-              </div>
+            {stockText && (
+              <p
+                className={`font-semibold ${
+                  product.quantity === 0 ? "text-destructive" : "text-amber-700"
+                }`}
+                role="status"
+              >
+                {stockText}
+              </p>
+            )}
+          </div>
+
+          {product.description && (
+            <div className="space-y-2 border-t pt-5">
+              <h2 className="font-semibold">{catalogT("description")}</h2>
+              <p className="break-words text-sm leading-7 text-muted-foreground sm:text-base">
+                {product.description}
+              </p>
             </div>
           )}
-          <Button
-            className="mt-6 min-h-11 w-full sm:w-auto sm:min-w-52"
-            disabled={loading || counter === 0}
-            onClick={async () => {
-              setLoading(true);
-              try {
-                await addProductToCart(
-                  tenant.path("/api/cart/add"),
-                  product.id,
-                  counter
-                );
-                setCartCount((prev) => prev + counter);
-                toast.success(t("addToCartSuccess"), {
-                  position: "top-center",
-                });
-                router.push(
-                  tenant.path(`/categories/${product.categoryId}/products`)
-                );
-              } catch (error) {
-                const err = error as Error;
-                console.log("Cart adding error:", err.message);
-                alert(
-                  err.message || "Failed to reserve product. Please try again."
-                );
-              } finally {
-                setLoading(false);
-              }
-            }}
-          >
-            {t("addToCartButton")}
-          </Button>
+
+          <div className="rounded-2xl bg-muted/60 p-4 sm:p-5">
+            {product.quantity > 0 && (
+              <div>
+                <Label htmlFor="quantity" className="font-semibold">
+                  {t("quantityLabel")}
+                </Label>
+                <div className="mt-3 flex items-center gap-2" dir="ltr">
+                  <Button
+                    type="button"
+                    disabled={counter <= 1}
+                    variant="outline"
+                    size="icon"
+                    className="size-11 rounded-xl bg-background"
+                    aria-label={t("decreaseQuantity")}
+                    onClick={() =>
+                      setCounter((previous) => Math.max(1, previous - 1))
+                    }
+                  >
+                    <Minus />
+                  </Button>
+                  <Input
+                    type="number"
+                    id="quantity"
+                    name="quantity"
+                    value={counter}
+                    onChange={(event) => {
+                      const value = event.currentTarget.valueAsNumber;
+                      setCounter(
+                        Number.isFinite(value)
+                          ? Math.min(product.quantity, Math.max(1, value))
+                          : 1
+                      );
+                    }}
+                    min={1}
+                    max={product.quantity}
+                    className="h-11 w-20 rounded-xl bg-background text-center"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={counter >= product.quantity}
+                    className="size-11 rounded-xl bg-background"
+                    aria-label={t("increaseQuantity")}
+                    onClick={() =>
+                      setCounter((previous) =>
+                        Math.min(product.quantity, previous + 1)
+                      )
+                    }
+                  >
+                    <Plus />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="button"
+              size="lg"
+              className="mt-5 min-h-12 w-full rounded-xl text-base"
+              disabled={loading || counter === 0}
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  const response = await fetch(tenant.path("/api/cart/add"), {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ productId: product.id, quantity: counter }),
+                  });
+                  const result = await response.json();
+                  if (!response.ok) {
+                    throw new Error(result.error || "Cart adding failed");
+                  }
+
+                  setCartCount((count) => count + counter);
+                  toast.success(t("addToCartSuccess"), { position: "top-center" });
+                  router.push(tenant.path(returnPath));
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : t("addToCartError"),
+                    { position: "top-center" }
+                  );
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              {loading ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" />
+              ) : (
+                <ShoppingBag aria-hidden="true" />
+              )}
+              {product.quantity === 0 ? t("stockOut") : t("addToCartButton")}
+            </Button>
+          </div>
         </div>
       </div>
     </section>

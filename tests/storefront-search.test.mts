@@ -217,7 +217,7 @@ test("search page derives tenant database server-side and reuses inventory, medi
   assert.match(page, /getDbForTenant\(tenant\)/);
   assert.match(page, /new InventoryService\(new DrizzleInventoryStore\(db\)\)/);
   assert.match(page, /<ProductCard[\s\S]*tenantSlug=\{tenant\.slug\}/);
-  assert.match(page, /grid-cols-1[^\"]*sm:grid-cols-2[^\"]*lg:grid-cols-3[^\"]*xl:grid-cols-4/);
+  assert.match(page, /grid-cols-1[^\"]*min-\[430px\]:grid-cols-2[^\"]*lg:grid-cols-3[^\"]*xl:grid-cols-4/);
   assert.match(form, /method="GET"/);
   assert.match(form, /name="q"/);
   assert.match(form, /dir="auto"/);

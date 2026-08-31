@@ -65,7 +65,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             <p className="mb-4 break-words text-sm text-muted-foreground" dir="auto">
               {t("resultsFor", { query })}
             </p>
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {results.map((product) => (
                 <ProductCard key={product.id} {...product} tenantSlug={tenant.slug} />
               ))}

@@ -16,6 +16,8 @@
     "stockExact": "נותרו רק {count} במלאי",
     "stockLast": "הפריט האחרון במלאי",
     "stockOut": "אזל מהמלאי",
+    "imageUnavailable": "התמונה אינה זמינה",
+    "viewProduct": "צפייה במוצר {name}",
     "Metadata": { "title": "מוצרים", "description": "כל המוצרים הזמינים במלאי" }
   },
   "CartPage": {
@@ -68,10 +70,32 @@
     "quantity": "הכמות הנוכחית היא: {count}",
     "addToCartButton": "הוסף לסל",
     "addToCartSuccess": "המוצר נוסף בהצלחה לעגלה!",
+    "addToCartError": "לא ניתן להוסיף את המוצר לסל.",
+    "decreaseQuantity": "הפחתת כמות",
+    "increaseQuantity": "הגדלת כמות",
     "stockFew": "נותרו רק יחידות בודדות במלאי",
     "stockExact": "נותרו רק {count} במלאי",
     "stockLast": "הפריט האחרון במלאי",
     "stockOut": "אזל מהמלאי"
+  },
+  "CatalogUX": {
+    "catalog": "קטלוג",
+    "categoriesIntro": "אפשר לעבור בין הקטגוריות ולבחור את האוסף המתאים.",
+    "shopByCategory": "קנייה לפי קטגוריה",
+    "shopByCategoryDetail": "בחרו אוסף ממוקד לפני בחירת המוצר.",
+    "products": "מוצרים",
+    "directProductsDetail": "מוצרים הזמינים ישירות בקטגוריה זו.",
+    "subcategoryProductsDetail": "מוצרים מתוך {category} שנבחרו לאוסף זה.",
+    "description": "תיאור",
+    "imageUnavailable": "התמונה אינה זמינה",
+    "emptyCategory": "עדיין אין כאן פריטים",
+    "emptyCategoryDetail": "לקטגוריה זו עדיין אין אוספים או מוצרים פעילים.",
+    "noDirectProducts": "אין מוצרים ישירים",
+    "chooseSubcategory": "בחרו באחד האוספים למעלה כדי לראות את המוצרים שלו.",
+    "emptySubcategory": "אין מוצרים באוסף זה",
+    "emptySubcategoryDetail": "מוצרים פעילים יופיעו כאן לאחר הוספתם.",
+    "noCategories": "אין קטגוריות זמינות",
+    "noCategoriesDetail": "קטגוריות פעילות יופיעו כאן."
   },
   "SearchPage": {
     "search": "חיפוש",

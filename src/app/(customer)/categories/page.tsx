@@ -7,6 +7,7 @@ import { StorefrontPageHeader } from "../components/StorefrontPageHeader";
 import CategoriesGrid from "../components/CategoriesGrid";
 import { getTenant } from "@/lib/tenant-context";
 import type { Tenant } from "@/lib/tenant";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");
@@ -18,7 +19,7 @@ export async function generateMetadata() {
 }
 
 const fetchActiveCategories = cache(
-  async (tenant: Tenant | null) => {
+  async (tenant: Tenant) => {
     const db = getDbForTenant(tenant);
     return db
       .select({
@@ -39,12 +40,29 @@ export type CategoryPageProps = Awaited<
 >[number];
 
 export default async function CategoriesPage() {
-  const categories = await fetchActiveCategories(await getTenant());
+  const tenant = await getTenant();
+  if (!tenant) notFound();
+  const categories = await fetchActiveCategories(tenant);
   const t = await getTranslations("CategoriesPage");
+  const catalogT = await getTranslations("CatalogUX");
   return (
-    <>
-      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
-      <CategoriesGrid categories={categories} />
-    </>
+    <div className="space-y-6 sm:space-y-8">
+      <div>
+        <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
+          {catalogT("categoriesIntro")}
+        </p>
+      </div>
+      {categories.length > 0 ? (
+        <CategoriesGrid categories={categories} />
+      ) : (
+        <div className="rounded-2xl bg-muted/60 p-8 text-center sm:p-12">
+          <h2 className="text-lg font-semibold">{catalogT("noCategories")}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {catalogT("noCategoriesDetail")}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
