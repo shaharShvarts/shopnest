@@ -1,11 +1,12 @@
 import { nanoid } from "nanoid";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  buildTenantRewriteUrl,
   INTERNAL_PATH_HEADER,
   resolveTenantRoute,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
-} from "./lib/tenant";
+} from "./lib/tenant-routing/core";
 
 export async function middleware(req: NextRequest) {
   const routeResolution = resolveTenantRoute(req.nextUrl.pathname);
@@ -29,7 +30,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const response = tenantRoute
-    ? NextResponse.rewrite(new URL(internalPath, req.url), {
+    ? NextResponse.rewrite(buildTenantRewriteUrl(req.nextUrl, internalPath), {
         request: { headers: requestHeaders },
       })
     : NextResponse.next({ request: { headers: requestHeaders } });

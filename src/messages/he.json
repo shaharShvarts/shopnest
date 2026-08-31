@@ -72,5 +72,20 @@
     "stockExact": "נותרו רק {count} במלאי",
     "stockLast": "הפריט האחרון במלאי",
     "stockOut": "אזל מהמלאי"
+  },
+  "SearchPage": {
+    "search": "חיפוש",
+    "searchProducts": "חיפוש מוצרים",
+    "searchResults": "תוצאות חיפוש",
+    "resultsFor": "תוצאות עבור „{query}”",
+    "noProductsFound": "לא נמצאו מוצרים",
+    "tryAnotherSearch": "אפשר לנסות חיפוש אחר.",
+    "prompt": "מה מחפשים?",
+    "promptDetail": "יש להזין מוצר, קטגוריה או תיאור כדי להתחיל בחיפוש.",
+    "queryTooLong": "החיפוש ארוך מדי",
+    "Metadata": {
+      "title": "חיפוש מוצרים",
+      "description": "חיפוש בקטלוג המוצרים הפעיל של ShopNest"
+    }
   }
 }
