@@ -24,6 +24,10 @@ export const products = pgTable(
     name: varchar("name").notNull(),
     price: integer("price").notNull(),
     quantity: integer("quantity").notNull(),
+    lowStockThreshold: integer("low_stock_threshold").notNull().default(10),
+    criticalStockThreshold: integer("critical_stock_threshold")
+      .notNull()
+      .default(4),
     description: text("description"),
     imageUrl: text("image_url").notNull(),
     isActive: boolean("is_active").notNull().default(true),
@@ -40,7 +44,21 @@ export const products = pgTable(
     createdAt,
     updatedAt,
   },
-  (table) => [check("quantity_positive", sql`${table.quantity} > 0`)]
+  (table) => [
+    check("quantity_non_negative", sql`${table.quantity} >= 0`),
+    check(
+      "low_stock_threshold_non_negative",
+      sql`${table.lowStockThreshold} >= 0`
+    ),
+    check(
+      "critical_stock_threshold_non_negative",
+      sql`${table.criticalStockThreshold} >= 0`
+    ),
+    check(
+      "critical_threshold_not_above_low",
+      sql`${table.criticalStockThreshold} <= ${table.lowStockThreshold}`
+    ),
+  ]
 );
 
 export type Product = typeof products.$inferSelect;

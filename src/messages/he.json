@@ -12,6 +12,10 @@
       "products": "מוצרים"
     },
     "button": "פרטי המוצר",
+    "stockFew": "נותרו רק יחידות בודדות במלאי",
+    "stockExact": "נותרו רק {count} במלאי",
+    "stockLast": "הפריט האחרון במלאי",
+    "stockOut": "אזל מהמלאי",
     "Metadata": { "title": "מוצרים", "description": "כל המוצרים הזמינים במלאי" }
   },
   "CartPage": {
@@ -25,6 +29,7 @@
     "th_price": "מחיר",
     "summary_label": "סה״כ",
     "button": "המשך לרכישה",
+    "stock_available": "רק {count} יחידות זמינות כרגע.",
     "Metadata": {
       "title": "הסל שלי",
       "description": "תכולת הסל הממתינה לרכישה"
@@ -62,6 +67,10 @@
     "quantityLabel": "כמות:",
     "quantity": "הכמות הנוכחית היא: {count}",
     "addToCartButton": "הוסף לסל",
-    "addToCartSuccess": "המוצר נוסף בהצלחה לעגלה!"
+    "addToCartSuccess": "המוצר נוסף בהצלחה לעגלה!",
+    "stockFew": "נותרו רק יחידות בודדות במלאי",
+    "stockExact": "נותרו רק {count} במלאי",
+    "stockLast": "הפריט האחרון במלאי",
+    "stockOut": "אזל מהמלאי"
   }
 }

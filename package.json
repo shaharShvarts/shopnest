@@ -19,6 +19,7 @@
     "tenant:list": "node scripts/tenant-list.mjs",
     "tenant:test": "node --test tests/tenant-provisioning.test.mjs",
     "checkout:test": "node --experimental-strip-types --test tests/checkout-order.test.mts",
+    "inventory:test": "node --experimental-strip-types --test tests/inventory.test.mts",
     "admin-auth:test": "node --experimental-strip-types --test tests/admin-auth.test.mts",
     "catalog:test": "node --experimental-strip-types --test tests/catalog-flow.test.mts",
     "storefront-ui:test": "node --experimental-strip-types --test tests/storefront-responsive.test.mts",

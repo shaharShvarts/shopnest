@@ -13,6 +13,7 @@ import { ProductPreview } from "../(customer)/types";
 import { getTranslations } from "next-intl/server";
 import { TenantLink as Link } from "@/components/TenantLink";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
+import { getCustomerStockMessage } from "@/lib/inventory/core";
 
 type ProductCardProps = ProductPreview & { tenantSlug?: string };
 
@@ -22,10 +23,23 @@ export async function ProductCard({
   price,
   imageUrl,
   description,
+  quantity,
+  inventoryStatus,
   tenantSlug = "",
 }: ProductCardProps) {
   const t = await getTranslations("ProductsPage");
   const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenantSlug);
+  const stockMessage = getCustomerStockMessage(quantity);
+  const stockText =
+    stockMessage.kind === "out_of_stock"
+      ? t("stockOut")
+      : stockMessage.kind === "last_one"
+        ? t("stockLast")
+        : stockMessage.kind === "exact"
+          ? t("stockExact", { count: stockMessage.quantity })
+          : stockMessage.kind === "few_left"
+            ? t("stockFew")
+            : null;
   return (
     <Card className="flex min-w-0 overflow-hidden flex-col">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
@@ -47,6 +61,7 @@ export async function ProductCard({
       <CardHeader className="min-w-0 p-4 text-lg font-semibold">
         <CardTitle className="break-words text-base sm:text-lg">{name}</CardTitle>
         <CardDescription>{formatCurrency(price)}</CardDescription>
+        {stockText && <p className="text-sm font-semibold text-destructive">{stockText}</p>}
       </CardHeader>
       <CardContent className="min-w-0 flex-grow px-4 pb-4">
         <p className="line-clamp-4 break-words text-sm sm:text-base">
@@ -54,9 +69,15 @@ export async function ProductCard({
         </p>
       </CardContent>
       <CardFooter className="p-4 pt-0">
-        <Button asChild size="lg" className="min-h-11 w-full">
-          <Link href={`/products/${id}/details`}>{t("button")}</Link>
-        </Button>
+        {quantity <= 0 || inventoryStatus === "out_of_stock" ? (
+          <Button size="lg" className="min-h-11 w-full" disabled>
+            {t("stockOut")}
+          </Button>
+        ) : (
+          <Button asChild size="lg" className="min-h-11 w-full">
+            <Link href={`/products/${id}/details`}>{t("button")}</Link>
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

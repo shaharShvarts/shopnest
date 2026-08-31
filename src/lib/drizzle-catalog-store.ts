@@ -40,6 +40,10 @@ export class DrizzleCatalogStore implements CatalogStore {
   }
 
   async createProduct(input: NewCatalogProduct) {
-    await this.db.insert(products).values(input);
+    const [created] = await this.db
+      .insert(products)
+      .values(input)
+      .returning({ id: products.id });
+    return created.id;
   }
 }

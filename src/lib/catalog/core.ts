@@ -21,6 +21,8 @@ export type NewCatalogProduct = {
   description?: string;
   price: number;
   quantity: number;
+  lowStockThreshold: number;
+  criticalStockThreshold: number;
   imageUrl: string;
   categoryId: number;
   subcategoryId: number | null;
@@ -31,7 +33,7 @@ export interface CatalogStore {
   findSubcategory(id: number): Promise<CatalogSubcategoryRecord | null>;
   createCategory(input: NewCatalogCategory): Promise<void>;
   createSubcategory(input: NewCatalogSubcategory): Promise<void>;
-  createProduct(input: NewCatalogProduct): Promise<void>;
+  createProduct(input: NewCatalogProduct): Promise<number>;
 }
 
 export type CatalogValidationErrorCode =
@@ -119,5 +121,5 @@ export async function createCatalogProduct(
     input.categoryId,
     input.subcategoryId
   );
-  await store.createProduct(input);
+  return store.createProduct(input);
 }

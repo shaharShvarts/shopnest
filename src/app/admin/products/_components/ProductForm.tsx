@@ -154,6 +154,41 @@ export default function ProductForm({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="lowStockThreshold">Low-stock threshold</Label>
+          <Input
+            type="number"
+            className="w-[200px]"
+            id="lowStockThreshold"
+            required
+            name="lowStockThreshold"
+            defaultValue={product?.lowStockThreshold ?? 10}
+            min="0"
+          />
+          {state.errors?.lowStockThreshold && (
+            <p>{state.errors.lowStockThreshold}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="criticalStockThreshold">
+            Critical-stock threshold
+          </Label>
+          <Input
+            type="number"
+            className="w-[200px]"
+            id="criticalStockThreshold"
+            required
+            name="criticalStockThreshold"
+            defaultValue={product?.criticalStockThreshold ?? 4}
+            min="0"
+          />
+          {state.errors?.criticalStockThreshold && (
+            <p>{state.errors.criticalStockThreshold}</p>
+          )}
+        </div>
+      </div>
+
       <div className="flex justify-items-start items-center gap-4">
         <div className="space-y-2">
           <Label htmlFor="price">Price</Label>

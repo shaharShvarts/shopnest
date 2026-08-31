@@ -55,6 +55,12 @@ export interface CheckoutTransaction {
   ): Promise<CheckoutResult | null>;
   lockActiveCart(identity: CheckoutIdentity): Promise<CheckoutCart | null>;
   getCartItems(cartId: string): Promise<CheckoutCartItem[]>;
+  reserveInventory(input: {
+    ownerKey: string;
+    cartId: string;
+    checkoutToken: string;
+    items: Array<{ productId: number; quantity: number }>;
+  }): Promise<void>;
   createOrder(
     order: NewCheckoutOrder
   ): Promise<{ id: number; orderNumber: string }>;
@@ -71,6 +77,7 @@ export type CheckoutErrorCode =
   | "no_active_cart"
   | "empty_cart"
   | "missing_product"
+  | "insufficient_stock"
   | "invalid_cart_item"
   | "cart_changed";
 
@@ -153,6 +160,30 @@ export async function createCheckoutOrder(
         "invalid_cart_item",
         "The cart total is outside the supported range."
       );
+    }
+
+    try {
+      await tx.reserveInventory({
+        ownerKey: identity.userId
+          ? `user:${identity.userId}`
+          : `session:${identity.sessionId}`,
+        cartId: cart.id,
+        checkoutToken,
+        items: cartItems.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        (error.code === "insufficient_stock" ||
+          error.code === "product_unavailable")
+      ) {
+        throw new CheckoutError("insufficient_stock", error.message);
+      }
+      throw error;
     }
 
     const order = await tx.createOrder({
