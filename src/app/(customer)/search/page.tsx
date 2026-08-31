@@ -5,6 +5,7 @@ import { getDbForTenant } from "@/drizzle/db";
 import { InventoryService } from "@/lib/inventory/core";
 import { DrizzleInventoryStore } from "@/lib/inventory/drizzle-store";
 import {
+  readSearchQueryParam,
   SearchQueryError,
   searchStorefrontProducts,
 } from "@/lib/search/core";
@@ -27,7 +28,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (!tenant) notFound();
   const t = await getTranslations("SearchPage");
   const params = await searchParams;
-  const rawQuery = Array.isArray(params.q) ? params.q[0] : params.q;
+  const rawQuery = readSearchQueryParam(params);
   const action = await tenantPath("/search");
   const db = getDbForTenant(tenant);
 

@@ -3,11 +3,16 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   MAX_SEARCH_QUERY_LENGTH,
+  readSearchQueryParam,
   SearchQueryError,
   searchStorefrontProducts,
   type SearchCatalogProduct,
   type StorefrontSearchStore,
 } from "../src/lib/search/core.ts";
+import {
+  buildTenantRewriteUrl,
+  resolveTenantRoute,
+} from "../src/lib/tenant-routing/core.ts";
 import {
   calculateInventoryAvailability,
   type InventoryAvailability,
@@ -51,6 +56,55 @@ test("Hebrew product and category text is searchable", async () => {
     row({ id: 2, name: "מוצר נוסף", categoryName: "מתנות לחג" }),
   ];
   assert.deepEqual(await resultNames(products, "מתנ"), ["מארז מתנה", "מוצר נוסף"]);
+});
+
+test("gift product and category searches return all matching storefront products", async () => {
+  const products = [
+    row({ id: 1, name: "gift1", categoryName: "Other" }),
+    row({ id: 2, name: "gift2", categoryName: "Other" }),
+    row({ id: 3, name: "gift3", categoryName: "new gift" }),
+  ];
+  assert.deepEqual(await resultNames(products, "gift"), ["gift1", "gift2", "gift3"]);
+  assert.deepEqual(await resultNames(products, "new gift"), ["gift3"]);
+});
+
+test("tenant rewrite preserves search queries through the SearchPage boundary", () => {
+  const cases = [
+    ["/gift-shop/search?q=gift", "gift"],
+    ["/gift-shop/search?q=new%20gift", "new gift"],
+    ["/gift-shop/search?q=%D7%9E%D7%AA%D7%A0%D7%94", "מתנה"],
+  ] as const;
+
+  for (const [path, expectedQuery] of cases) {
+    const browserUrl = new URL(path, "http://shopnest.local");
+    const route = resolveTenantRoute(browserUrl.pathname);
+    assert.equal(route.kind, "tenant");
+    if (route.kind !== "tenant") continue;
+
+    const appRouterUrl = buildTenantRewriteUrl(browserUrl, route.internalPath);
+    const pageSearchParams = Object.fromEntries(appRouterUrl.searchParams);
+
+    assert.equal(appRouterUrl.pathname, "/search");
+    assert.equal(readSearchQueryParam(pageSearchParams), expectedQuery);
+  }
+});
+
+test("tenant rewrite preserves every query parameter, not only q", () => {
+  const browserUrl = new URL(
+    "/gift-shop/search?q=gift&category=7&sort=newest",
+    "http://shopnest.local"
+  );
+  const route = resolveTenantRoute(browserUrl.pathname);
+  assert.equal(route.kind, "tenant");
+  if (route.kind !== "tenant") return;
+
+  const appRouterUrl = buildTenantRewriteUrl(browserUrl, route.internalPath);
+  assert.equal(appRouterUrl.search, browserUrl.search);
+  assert.deepEqual(Object.fromEntries(appRouterUrl.searchParams), {
+    q: "gift",
+    category: "7",
+    sort: "newest",
+  });
 });
 
 test("inactive, merchant-disabled, and deleted products are excluded", async () => {

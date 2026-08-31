@@ -54,6 +54,12 @@ export class SearchQueryError extends Error {
   }
 }
 
+export function readSearchQueryParam(searchParams: {
+  q?: string | string[];
+}) {
+  return Array.isArray(searchParams.q) ? searchParams.q[0] : searchParams.q;
+}
+
 export function normalizeSearchQuery(rawQuery: string | null | undefined) {
   const query = (rawQuery ?? "").trim();
   if (query.length > MAX_SEARCH_QUERY_LENGTH) throw new SearchQueryError();
