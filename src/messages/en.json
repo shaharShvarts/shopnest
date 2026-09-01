@@ -143,6 +143,7 @@
   "Shipping": {
     "shipping": "Shipping",
     "shippingMethod": "Shipping method",
+    "nameHelp": "The name shown to the customer during checkout.",
     "codeHelp": "Internal identifier, e.g. home_delivery. Avoid changing it after the method has been used in orders.",
     "homeDelivery": "Home delivery",
     "pickupPoint": "Pickup point",

@@ -329,6 +329,16 @@ test("shipping create and edit forms show localized code guidance", async () => 
   assert.match(form, /getTranslations\("Shipping"\)/);
   assert.match(form, /aria-describedby="shipping-code-help"/);
   assert.match(form, /text-xs text-muted-foreground/);
+  assert.match(form, /aria-describedby="shipping-name-help"/);
+  assert.doesNotMatch(form, /name="sortOrder"|>Sort order</);
+  assert.equal(
+    english.Shipping.nameHelp,
+    "The name shown to the customer during checkout."
+  );
+  assert.equal(
+    hebrew.Shipping.nameHelp,
+    "השם שיופיע ללקוח בדף הקניה"
+  );
   assert.equal(
     english.Shipping.codeHelp,
     "Internal identifier, e.g. home_delivery. Avoid changing it after the method has been used in orders."
@@ -337,4 +347,26 @@ test("shipping create and edit forms show localized code guidance", async () => 
     hebrew.Shipping.codeHelp,
     "מזהה פנימי, לדוגמה home_delivery. מומלץ לא לשנות אותו לאחר שנעשה בו שימוש בהזמנות."
   );
+});
+
+test("shipping admin exposes lightweight persisted drag reordering", async () => {
+  const [page, list, actions] = await Promise.all([
+    readFile("src/app/admin/shipping/page.tsx", "utf8"),
+    readFile(
+      "src/app/admin/shipping/_components/ShippingMethodOrderList.tsx",
+      "utf8"
+    ),
+    readFile("src/app/admin/_actions/shipping.ts", "utf8"),
+  ]);
+  assert.match(page, /ShippingMethodOrderList/);
+  assert.match(page, /orderBy\(asc\(shippingMethods\.sortOrder\)/);
+  assert.match(list, /GripVertical/);
+  assert.match(list, /draggable/);
+  assert.match(list, /onPointerMove/);
+  assert.match(list, /Save Order/);
+  assert.match(actions, /reorderShippingMethods/);
+  assert.match(actions, /requireTenantAdminDb\(\)/);
+  assert.match(actions, /db\.transaction/);
+  assert.match(actions, /revalidateTenantPath\("\/checkout"\)/);
+  assert.doesNotMatch(actions, /schema_name|tenantSlug\s*:\s*formData/);
 });

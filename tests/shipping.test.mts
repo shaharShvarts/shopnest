@@ -10,6 +10,12 @@ import {
   type ShippingMethodStore,
 } from "../src/lib/shipping/core.ts";
 import { buildFulfillmentUpdate } from "../src/lib/shipping/fulfillment.ts";
+import {
+  getNextShippingSortOrder,
+  reorderShippingMethods,
+  ShippingOrderError,
+  type ShippingSortUpdate,
+} from "../src/lib/shipping/order.ts";
 import { createCheckoutOrder, CheckoutError, type CheckoutIdentity, type CheckoutTransaction, type NewCheckoutOrder } from "../src/lib/checkout/create-order.ts";
 
 const delivery: ShippingMethod = { id: 1, name: "Home Delivery", code: "home", type: "home_delivery", isActive: true, price: 30, freeShippingThreshold: 300, sortOrder: 1 };
@@ -83,3 +89,91 @@ test("28 legacy order rendering has null-safe shipping fallbacks", async () => {
 test("29 tenant migration contains shipping and fulfillment data", async () => { const sql = await readFile(new URL("../src/drizzle/migrations/0006_famous_boomerang.sql", import.meta.url), "utf8"); assert.match(sql, /CREATE TABLE "shipping_methods"/); assert.match(sql, /"fulfillment_status"/); assert.match(sql, /shipping_method_id/); });
 test("30 shipping calculation does not mutate inventory reservations", async () => { const h = checkoutHarness(delivery); calculateShippingPrice(delivery, 250); assert.equal(h.reservationCalls(), 0); await h.run(); assert.equal(h.reservationCalls(), 1); });
 test("31 cross-tenant fulfillment updates cannot select a schema", async () => { const source = await readFile(new URL("../src/app/admin/_actions/shipping.ts", import.meta.url), "utf8"); assert.match(source, /requireTenantAdminDb\(\)/); assert.doesNotMatch(source, /schema_name|tenantSlug\s*:\s*formData|getDbForTenant/); });
+
+type OrderedMethod = {
+  id: number;
+  code: string;
+  price: number;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+class FakeShippingOrderStore {
+  readonly methods: OrderedMethod[];
+  constructor(methods: OrderedMethod[]) { this.methods = methods; }
+  async listMethodIds() {
+    return [...this.methods]
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((method) => method.id);
+  }
+  async updateSortOrders(updates: ShippingSortUpdate[]) {
+    for (const update of updates) {
+      const method = this.methods.find((candidate) => candidate.id === update.id);
+      if (!method) throw new Error("Unknown test method");
+      method.sortOrder = update.sortOrder;
+    }
+  }
+}
+
+const orderedMethods = () => [
+  { id: 1, code: "home", price: 30, isActive: true, sortOrder: 10 },
+  { id: 2, code: "pickup", price: 0, isActive: true, sortOrder: 20 },
+  { id: 3, code: "disabled", price: 15, isActive: false, sortOrder: 30 },
+];
+
+test("32 newly created methods receive the next automatic order", () => {
+  assert.equal(getNextShippingSortOrder([]), 0);
+  assert.equal(getNextShippingSortOrder([0, 4, 9]), 10);
+});
+
+test("33 reordering persists normalized sort positions", async () => {
+  const store = new FakeShippingOrderStore(orderedMethods());
+  const updates = await reorderShippingMethods(store, [3, 1, 2]);
+  assert.deepEqual(updates, [
+    { id: 3, sortOrder: 0 },
+    { id: 1, sortOrder: 1 },
+    { id: 2, sortOrder: 2 },
+  ]);
+  assert.deepEqual(await store.listMethodIds(), [3, 1, 2]);
+});
+
+test("34 shipping reordering is tenant-isolated", async () => {
+  const gift = new FakeShippingOrderStore(orderedMethods());
+  const panda = new FakeShippingOrderStore([
+    { id: 1, code: "panda_home", price: 20, isActive: true, sortOrder: 0 },
+    { id: 2, code: "panda_pickup", price: 0, isActive: true, sortOrder: 1 },
+  ]);
+  await reorderShippingMethods(gift, [2, 3, 1]);
+  assert.deepEqual(await panda.listMethodIds(), [1, 2]);
+  assert.deepEqual(await gift.listMethodIds(), [2, 3, 1]);
+});
+
+test("35 duplicate and unknown shipping IDs are rejected", async () => {
+  const store = new FakeShippingOrderStore(orderedMethods());
+  await assert.rejects(
+    reorderShippingMethods(store, [1, 1, 3]),
+    (error) => error instanceof ShippingOrderError && error.code === "duplicate_method"
+  );
+  await assert.rejects(
+    reorderShippingMethods(store, [1, 2, 99]),
+    (error) => error instanceof ShippingOrderError && error.code === "unknown_method"
+  );
+});
+
+test("36 checkout keeps the persisted active shipping order", async () => {
+  const methods = [{ ...pickup, sortOrder: 0 }, { ...delivery, sortOrder: 1 }];
+  const quotes = await listAvailableShippingMethods(new MethodStore(methods), 250);
+  assert.deepEqual(quotes.map((method) => method.id), [2, 1]);
+  const drizzleSource = await readFile(new URL("../src/lib/shipping/drizzle-store.ts", import.meta.url), "utf8");
+  assert.match(drizzleSource, /orderBy\(asc\(shippingMethods\.sortOrder\)/);
+});
+
+test("37 reorder preserves method identity and business fields", async () => {
+  const methods = orderedMethods();
+  const before = methods.map(({ sortOrder: _sortOrder, ...method }) => ({ ...method }));
+  await reorderShippingMethods(new FakeShippingOrderStore(methods), [3, 2, 1]);
+  assert.deepEqual(
+    methods.map(({ sortOrder: _sortOrder, ...method }) => ({ ...method })),
+    before
+  );
+});
