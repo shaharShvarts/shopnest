@@ -1,9 +1,11 @@
 export default function ShippingAddress({
   prefix,
   defaultName = "",
+  requireAddress,
 }: {
   prefix: string;
   defaultName?: string;
+  requireAddress: boolean;
 }) {
   const inputClassName = "min-h-11 w-full rounded border p-2";
 
@@ -26,24 +28,11 @@ export default function ShippingAddress({
           className={inputClassName}
         />
       </div>
-      <input
-        name={`${prefix}_company`}
-        placeholder="Company (optional)"
-        className={inputClassName}
-      />
-      <input
-        name={`${prefix}_address`}
-        placeholder="Address"
-        autoComplete="street-address"
-        required
-        className={inputClassName}
-      />
-      <input
-        name={`${prefix}_apartment`}
-        placeholder="Apartment, suite, etc. (optional)"
-        className={inputClassName}
-      />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {requireAddress ? <>
+        <input name={`${prefix}_company`} placeholder="Company (optional)" className={inputClassName} />
+        <input name={`${prefix}_address`} placeholder="Address" autoComplete="street-address" required className={inputClassName} />
+        <input name={`${prefix}_apartment`} placeholder="Apartment, suite, etc. (optional)" className={inputClassName} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <input
           name={`${prefix}_city`}
           placeholder="City"
@@ -67,7 +56,13 @@ export default function ShippingAddress({
           required
           className={inputClassName}
         />
-      </div>
+        </div>
+      </> : <>
+        <input type="hidden" name={`${prefix}_address`} value="" />
+        <input type="hidden" name={`${prefix}_city`} value="" />
+        <input type="hidden" name={`${prefix}_state`} value="" />
+        <input type="hidden" name={`${prefix}_postal`} value="" />
+      </>}
       <input
         name={`${prefix}_phone`}
         placeholder="Phone"

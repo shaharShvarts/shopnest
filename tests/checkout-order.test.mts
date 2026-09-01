@@ -24,9 +24,8 @@ const details: CheckoutDetails = {
   firstName: "Panda",
   lastName: "Buyer",
   phoneNumber: "0500000000",
-  shippingMethod: "regular",
-  shippingAddress: '{"city":"Tel Aviv"}',
-  billingAddress: '{"city":"Tel Aviv"}',
+  shippingMethodId: 1,
+  shippingAddress: { address: "1 Test St", city: "Tel Aviv", state: "Israel", postalCode: "61000" },
 };
 
 const validItems: CheckoutCartItem[] = [
@@ -203,6 +202,8 @@ class FakeCheckoutStore implements CheckoutStore {
               orderId: order.id,
               orderNumber: order.orderNumber,
               totalPrice: order.totalPrice,
+              itemsSubtotal: order.itemsSubtotal,
+              shippingTotal: order.shippingTotal,
             }
           : null;
       },
@@ -212,6 +213,16 @@ class FakeCheckoutStore implements CheckoutStore {
           : null,
       getCartItems: async (cartId) =>
         cartId === this.cart.id ? structuredClone(this.items) : [],
+      findActiveShippingMethod: async (id) => id === 1 ? ({
+        id: 1,
+        name: "Test delivery",
+        code: "test_delivery",
+        type: "home_delivery",
+        isActive: true,
+        price: 0,
+        freeShippingThreshold: null,
+        sortOrder: 0,
+      }) : null,
       reserveInventory: async () => undefined,
       createOrder: async (order) => {
         const stored = { ...order, id: this.orders.length + 1 };

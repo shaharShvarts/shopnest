@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   submitCheckout,
@@ -8,6 +8,7 @@ import {
 } from "../../_actions/checkout";
 import ShippingAddress from "./ShippingAddress";
 import { Button } from "@/components/ui/button";
+import type { ShippingQuote } from "@/lib/shipping/core";
 
 const initialState: CheckoutActionState = {
   success: false,
@@ -17,11 +18,17 @@ const initialState: CheckoutActionState = {
 export default function CheckoutTable({
   submissionToken,
   customer,
+  itemsSubtotal,
+  shippingMethods,
 }: {
   submissionToken: string;
   customer: { email: string; displayName: string | null } | null;
+  itemsSubtotal: number;
+  shippingMethods: ShippingQuote[];
 }) {
   const [state, formAction] = useActionState(submitCheckout, initialState);
+  const [selectedMethodId, setSelectedMethodId] = useState<number | null>(null);
+  const selectedMethod = shippingMethods.find((method) => method.id === selectedMethodId);
 
   if (state.success && state.order) {
     return (
@@ -33,6 +40,8 @@ export default function CheckoutTable({
         <p className="break-all font-mono text-lg font-semibold sm:text-xl">
           {state.order.number}
         </p>
+        <p>Items: {formatCurrency(state.order.itemsSubtotal)}</p>
+        <p>Shipping: {formatCurrency(state.order.shippingTotal)}</p>
         <p>Total: {formatCurrency(state.order.totalPrice)}</p>
         <p className="text-sm text-muted-foreground">
           Payment is still pending. No payment has been collected.
@@ -63,27 +72,40 @@ export default function CheckoutTable({
 
       <section className="rounded-lg border p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-semibold sm:text-xl">
-          Shipping Address
+          Shipping Method
         </h2>
-        <ShippingAddress
-          prefix="shipping"
-          defaultName={customer?.displayName ?? ""}
-        />
+        {shippingMethods.length ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {shippingMethods.map((method) => (
+              <ShippingOption
+                key={method.id}
+                method={method}
+                checked={method.id === selectedMethodId}
+                onSelect={() => setSelectedMethodId(method.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No shipping methods are currently available.</p>
+        )}
+        <FieldErrors errors={state.errors.shipping_method_id} />
       </section>
 
       <section className="rounded-lg border p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-semibold sm:text-xl">
-          Shipping Method
+          {selectedMethod?.type === "store_pickup" ? "Contact details" : "Shipping Address"}
         </h2>
-        <div className="space-y-2">
-          <ShippingOption value="regular" label="Regular (3–5 business days)" />
-          <ShippingOption
-            value="expedited"
-            label="Expedited (1–3 business days)"
-          />
-          <ShippingOption value="express" label="Express (1–2 business days)" />
-        </div>
-        <FieldErrors errors={state.errors.shipping_method} />
+        <ShippingAddress
+          prefix="shipping"
+          defaultName={customer?.displayName ?? ""}
+          requireAddress={selectedMethod?.type === "home_delivery"}
+        />
+      </section>
+
+      <section className="space-y-2 rounded-lg border p-4 sm:p-6">
+        <div className="flex justify-between"><span>Items subtotal</span><span>{formatCurrency(itemsSubtotal)}</span></div>
+        <div className="flex justify-between"><span>Shipping</span><span>{selectedMethod ? formatCurrency(selectedMethod.shippingPrice) : "—"}</span></div>
+        <div className="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span>{selectedMethod ? formatCurrency(itemsSubtotal + selectedMethod.shippingPrice) : formatCurrency(itemsSubtotal)}</span></div>
       </section>
 
       <section className="space-y-2 rounded-lg border p-4 sm:p-6">
@@ -103,17 +125,23 @@ export default function CheckoutTable({
   );
 }
 
-function ShippingOption({ value, label }: { value: string; label: string }) {
+function ShippingOption({ method, checked, onSelect }: { method: ShippingQuote; checked: boolean; onSelect: () => void }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border p-3 focus-within:ring-2 focus-within:ring-ring">
       <input
         type="radio"
-        name="shipping_method"
-        value={value}
+        name="shipping_method_id"
+        value={method.id}
+        checked={checked}
+        onChange={onSelect}
         required
         className="size-4 shrink-0"
       />
-      <span className="min-w-0 break-words">{label}</span>
+      <span className="min-w-0 flex-1 break-words">
+        <span className="block font-medium">{method.name}</span>
+        <span className="block text-sm capitalize text-muted-foreground">{method.type.replaceAll("_", " ")}</span>
+      </span>
+      <span className="font-medium">{method.shippingPrice === 0 ? "Free" : formatCurrency(method.shippingPrice)}</span>
     </label>
   );
 }

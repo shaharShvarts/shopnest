@@ -26,7 +26,8 @@
     "admin-ui:test": "node --experimental-strip-types --test tests/admin-images-navigation.test.mts",
     "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts",
     "storefront-catalog:test": "node --experimental-strip-types --test tests/storefront-catalog.test.mts",
-    "customer-auth:test": "node --experimental-strip-types --test tests/customer-auth.test.mts"
+    "customer-auth:test": "node --experimental-strip-types --test tests/customer-auth.test.mts",
+    "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
