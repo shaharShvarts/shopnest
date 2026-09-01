@@ -18,6 +18,14 @@ Storefront and tenant-admin routes are rooted at `/<tenant>` and `/<tenant>/admi
 
 Runtime catalog media is tenant-scoped. A tenant's product/category media URL and storage path cannot resolve through another tenant. The control plane for administrator identities and assignments is separate from tenant business schemas. Existing Basic Auth and tenant-aware admin authorization remain security boundaries; storefront cart identity uses the existing user/session cookie model.
 
+## Storefront catalog hierarchy — CURRENT / AGREED
+
+The customer catalog follows the stored category hierarchy instead of flattening every product into its parent category. A category page displays its active, non-deleted subcategories and only its **direct products**, defined as products whose `category_id` matches the category and whose `subcategory_id` is `NULL`. Products assigned to a subcategory intentionally do not appear in the parent category's direct-product grid.
+
+A subcategory page at `/<tenant>/categories/<categoryId>/subcategories/<subcategoryId>` displays only active, storefront-available, non-deleted products for which both IDs match. The server validates that the active, non-deleted subcategory belongs to the active, non-deleted category; mismatched or unavailable combinations return 404. URL IDs never select a tenant or schema.
+
+Category, subcategory, product-detail, and search surfaces share the responsive product card, tenant-aware media resolver, centralized inventory availability and customer stock-message policy, and the existing cart reservation path. Zero-available products remain visible but cannot be added to the cart. Breadcrumbs reflect `Home > Category > Subcategory > Product`, omitting the subcategory segment for direct category products.
+
 ## Storefront search — CURRENT / AGREED
 
 ShopNest provides tenant-aware product search at `/<tenant>/search?q=<query>`. Search database access is created only from the trusted server-side tenant context; the URL and form never accept a schema or database selector. Results, inventory, and media therefore remain isolated to the current tenant.

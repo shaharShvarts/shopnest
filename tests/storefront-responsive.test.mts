@@ -9,11 +9,11 @@ test("product details use an explicit responsive grid and fluid image", async ()
     "src/app/(customer)/products/_components/ProductDetails.tsx"
   );
   assert.doesNotMatch(source, /columns-2|xs:columns-1/);
-  assert.match(source, /grid-cols-1[^\"]*lg:grid-cols-2/);
+  assert.match(source, /grid-cols-1[^\"]*lg:grid-cols-\[/);
   assert.match(source, /w-full[^\"]*object-contain/);
-  assert.match(source, /lg:max-h-\[560px\]/);
-  assert.match(source, /min-h-11 w-full sm:w-auto/);
-  assert.match(source, /size-11[^\"]*border-2/);
+  assert.match(source, /lg:max-h-\[680px\]/);
+  assert.match(source, /min-h-12 w-full/);
+  assert.match(source, /size-11[^\"]*rounded-xl/);
 });
 
 test("storefront header stays compact while preserving all controls", async () => {
@@ -22,7 +22,7 @@ test("storefront header stays compact while preserving all controls", async () =
     read("src/app/components/LanguageSelector.tsx"),
     read("src/app/(customer)/components/CartIcon.tsx"),
   ]);
-  assert.match(layout, /size-11[^\"]*sm:size-16/);
+  assert.match(layout, /size-10[^\"]*sm:size-12/);
   assert.match(layout, /LanguageSelector/);
   assert.match(layout, /CartIcon/);
   assert.match(layout, /UserRound/);
@@ -42,7 +42,9 @@ test("storefront navigation targets only implemented customer routes", async () 
     read("src/app/(customer)/components/CartTable.tsx"),
     read("src/app/(customer)/categories/[id]/products/page.tsx"),
     read("src/app/(customer)/products/[id]/details/page.tsx"),
+    read("src/app/(customer)/categories/[id]/subcategories/[subcategoryId]/page.tsx"),
     read("src/app/components/CategoryCard.tsx"),
+    read("src/app/components/SubcategoryCard.tsx"),
     read("src/app/components/ProductCard.tsx"),
   ]);
   const source = sources.join("\n");
@@ -57,7 +59,10 @@ test("storefront navigation targets only implemented customer routes", async () 
     /^\/checkout$/,
     /^\/privacy-policy$/,
     /^\/categories\/\$\{id\}\/products$/,
+    /^\/categories\/\$\{categoryId\}\/subcategories\/\$\{id\}$/,
+    /^\/categories\/\$\{category\.id\}\/products$/,
     /^\/categories\/\$\{product\.categoryId\}\/products$/,
+    /^\/categories\/\$\{product\.categoryId\}\/subcategories\/\$\{product\.subcategoryId\}$/,
     /^\/products\/\$\{id\}\/details$/,
   ];
 
@@ -79,7 +84,7 @@ test("category and product grids cover mobile through large desktop", async () =
   for (const source of [categories, products]) {
     assert.match(
       source,
-      /grid-cols-1[^\"]*sm:grid-cols-2[^\"]*lg:grid-cols-3[^\"]*xl:grid-cols-4/
+      /grid-cols-1[^\"]*min-\[430px\]:grid-cols-2[^\"]*lg:grid-cols-3[^\"]*xl:grid-cols-4/
     );
   }
 });
@@ -113,10 +118,10 @@ test("responsive storefront images use the shared tenant-aware resolver", async 
   assert.match(category, /resolveTenantImageUrl\([\s\S]*tenant\.slug/);
   assert.match(product, /resolveTenantImageUrl\(imageUrl, tenantSlug\)/);
   assert.match(details, /resolveTenantImageUrl\([\s\S]*tenant\.slug/);
-  assert.match(productPage, /tenantSlug=\{tenant\?\.slug \?\? ""\}/);
-  assert.match(category, /aspect-\[4\/3\][\s\S]*normalizedImageUrl/);
-  assert.match(product, /aspect-\[4\/3\][\s\S]*normalizedImageUrl/);
-  assert.match(details, /grid-cols-1[^\"]*lg:grid-cols-2/);
+  assert.match(productPage, /tenantSlug=\{tenant\.slug\}/);
+  assert.match(category, /aspect-\[5\/4\][\s\S]*normalizedImageUrl/);
+  assert.match(product, /aspect-square[\s\S]*normalizedImageUrl/);
+  assert.match(details, /grid-cols-1[^\"]*lg:grid-cols-\[/);
   for (const source of [category, product, details]) {
     assert.doesNotMatch(source, /src=\{(?:String\()?imageUrl\)?\}/);
   }

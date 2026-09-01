@@ -1,13 +1,14 @@
-import { getDb } from "@/drizzle/db";
+import { getDbForTenant } from "@/drizzle/db";
 import { categories, products, subcategories } from "@/drizzle/schema";
 import { and, eq, isNull, or } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
 import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
-import { StorefrontPageHeader } from "../../../components/StorefrontPageHeader";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { getCustomerStockMessage, InventoryService } from "@/lib/inventory/core";
 import { DrizzleInventoryStore } from "@/lib/inventory/drizzle-store";
+import { getTenant } from "@/lib/tenant-context";
+import type { Tenant } from "@/lib/tenant";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -22,8 +23,8 @@ export async function generateMetadata() {
   };
 }
 
-const fetchProductById = async (id: string) => {
-  const db = await getDb();
+const fetchProductById = async (id: string, tenant: Tenant) => {
+  const db = getDbForTenant(tenant);
   const [product] = await db
     .select({
       id: products.id,
@@ -33,6 +34,9 @@ const fetchProductById = async (id: string) => {
       imageUrl: products.imageUrl,
       quantity: products.quantity,
       categoryId: products.categoryId,
+      categoryName: categories.name,
+      subcategoryId: products.subcategoryId,
+      subcategoryName: subcategories.name,
     })
     .from(products)
     .innerJoin(categories, eq(products.categoryId, categories.id))
@@ -48,6 +52,7 @@ const fetchProductById = async (id: string) => {
         or(
           isNull(products.subcategoryId),
           and(
+            eq(subcategories.categoryId, products.categoryId),
             eq(subcategories.isActive, true),
             isNull(subcategories.deletedAt)
           )
@@ -75,22 +80,30 @@ export type fetchedProduct = NonNullable<
 
 export default async function ProductsPage({ params }: Params) {
   const { id } = await params;
-  const product = await fetchProductById(id);
+  const tenant = await getTenant();
+  if (!tenant) notFound();
+  const product = await fetchProductById(id, tenant);
   if (!product) notFound();
-  const t = await getTranslations("DetailsPage");
   const tb = await getTranslations("DetailsPage.Breadcrumbs");
 
   return (
     <>
-      <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
       <DynamicBreadcrumb
         segments={[
           { label: tb("home"), href: "/" },
           {
-            label: tb("category"),
+            label: product.categoryName,
             href: `/categories/${product.categoryId}/products`,
           },
-          { label: tb("products") },
+          ...(product.subcategoryId && product.subcategoryName
+            ? [
+                {
+                  label: product.subcategoryName,
+                  href: `/categories/${product.categoryId}/subcategories/${product.subcategoryId}`,
+                },
+              ]
+            : []),
+          { label: product.name },
         ]}
       />
       <ProductDetails product={product} />

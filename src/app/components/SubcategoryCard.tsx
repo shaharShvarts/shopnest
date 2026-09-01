@@ -7,23 +7,29 @@ import { TenantLink } from "@/components/TenantLink";
 import { useTenant } from "@/context/TenantContext";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
-type CategoryCardProps = {
+type SubcategoryCardProps = {
   id: number;
+  categoryId: number;
   name: string;
   imageUrl: string;
 };
 
-export function CategoryCard({ id, name, imageUrl }: CategoryCardProps) {
+export function SubcategoryCard({
+  id,
+  categoryId,
+  name,
+  imageUrl,
+}: SubcategoryCardProps) {
   const tenant = useTenant();
   const t = useTranslations("CatalogUX");
   const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenant.slug);
 
   return (
     <TenantLink
-      href={`/categories/${id}/products`}
+      href={`/categories/${categoryId}/subcategories/${id}`}
       className="group relative block min-w-0 overflow-hidden rounded-2xl bg-muted shadow-sm outline-none ring-offset-2 transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary"
     >
-      <div className="relative aspect-[5/4] w-full overflow-hidden">
+      <div className="relative aspect-[4/3] w-full overflow-hidden">
         {normalizedImageUrl ? (
           <Image
             src={normalizedImageUrl}
@@ -31,28 +37,20 @@ export function CategoryCard({ id, name, imageUrl }: CategoryCardProps) {
             fill
             unoptimized
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, (min-width: 430px) 50vw, 100vw"
+            sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
-            <ImageIcon aria-hidden="true" className="size-9" />
+            <ImageIcon aria-hidden="true" className="size-8" />
             <span className="text-sm">{t("imageUnavailable")}</span>
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-5 pb-5 pt-16 text-white">
-          <h2 className="break-words text-xl font-semibold leading-tight sm:text-2xl">
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-4 pb-4 pt-12 text-white">
+          <h3 className="break-words text-lg font-semibold leading-tight sm:text-xl">
             {name}
-          </h2>
+          </h3>
         </div>
       </div>
     </TenantLink>
-  );
-}
-
-export function CategoryCardSkeleton() {
-  return (
-    <div className="min-w-0 animate-pulse overflow-hidden rounded-2xl bg-muted shadow-sm">
-      <div className="aspect-[5/4] w-full bg-gray-200" />
-    </div>
   );
 }
