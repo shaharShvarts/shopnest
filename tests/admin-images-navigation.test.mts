@@ -314,3 +314,27 @@ test("admin create and edit pages retain deterministic tenant-aware Back links",
     );
   }
 });
+
+test("shipping create and edit forms show localized code guidance", async () => {
+  const [form, createPage, editPage, english, hebrew] = await Promise.all([
+    readFile("src/app/admin/shipping/_components/ShippingMethodForm.tsx", "utf8"),
+    readFile("src/app/admin/shipping/new/page.tsx", "utf8"),
+    readFile("src/app/admin/shipping/[id]/edit/page.tsx", "utf8"),
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+
+  assert.match(createPage, /ShippingMethodForm/);
+  assert.match(editPage, /ShippingMethodForm/);
+  assert.match(form, /getTranslations\("Shipping"\)/);
+  assert.match(form, /aria-describedby="shipping-code-help"/);
+  assert.match(form, /text-xs text-muted-foreground/);
+  assert.equal(
+    english.Shipping.codeHelp,
+    "Internal identifier, e.g. home_delivery. Avoid changing it after the method has been used in orders."
+  );
+  assert.equal(
+    hebrew.Shipping.codeHelp,
+    "מזהה פנימי, לדוגמה home_delivery. מומלץ לא לשנות אותו לאחר שנעשה בו שימוש בהזמנות."
+  );
+});

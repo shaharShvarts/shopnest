@@ -133,6 +133,7 @@
   "Shipping": {
     "shipping": "משלוח",
     "shippingMethod": "שיטת משלוח",
+    "codeHelp": "מזהה פנימי, לדוגמה home_delivery. מומלץ לא לשנות אותו לאחר שנעשה בו שימוש בהזמנות.",
     "homeDelivery": "משלוח עד הבית",
     "pickupPoint": "נקודת איסוף",
     "storePickup": "איסוף מהחנות",
