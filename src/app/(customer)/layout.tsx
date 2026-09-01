@@ -1,5 +1,5 @@
 import { TenantLink as Link } from "@/components/TenantLink";
-import { UserRound } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import { CartIcon } from "./components/CartIcon";
 import { CartProvider } from "@/context/CartContext";
 import LanguageSelector from "../components/LanguageSelector";
@@ -14,6 +14,9 @@ import {
 import { tenantPath } from "@/lib/tenant-context";
 import { SearchForm } from "./search/_components/SearchForm";
 import { getTranslations } from "next-intl/server";
+import { getCurrentCustomer } from "@/lib/customer-auth/server";
+import { logoutCustomerAction } from "./account/_actions";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +40,8 @@ export default async function HomeLayout({
   }
   const searchAction = await tenantPath("/search");
   const catalogT = await getTranslations("CatalogUX");
+  const accountT = await getTranslations("CustomerAccount");
+  const customer = await getCurrentCustomer();
 
   return (
     <CartProvider>
@@ -73,14 +78,21 @@ export default async function HomeLayout({
             >
               <CartIcon />
             </Link>
-            <span
-              role="img"
-              aria-label="Customer accounts are not available yet"
-              title="Customer accounts are not available yet"
-              className="flex size-11 shrink-0 items-center justify-center rounded-md text-gray-500"
+            <Link
+              href={customer ? "/account" : "/account/login"}
+              aria-label={customer ? accountT("myAccount") : accountT("signIn")}
+              title={customer ? accountT("myAccount") : accountT("signIn")}
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl text-gray-700 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <UserRound aria-hidden="true" />
-            </span>
+            </Link>
+            {customer && (
+              <form action={logoutCustomerAction} className="hidden lg:block">
+                <Button type="submit" variant="ghost" size="icon" className="size-11" aria-label={accountT("logout")} title={accountT("logout")}>
+                  <LogOut aria-hidden="true" />
+                </Button>
+              </form>
+            )}
           </div>
         </nav>
       </header>

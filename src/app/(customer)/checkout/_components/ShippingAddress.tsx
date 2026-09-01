@@ -1,4 +1,10 @@
-export default function ShippingAddress({ prefix }: { prefix: string }) {
+export default function ShippingAddress({
+  prefix,
+  defaultName = "",
+}: {
+  prefix: string;
+  defaultName?: string;
+}) {
   const inputClassName = "min-h-11 w-full rounded border p-2";
 
   return (
@@ -9,6 +15,7 @@ export default function ShippingAddress({ prefix }: { prefix: string }) {
           placeholder="First Name"
           autoComplete="given-name"
           required
+          defaultValue={defaultName}
           className={inputClassName}
         />
         <input

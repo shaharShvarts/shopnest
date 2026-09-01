@@ -14,6 +14,7 @@ import {
 } from "../src/lib/checkout/create-order.ts";
 
 const customer: CheckoutIdentity = {
+  customerAccountId: null,
   userId: null,
   sessionId: "session-panda",
 };
@@ -103,7 +104,7 @@ test("one tenant cannot create an order from another tenant cart", async () => {
   const pandaStore = new FakeCheckoutStore("panda_pop", customer, validItems);
   const giftStore = new FakeCheckoutStore(
     "gift_shop",
-    { userId: null, sessionId: "session-gift" },
+    { customerAccountId: null, userId: null, sessionId: "session-gift" },
     validItems
   );
 
@@ -130,6 +131,18 @@ test("duplicate submission returns the first order without creating another", as
   assert.deepEqual(duplicate, first);
   assert.equal(store.orders.length, 1);
   assert.equal(store.orderProducts.length, validItems.length);
+});
+
+test("registered checkout propagates the global customer identifier", async () => {
+  const registered: CheckoutIdentity = {
+    customerAccountId: 42,
+    userId: null,
+    sessionId: null,
+  };
+  const store = new FakeCheckoutStore("gift_shop", registered, validItems);
+  await create(store, registered, "88888888-8888-4888-8888-888888888888");
+  assert.equal(store.orders[0].customerAccountId, 42);
+  assert.equal(store.orders[0].sessionId, null);
 });
 
 function create(
@@ -227,7 +240,9 @@ class FakeCheckoutStore implements CheckoutStore {
 }
 
 function sameIdentity(left: CheckoutIdentity, right: CheckoutIdentity) {
-  return right.userId
-    ? left.userId === right.userId
-    : left.sessionId === right.sessionId;
+  return right.customerAccountId
+    ? left.customerAccountId === right.customerAccountId
+    : right.userId
+      ? left.userId === right.userId
+      : left.sessionId === right.sessionId;
 }

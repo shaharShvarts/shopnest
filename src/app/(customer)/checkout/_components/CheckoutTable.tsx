@@ -16,8 +16,10 @@ const initialState: CheckoutActionState = {
 
 export default function CheckoutTable({
   submissionToken,
+  customer,
 }: {
   submissionToken: string;
+  customer: { email: string; displayName: string | null } | null;
 }) {
   const [state, formAction] = useActionState(submitCheckout, initialState);
 
@@ -53,6 +55,7 @@ export default function CheckoutTable({
           placeholder="Email Address"
           autoComplete="email"
           required
+          defaultValue={customer?.email ?? ""}
           className="min-h-11 w-full rounded border p-2"
         />
         <FieldErrors errors={state.errors.email} />
@@ -62,7 +65,10 @@ export default function CheckoutTable({
         <h2 className="mb-4 text-lg font-semibold sm:text-xl">
           Shipping Address
         </h2>
-        <ShippingAddress prefix="shipping" />
+        <ShippingAddress
+          prefix="shipping"
+          defaultName={customer?.displayName ?? ""}
+        />
       </section>
 
       <section className="rounded-lg border p-4 sm:p-6">

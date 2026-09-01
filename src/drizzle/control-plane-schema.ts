@@ -3,3 +3,7 @@ export * from "@/drizzle/control-schema/adminUserTenant";
 export * from "@/drizzle/control-schema/adminSession";
 export * from "@/drizzle/control-schema/tenant";
 export * from "@/drizzle/control-schema/shared";
+export * from "@/drizzle/control-schema/customerAccount";
+export * from "@/drizzle/control-schema/customerTenant";
+export * from "@/drizzle/control-schema/customerAuthIdentity";
+export * from "@/drizzle/control-schema/customerSession";

@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "@/drizzle/db";
 import { cartProducts, carts, products } from "@/drizzle/schema";
@@ -8,6 +7,10 @@ import { getCartReservationDurationsMs } from "@/lib/inventory/config";
 import { InventoryError, reserveCartInventoryInTransaction } from "@/lib/inventory/core";
 import { DrizzleInventoryTransaction } from "@/lib/inventory/drizzle-store";
 import { revalidateTenantPath } from "@/lib/tenant-context";
+import {
+  commerceOwnerKey,
+  getCommerceIdentity,
+} from "@/lib/customer-commerce/identity";
 
 export async function removeProduct(productId: number) {
   const result = await mutateCartProduct(productId, 0);
@@ -25,20 +28,21 @@ async function mutateCartProduct(productId: number, targetQuantity: number) {
   if (!Number.isSafeInteger(productId) || productId <= 0) {
     return { success: false as const, error: "Invalid product." };
   }
-  const cookieStore = await cookies();
-  const rawUserId = cookieStore.get("user_id")?.value;
-  const sessionId = cookieStore.get("session_id")?.value;
-  const userId = rawUserId ? Number(rawUserId) : null;
-  if ((!userId && !sessionId) || (rawUserId && !Number.isSafeInteger(userId))) {
+  const identity = await getCommerceIdentity();
+  const ownerKey = commerceOwnerKey(identity);
+  if (!ownerKey) {
     return { success: false as const, error: "Unable to identify the cart owner." };
   }
-  const ownerKey = userId ? `user:${userId}` : `session:${sessionId}`;
   const durations = getCartReservationDurationsMs();
   const db = await getDb();
 
   try {
     const result = await db.transaction(async (tx) => {
-      const cartBy = userId ? eq(carts.userId, userId) : eq(carts.sessionId, sessionId!);
+      const cartBy = identity.customerAccountId
+        ? eq(carts.customerAccountId, identity.customerAccountId)
+        : identity.userId
+          ? eq(carts.userId, identity.userId)
+          : eq(carts.sessionId, identity.sessionId!);
       const [cart] = await tx.select({ id: carts.id }).from(carts)
         .where(and(cartBy, eq(carts.isActive, true))).limit(1).for("update");
       if (!cart) throw new Error("No active cart was found.");

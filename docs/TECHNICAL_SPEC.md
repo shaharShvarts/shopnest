@@ -18,6 +18,20 @@ Storefront and tenant-admin routes are rooted at `/<tenant>` and `/<tenant>/admi
 
 Runtime catalog media is tenant-scoped. A tenant's product/category media URL and storage path cannot resolve through another tenant. The control plane for administrator identities and assignments is separate from tenant business schemas. Existing Basic Auth and tenant-aware admin authorization remain security boundaries; storefront cart identity uses the existing user/session cookie model.
 
+## Customer identity — CURRENT / AGREED
+
+Customer identity is global and optional. `customer_accounts`, provider identities, tenant memberships, and customer sessions live in the `public` control plane; carts, reservations, orders, and order items remain in the current tenant schema. Tenant commerce rows may store the global customer ID as an opaque identifier, but there is no cross-schema foreign key and customer identity never selects a tenant schema. Tenant membership records only first/last-seen association metadata and grants no administrator role or access to another tenant's commerce data.
+
+Guest shopping and checkout remain first-class. A customer may register or sign in with email and password through tenant-prefixed account routes, while customer and administrator authentication use separate repositories, routes, cookies, and authorization checks. Passwords use the project's salted scrypt implementation with constant-time key comparison and a 12-character minimum. Customer sessions use random opaque tokens whose hashes are stored server-side, with `HttpOnly`, `SameSite=Lax`, production-secure cookies, seven-day server-side expiry/revocation, and a newly issued token after authentication. Authentication failures do not reveal whether an email exists. Disabled accounts cannot authenticate. Google and Apple identity values are represented only as provider-foundation data: Google is `not_implemented` and Apple is `planned`; neither is presented as a working sign-in method.
+
+After successful registration or sign-in, an anonymous cart is linked inside the trusted current tenant. If no account cart exists, its ownership and verified reservation attempt move to the customer. If both carts exist, their quantities are merged under transaction locks and capped at current availability after excluding only the two verified existing holds. The guest hold is released and one customer hold is established, so reservations are not double-counted. Reduced quantities are reported to the customer. Cart rows remain tenant-local and historical carts are not deleted.
+
+Registered checkout stores the global customer identifier on the tenant-local order while retaining the same server-side pricing, inventory and transaction rules as guest checkout. The account area lists only orders from the current trusted tenant schema belonging to that customer. Registration is not required to check out, and orders made before account creation are not retroactively linked.
+
+### Customer identity evolution — FUTURE / OPEN
+
+Email verification delivery, password reset/recovery, post-purchase guest-order claiming, saved address books, profile/preferences management, account deletion/export workflow, and production Google/Apple OAuth are not implemented. Their security, consent, retention, identity-linking, reauthentication and tenant-visibility rules require explicit decisions before implementation.
+
 ## Storefront catalog hierarchy — CURRENT / AGREED
 
 The customer catalog follows the stored category hierarchy instead of flattening every product into its parent category. A category page displays its active, non-deleted subcategories and only its **direct products**, defined as products whose `category_id` matches the category and whose `subcategory_id` is `NULL`. Products assigned to a subcategory intentionally do not appear in the parent category's direct-product grid.
@@ -142,7 +156,7 @@ Everything in this section is explicitly undecided and must not be described as 
 ### Customer and commerce lifecycle
 
 - **Abandoned cart recovery:** consent, contact eligibility, recovery links, messaging cadence, and whether recovery attempts ever re-reserve inventory (they must not do so silently).
-- **Customer accounts:** registration, login, guest-account linking, tenant identity boundaries, order history, address book, and deletion/export rights.
+- **Customer account expansion:** saved address books, profile preferences, post-purchase guest-order claiming, deletion/export automation, and production social sign-in beyond the current account foundation.
 - **Refunds:** payment-provider workflow, order states, inventory return policy, and accounting/invoice effects.
 - **Partial refunds:** line allocation, quantity handling, shipping/tax allocation, multiple refund attempts, and idempotency.
 - **Shipping and fulfillment:** rate calculation, carrier integration, shipment states, tracking, split shipments, pickup, and fulfillment permissions.
