@@ -20,9 +20,11 @@ import { DrizzleInventoryTransaction } from "./inventory/drizzle-store";
 type TenantDatabase = ReturnType<typeof getDbForTenant>;
 
 function identityCondition(identity: CheckoutIdentity) {
-  return identity.userId
-    ? eq(orders.userId, identity.userId)
-    : eq(orders.sessionId, identity.sessionId!);
+  return identity.customerAccountId
+    ? eq(orders.customerAccountId, identity.customerAccountId)
+    : identity.userId
+      ? eq(orders.userId, identity.userId)
+      : eq(orders.sessionId, identity.sessionId!);
 }
 
 export class DrizzleCheckoutStore implements CheckoutStore {
@@ -63,9 +65,11 @@ export class DrizzleCheckoutStore implements CheckoutStore {
         },
 
         async lockActiveCart(identity) {
-          const cartIdentity = identity.userId
-            ? eq(carts.userId, identity.userId)
-            : eq(carts.sessionId, identity.sessionId!);
+          const cartIdentity = identity.customerAccountId
+            ? eq(carts.customerAccountId, identity.customerAccountId)
+            : identity.userId
+              ? eq(carts.userId, identity.userId)
+              : eq(carts.sessionId, identity.sessionId!);
           const [cart] = await tx
             .select({ id: carts.id, currency: carts.currency })
             .from(carts)
@@ -103,6 +107,7 @@ export class DrizzleCheckoutStore implements CheckoutStore {
             .insert(orders)
             .values({
               userId: order.userId,
+              customerAccountId: order.customerAccountId,
               sessionId: order.sessionId,
               cartId: order.cartId,
               checkoutToken: order.checkoutToken,

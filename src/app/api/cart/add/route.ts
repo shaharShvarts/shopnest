@@ -5,6 +5,10 @@ import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { InventoryError, reserveCartInventoryInTransaction } from "@/lib/inventory/core";
 import { getCartReservationDurationsMs } from "@/lib/inventory/config";
 import { DrizzleInventoryTransaction } from "@/lib/inventory/drizzle-store";
+import {
+  CUSTOMER_SESSION_COOKIE,
+  resolveCustomerToken,
+} from "@/lib/customer-auth/server";
 
 type RequestBody = { productId: number; quantity: number };
 
@@ -14,16 +18,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Product and quantity must be positive whole numbers." }, { status: 400 });
   }
 
-  const userId = req.cookies.get("user_id")?.value;
+  const customer = await resolveCustomerToken(
+    req.cookies.get(CUSTOMER_SESSION_COOKIE)?.value
+  );
+  const userId = customer ? null : req.cookies.get("user_id")?.value;
   const sessionId = req.cookies.get("session_id")?.value;
-  if (!userId && !sessionId) {
+  if (!customer && !userId && !sessionId) {
     return NextResponse.json({ error: "Missing user/session ID" }, { status: 400 });
   }
   const numericUserId = userId ? Number(userId) : null;
   if (userId && !Number.isSafeInteger(numericUserId)) {
     return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
   }
-  const ownerKey = numericUserId ? `user:${numericUserId}` : `session:${sessionId}`;
+  const ownerKey = customer
+    ? `customer:${customer.id}`
+    : numericUserId
+      ? `user:${numericUserId}`
+      : `session:${sessionId}`;
   const db = await getDb();
   const durations = getCartReservationDurationsMs();
 
@@ -42,12 +53,22 @@ export async function POST(req: NextRequest) {
         .limit(1);
       if (!product) throw new InventoryError("product_not_found", "Product not found", productId);
 
-      const cartBy = numericUserId ? eq(carts.userId, numericUserId) : eq(carts.sessionId, sessionId!);
+      const cartBy = customer
+        ? eq(carts.customerAccountId, customer.id)
+        : numericUserId
+          ? eq(carts.userId, numericUserId)
+          : eq(carts.sessionId, sessionId!);
       let [cart] = await tx.select({ id: carts.id }).from(carts)
         .where(and(cartBy, eq(carts.isActive, true))).limit(1).for("update");
       if (!cart) {
         [cart] = await tx.insert(carts)
-          .values(numericUserId ? { userId: numericUserId } : { sessionId })
+          .values(
+            customer
+              ? { customerAccountId: customer.id }
+              : numericUserId
+                ? { userId: numericUserId }
+                : { sessionId }
+          )
           .returning({ id: carts.id });
       }
 

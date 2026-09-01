@@ -1,4 +1,5 @@
 export type CheckoutIdentity = {
+  customerAccountId: number | null;
   userId: number | null;
   sessionId: string | null;
 };
@@ -98,7 +99,7 @@ export async function createCheckoutOrder(
   checkoutToken: string,
   createOrderNumber: () => string
 ): Promise<CheckoutResult> {
-  if (!identity.userId && !identity.sessionId) {
+  if (!identity.customerAccountId && !identity.userId && !identity.sessionId) {
     throw new CheckoutError(
       "missing_identity",
       "A user or cart session is required to check out."
@@ -164,9 +165,11 @@ export async function createCheckoutOrder(
 
     try {
       await tx.reserveInventory({
-        ownerKey: identity.userId
-          ? `user:${identity.userId}`
-          : `session:${identity.sessionId}`,
+        ownerKey: identity.customerAccountId
+          ? `customer:${identity.customerAccountId}`
+          : identity.userId
+            ? `user:${identity.userId}`
+            : `session:${identity.sessionId}`,
         cartId: cart.id,
         checkoutToken,
         items: cartItems.map((item) => ({

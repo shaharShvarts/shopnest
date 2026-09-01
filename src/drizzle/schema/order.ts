@@ -9,6 +9,7 @@ import {
   pgEnum,
   uuid,
   check,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { createdAt, deletedAt, updatedAt } from "../schemaHelpers";
@@ -34,6 +35,7 @@ export const orders = pgTable(
   {
     id: serial("id").primaryKey(),
     userId: integer("user_id").references(() => users.id),
+    customerAccountId: integer("customer_account_id"),
     sessionId: varchar("session_id"),
     cartId: uuid("cart_id").references(() => carts.id).unique(),
     checkoutToken: uuid("checkout_token").unique(),
@@ -59,8 +61,12 @@ export const orders = pgTable(
   },
   (table) => [
     check(
-      "orders_user_or_session",
-      sql`${table.userId} IS NOT NULL OR ${table.sessionId} IS NOT NULL`
+      "orders_customer_or_session",
+      sql`${table.userId} IS NOT NULL OR ${table.sessionId} IS NOT NULL OR ${table.customerAccountId} IS NOT NULL`
+    ),
+    index("orders_customer_account_created_idx").on(
+      table.customerAccountId,
+      table.createdAt
     ),
   ]
 );

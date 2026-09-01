@@ -1,8 +1,16 @@
-import { pgTable, integer, text, boolean, varchar } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  integer,
+  text,
+  boolean,
+  varchar,
+  check,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { createdAt, id, updatedAt } from "../schemaHelpers";
 import { users } from "./user";
 import { cartProducts } from "./cartProduct";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const carts = pgTable(
   "carts",
@@ -14,16 +22,20 @@ export const carts = pgTable(
     currency: text("currency").notNull().default("ILS"),
     isAbandoned: boolean("is_abandoned").default(false),
     userId: integer("user_id").references(() => users.id),
+    customerAccountId: integer("customer_account_id"),
     createdAt,
     updatedAt,
   },
-  () => [
-    {
-      check: {
-        name: "ensure_user_or_session",
-        expression: `(user_id IS NOT NULL OR session_id IS NOT NULL)`,
-      },
-    },
+  (table) => [
+    check(
+      "carts_customer_or_session",
+      sql`${table.userId} IS NOT NULL OR ${table.sessionId} IS NOT NULL OR ${table.customerAccountId} IS NOT NULL`
+    ),
+    uniqueIndex("carts_active_customer_account_unique")
+      .on(table.customerAccountId)
+      .where(
+        sql`${table.isActive} = true AND ${table.customerAccountId} IS NOT NULL`
+      ),
   ]
 );
 

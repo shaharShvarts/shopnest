@@ -6,9 +6,12 @@ import CartTable from "../components/CartTable";
 import { getTranslations } from "next-intl/server";
 import { StorefrontPageHeader } from "../components/StorefrontPageHeader";
 import { getTenant } from "@/lib/tenant-context";
-import { cookies } from "next/headers";
 import { InventoryService } from "@/lib/inventory/core";
 import { DrizzleInventoryStore } from "@/lib/inventory/drizzle-store";
+import {
+  commerceOwnerKey,
+  getCommerceIdentity,
+} from "@/lib/customer-commerce/identity";
 
 export async function generateMetadata() {
   const Metadata = await getTranslations("CartPage.Metadata");
@@ -29,7 +32,11 @@ export type CartPageProps = {
   available: number;
 };
 
-export default async function CartPage() {
+export default async function CartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ merge?: string }>;
+}) {
   const t = await getTranslations("CartPage");
   const tenant = await getTenant();
   const db = await getDb();
@@ -48,10 +55,8 @@ export default async function CartPage() {
     .from(cartProducts)
     .innerJoin(products, eq(cartProducts.productId, products.id))
     .where(eq(cartProducts.cartId, cartId));
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("user_id")?.value;
-  const sessionId = cookieStore.get("session_id")?.value;
-  const ownerKey = userId ? `user:${Number(userId)}` : `session:${sessionId}`;
+  const ownerKey = commerceOwnerKey(await getCommerceIdentity());
+  if (!ownerKey) return null;
   const availability = await new InventoryService(
     new DrizzleInventoryStore(db)
   ).getAvailabilityBatchForCart(
@@ -66,6 +71,11 @@ export default async function CartPage() {
   return (
     <>
       <StorefrontPageHeader>{t("header")}</StorefrontPageHeader>
+      {(await searchParams).merge === "adjusted" && (
+        <p className="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900" role="status">
+          Some quantities were adjusted to the stock currently available.
+        </p>
+      )}
       <CartTable cartData={cartData} tenantSlug={tenant?.slug ?? ""} />
     </>
   );

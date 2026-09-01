@@ -26,8 +26,8 @@ test("storefront header stays compact while preserving all controls", async () =
   assert.match(layout, /LanguageSelector/);
   assert.match(layout, /CartIcon/);
   assert.match(layout, /UserRound/);
-  assert.doesNotMatch(layout, /href=\{?[`"']\/login/);
-  assert.match(layout, /Customer accounts are not available yet/);
+  assert.match(layout, /customer \? "\/account" : "\/account\/login"/);
+  assert.match(layout, /getCurrentCustomer/);
   assert.match(layout, /aria-label="View shopping cart"[\s\S]*?size-11/);
   assert.match(language, /hidden sm:inline/);
   assert.match(language, /h-11 min-w-11/);
@@ -57,6 +57,10 @@ test("storefront navigation targets only implemented customer routes", async () 
     /^\/carts$/,
     /^\/categories$/,
     /^\/checkout$/,
+    /^\/account$/,
+    /^\/account\/login$/,
+    /^\/account\/register(?:\?.*)?$/,
+    /^\/account\/orders$/,
     /^\/privacy-policy$/,
     /^\/categories\/\$\{id\}\/products$/,
     /^\/categories\/\$\{categoryId\}\/subcategories\/\$\{id\}$/,
@@ -73,7 +77,7 @@ test("storefront navigation targets only implemented customer routes", async () 
       `storefront navigation references missing route: ${target}`
     );
   }
-  assert.doesNotMatch(source, /\/(?:admin\/)?login\b/);
+  assert.doesNotMatch(source, /\/admin\/login\b/);
 });
 
 test("category and product grids cover mobile through large desktop", async () => {

@@ -2,7 +2,7 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 import { resolveDatabaseUrl } from "./database-url.mjs";
 
-export const env = createEnv({
+const validatedEnv = createEnv({
   server: {
     DATABASE_URL: z.string().min(1).optional(),
     DB_PASSWORD: z.string().min(1).optional(),
@@ -11,14 +11,14 @@ export const env = createEnv({
     DB_PORT: z.string().min(1).optional(),
     DB_NAME: z.string().min(1).optional(),
   },
-  createFinalSchema: (env) => {
-    return z.object(env).transform((val) => {
-      return {
-        ...val,
-        DATABASE_URL: resolveDatabaseUrl(val),
-      };
-    });
-  },
   emptyStringAsUndefined: true,
   experimental__runtimeEnv: process.env,
 });
+
+// @t3-oss/env requires Standard Schema validation to stay synchronous.
+// Zod transforms expose an async-compatible validator, so derive the final URL
+// only after the individual environment fields have been validated.
+export const env = {
+  ...validatedEnv,
+  DATABASE_URL: resolveDatabaseUrl(validatedEnv),
+};

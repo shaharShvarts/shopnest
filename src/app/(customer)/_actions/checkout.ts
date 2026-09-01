@@ -1,7 +1,6 @@
 "use server";
 
 import { customAlphabet } from "nanoid";
-import { cookies } from "next/headers";
 import { getDbForTenant } from "@/drizzle/db";
 import {
   CheckoutError,
@@ -11,6 +10,7 @@ import {
 import { DrizzleCheckoutStore } from "@/lib/drizzle-checkout-store";
 import { getTenant } from "@/lib/tenant-context";
 import { checkoutSchema } from "../checkout/schema";
+import { getCommerceIdentity } from "@/lib/customer-commerce/identity";
 
 const orderNumberSuffix = customAlphabet(
   "23456789ABCDEFGHJKLMNPQRSTUVWXYZ",
@@ -51,14 +51,7 @@ export async function submitCheckout(
     };
   }
 
-  const cookieStore = await cookies();
-  const userIdValue = cookieStore.get("user_id")?.value;
-  const parsedUserId = userIdValue ? Number(userIdValue) : null;
-  const userId =
-    parsedUserId && Number.isSafeInteger(parsedUserId) && parsedUserId > 0
-      ? parsedUserId
-      : null;
-  const sessionId = cookieStore.get("session_id")?.value?.trim() || null;
+  const identity = await getCommerceIdentity();
 
   const shippingAddress = JSON.stringify({
     address: result.data.shipping_address,
@@ -80,7 +73,7 @@ export async function submitCheckout(
     const store = new DrizzleCheckoutStore(getDbForTenant(tenant));
     const order = await createCheckoutOrder(
       store,
-      { userId, sessionId },
+      identity,
       details,
       result.data.submission_token,
       createOrderNumber

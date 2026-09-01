@@ -3,14 +3,7 @@
 import { getDb } from "@/drizzle/db";
 import { carts, cartProducts, products } from "@/drizzle/schema";
 import { eq, sql, and } from "drizzle-orm";
-import { cookies } from "next/headers";
-
-const fetchUserOrSession = async () => {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("user_id")?.value;
-  const sessionId = cookieStore.get("session_id")?.value;
-  return { userId, sessionId };
-};
+import { getCommerceIdentity } from "@/lib/customer-commerce/identity";
 
 // export async function reserveProduct(productId: number) {
 //   try {
@@ -29,10 +22,12 @@ const fetchUserOrSession = async () => {
 
 export async function fetchCartId() {
   const db = await getDb();
-  const { userId, sessionId } = await fetchUserOrSession();
-  const cartBy = userId
-    ? eq(carts.userId, Number(userId))
-    : eq(carts.sessionId, sessionId!);
+  const identity = await getCommerceIdentity();
+  const cartBy = identity.customerAccountId
+    ? eq(carts.customerAccountId, identity.customerAccountId)
+    : identity.userId
+      ? eq(carts.userId, identity.userId)
+      : eq(carts.sessionId, identity.sessionId!);
 
   const isActive = eq(carts.isActive, true);
 
@@ -45,7 +40,13 @@ export async function fetchCartId() {
   if (!cart) {
     const [newCart] = await db
       .insert(carts)
-      .values(userId ? { userId: Number(userId) } : { sessionId })
+      .values(
+        identity.customerAccountId
+          ? { customerAccountId: identity.customerAccountId }
+          : identity.userId
+            ? { userId: identity.userId }
+            : { sessionId: identity.sessionId }
+      )
       .returning();
     cart = newCart;
   }
