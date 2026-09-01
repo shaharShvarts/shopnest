@@ -3,6 +3,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { SHIPPING_CODE_HTML_PATTERN } from "../src/lib/shipping/core.ts";
 import {
   normalizeImageUrl,
   parseTenantMediaUrl,
@@ -315,7 +318,7 @@ test("admin create and edit pages retain deterministic tenant-aware Back links",
   }
 });
 
-test("shipping create and edit forms show localized code guidance", async () => {
+test("shipping create and edit share a browser-safe code pattern", async () => {
   const [form, createPage, editPage, english, hebrew] = await Promise.all([
     readFile("src/app/admin/shipping/_components/ShippingMethodForm.tsx", "utf8"),
     readFile("src/app/admin/shipping/new/page.tsx", "utf8"),
@@ -331,6 +334,20 @@ test("shipping create and edit forms show localized code guidance", async () => 
   assert.match(form, /text-xs text-muted-foreground/);
   assert.match(form, /aria-describedby="shipping-name-help"/);
   assert.doesNotMatch(form, /name="sortOrder"|>Sort order</);
+  assert.doesNotMatch(form, /\[a-z0-9\]\+\(\[_-\]\[a-z0-9\]\+\)\*/);
+  assert.match(form, /pattern=\{SHIPPING_CODE_HTML_PATTERN\}/);
+  assert.equal(
+    SHIPPING_CODE_HTML_PATTERN,
+    "[a-z0-9]+(?:[_\\-][a-z0-9]+)*"
+  );
+  assert.doesNotThrow(() => new RegExp(SHIPPING_CODE_HTML_PATTERN, "v"));
+  const renderedCodeInput = renderToStaticMarkup(
+    createElement("input", { pattern: SHIPPING_CODE_HTML_PATTERN })
+  );
+  assert.ok(
+    renderedCodeInput.includes(`pattern="${SHIPPING_CODE_HTML_PATTERN}"`),
+    `Rendered input did not preserve the escaped hyphen: ${renderedCodeInput}`
+  );
   assert.equal(
     english.Shipping.nameHelp,
     "The name shown to the customer during checkout."

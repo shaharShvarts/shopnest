@@ -1,5 +1,8 @@
 import type { ShippingMethodType } from "@/drizzle/schema/shippingMethod";
 
+export const SHIPPING_CODE_HTML_PATTERN =
+  "[a-z0-9]+(?:[_\\-][a-z0-9]+)*";
+
 export type ShippingMethod = {
   id: number;
   name: string;
