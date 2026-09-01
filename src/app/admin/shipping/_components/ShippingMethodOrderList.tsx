@@ -2,10 +2,30 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TenantLink } from "@/components/TenantLink";
 import type { ShippingMethod } from "@/lib/shipping/core";
+import { moveShippingMethod } from "@/lib/shipping/order";
 import {
   reorderShippingMethodAction,
   toggleShippingMethod,
@@ -20,11 +40,18 @@ export function ShippingMethodOrderList({
   methods: ShippingMethod[];
 }) {
   const [orderedMethods, setOrderedMethods] = useState(methods);
-  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [state, formAction] = useActionState(
     reorderShippingMethodAction,
     initialState
+  );
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 6 },
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   useEffect(() => {
@@ -35,34 +62,21 @@ export function ShippingMethodOrderList({
     if (state.success) setDirty(false);
   }, [state]);
 
-  function moveDraggedTo(targetId: number) {
-    if (draggedId === null || draggedId === targetId) return;
-    setOrderedMethods((current) => {
-      const sourceIndex = current.findIndex((method) => method.id === draggedId);
-      const originalTargetIndex = current.findIndex(
-        (method) => method.id === targetId
-      );
-      const dragged = current.find((method) => method.id === draggedId);
-      if (!dragged) return current;
-      const withoutDragged = current.filter((method) => method.id !== draggedId);
-      let targetIndex = withoutDragged.findIndex(
-        (method) => method.id === targetId
-      );
-      if (targetIndex < 0) return current;
-      if (sourceIndex < originalTargetIndex) targetIndex += 1;
-      withoutDragged.splice(targetIndex, 0, dragged);
-      return withoutDragged;
-    });
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(Number(event.active.id));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    if (!event.over || event.active.id === event.over.id) return;
+    setOrderedMethods((current) =>
+      moveShippingMethod(current, Number(event.active.id), Number(event.over!.id))
+    );
     setDirty(true);
   }
 
-  function moveFromPointer(clientX: number, clientY: number) {
-    const target = document
-      .elementFromPoint(clientX, clientY)
-      ?.closest<HTMLElement>("[data-shipping-method-id]");
-    const targetId = Number(target?.dataset.shippingMethodId);
-    if (Number.isSafeInteger(targetId)) moveDraggedTo(targetId);
-  }
+  const activeMethod =
+    orderedMethods.find((method) => method.id === activeId) ?? null;
 
   return (
     <form action={formAction} className="space-y-4">
@@ -71,83 +85,29 @@ export function ShippingMethodOrderList({
         name="orderedIds"
         value={JSON.stringify(orderedMethods.map((method) => method.id))}
       />
-      <div className="grid gap-3">
-        {orderedMethods.map((method) => (
-          <article
-            key={method.id}
-            data-shipping-method-id={method.id}
-            onDragEnter={() => moveDraggedTo(method.id)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDraggedId(null);
-            }}
-            className={`grid gap-3 rounded-xl border p-4 transition sm:grid-cols-[auto_1fr_auto] sm:items-center ${
-              draggedId === method.id ? "opacity-60 ring-2 ring-primary/30" : ""
-            }`}
-          >
-            <button
-              type="button"
-              draggable
-              aria-label={`Drag to reorder ${method.name}`}
-              title="Drag to reorder"
-              className="flex size-11 touch-none cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:cursor-grabbing"
-              onDragStart={(event) => {
-                setDraggedId(method.id);
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("text/plain", String(method.id));
-              }}
-              onDragEnd={() => setDraggedId(null)}
-              onPointerDown={(event) => {
-                if (event.pointerType === "mouse") return;
-                setDraggedId(method.id);
-                event.currentTarget.setPointerCapture(event.pointerId);
-              }}
-              onPointerMove={(event) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  moveFromPointer(event.clientX, event.clientY);
-                }
-              }}
-              onPointerUp={(event) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  event.currentTarget.releasePointerCapture(event.pointerId);
-                }
-                setDraggedId(null);
-              }}
-              onPointerCancel={() => setDraggedId(null)}
-            >
-              <GripVertical className="size-5" aria-hidden="true" />
-            </button>
-            <div>
-              <h2 className="font-semibold">{method.name}</h2>
-              <p className="text-sm text-muted-foreground">
-                {method.type.replaceAll("_", " ")} · ₪{method.price} ·{" "}
-                {method.freeShippingThreshold == null
-                  ? "No free threshold"
-                  : `Free from ₪${method.freeShippingThreshold}`}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button asChild variant="outline">
-                <TenantLink href={`/admin/shipping/${method.id}/edit`}>
-                  Edit
-                </TenantLink>
-              </Button>
-              <Button
-                type="submit"
-                formAction={toggleShippingMethod.bind(
-                  null,
-                  method.id,
-                  !method.isActive
-                )}
-                variant={method.isActive ? "secondary" : "default"}
-              >
-                {method.isActive ? "Disable" : "Enable"}
-              </Button>
-            </div>
-          </article>
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragCancel={() => setActiveId(null)}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={orderedMethods.map((method) => method.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="grid gap-3">
+            {orderedMethods.map((method) => (
+              <SortableShippingMethod key={method.id} method={method} />
+            ))}
+          </div>
+        </SortableContext>
+        <DragOverlay>
+          {activeMethod ? (
+            <ShippingMethodSummary method={activeMethod} overlay />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
       <div className="flex flex-wrap items-center gap-3">
         <SaveOrderButton disabled={!dirty} />
         {state.message && (
@@ -162,6 +122,94 @@ export function ShippingMethodOrderList({
         )}
       </div>
     </form>
+  );
+}
+
+function SortableShippingMethod({ method }: { method: ShippingMethod }) {
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: method.id });
+
+  return (
+    <article
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`grid gap-3 rounded-xl border bg-background p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center ${
+        isDragging ? "opacity-30 ring-2 ring-primary/40" : ""
+      }`}
+    >
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        aria-label={`Drag to reorder ${method.name}`}
+        title="Drag to reorder"
+        className="flex size-11 touch-none cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-5" aria-hidden="true" />
+      </button>
+      <ShippingMethodDetails method={method} />
+      <div className="flex gap-2">
+        <Button asChild variant="outline">
+          <TenantLink href={`/admin/shipping/${method.id}/edit`}>
+            Edit
+          </TenantLink>
+        </Button>
+        <Button
+          type="submit"
+          formAction={toggleShippingMethod.bind(
+            null,
+            method.id,
+            !method.isActive
+          )}
+          variant={method.isActive ? "secondary" : "default"}
+        >
+          {method.isActive ? "Disable" : "Enable"}
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+function ShippingMethodSummary({
+  method,
+  overlay = false,
+}: {
+  method: ShippingMethod;
+  overlay?: boolean;
+}) {
+  return (
+    <article
+      className={`grid gap-3 rounded-xl border bg-background p-4 shadow-lg sm:grid-cols-[auto_1fr] sm:items-center ${
+        overlay ? "cursor-grabbing ring-2 ring-primary/40" : ""
+      }`}
+    >
+      <span className="flex size-11 items-center justify-center text-muted-foreground">
+        <GripVertical className="size-5" aria-hidden="true" />
+      </span>
+      <ShippingMethodDetails method={method} />
+    </article>
+  );
+}
+
+function ShippingMethodDetails({ method }: { method: ShippingMethod }) {
+  return (
+    <div>
+      <h2 className="font-semibold">{method.name}</h2>
+      <p className="text-sm text-muted-foreground">
+        {method.type.replaceAll("_", " ")} · ₪{method.price} ·{" "}
+        {method.freeShippingThreshold == null
+          ? "No free threshold"
+          : `Free from ₪${method.freeShippingThreshold}`}
+      </p>
+    </div>
   );
 }
 

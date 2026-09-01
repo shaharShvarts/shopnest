@@ -69,3 +69,20 @@ export async function reorderShippingMethods(
   await store.updateSortOrders(updates);
   return updates;
 }
+
+export function moveShippingMethod<T extends { id: number }>(
+  methods: T[],
+  activeId: number,
+  overId: number
+) {
+  const activeIndex = methods.findIndex((method) => method.id === activeId);
+  const overIndex = methods.findIndex((method) => method.id === overId);
+  if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
+    return methods;
+  }
+
+  const reordered = [...methods];
+  const [activeMethod] = reordered.splice(activeIndex, 1);
+  reordered.splice(overIndex, 0, activeMethod);
+  return reordered;
+}

@@ -12,10 +12,15 @@ import {
 import { buildFulfillmentUpdate } from "../src/lib/shipping/fulfillment.ts";
 import {
   getNextShippingSortOrder,
+  moveShippingMethod,
   reorderShippingMethods,
   ShippingOrderError,
   type ShippingSortUpdate,
 } from "../src/lib/shipping/order.ts";
+import {
+  getCheckoutShippingSelection,
+  getDefaultShippingMethodId,
+} from "../src/lib/shipping/checkout-selection.ts";
 import { createCheckoutOrder, CheckoutError, type CheckoutIdentity, type CheckoutTransaction, type NewCheckoutOrder } from "../src/lib/checkout/create-order.ts";
 
 const delivery: ShippingMethod = { id: 1, name: "Home Delivery", code: "home", type: "home_delivery", isActive: true, price: 30, freeShippingThreshold: 300, sortOrder: 1 };
@@ -176,4 +181,67 @@ test("37 reorder preserves method identity and business fields", async () => {
     methods.map(({ sortOrder: _sortOrder, ...method }) => ({ ...method })),
     before
   );
+});
+
+test("38 drag reorder changes the client-side method ordering", () => {
+  const methods = orderedMethods();
+  const reordered = moveShippingMethod(methods, 3, 1);
+  assert.deepEqual(reordered.map((method) => method.id), [3, 1, 2]);
+  assert.deepEqual(methods.map((method) => method.id), [1, 2, 3]);
+});
+
+test("39 persisted ordering survives a page reload", async () => {
+  const methods = orderedMethods();
+  await reorderShippingMethods(new FakeShippingOrderStore(methods), [2, 3, 1]);
+  const reloadedStore = new FakeShippingOrderStore(structuredClone(methods));
+  assert.deepEqual(await reloadedStore.listMethodIds(), [2, 3, 1]);
+});
+
+test("40 checkout defaults to the first active method and includes its cost", async () => {
+  const quotes = await listAvailableShippingMethods(
+    new MethodStore([
+      { ...pickup, price: 12, sortOrder: 0 },
+      { ...delivery, sortOrder: 1, freeShippingThreshold: null },
+      inactive,
+    ]),
+    250
+  );
+  const selectedId = getDefaultShippingMethodId(quotes);
+  const selection = getCheckoutShippingSelection(quotes, selectedId, 250);
+  assert.deepEqual(quotes.map((method) => method.id), [2, 1]);
+  assert.equal(selectedId, 2);
+  assert.equal(selection.method?.id, 2);
+  assert.equal(selection.shippingTotal, 12);
+  assert.equal(selection.totalPrice, 262);
+  assert.equal(selection.requiresAddress, false);
+  assert.equal(selection.addressHeading, "Contact details");
+});
+
+test("41 switching checkout methods updates total and address requirements", async () => {
+  const quotes = await listAvailableShippingMethods(
+    new MethodStore([
+      { ...pickup, sortOrder: 0 },
+      { ...delivery, sortOrder: 1, freeShippingThreshold: null },
+    ]),
+    250
+  );
+  const pickupSelection = getCheckoutShippingSelection(quotes, 2, 250);
+  const deliverySelection = getCheckoutShippingSelection(quotes, 1, 250);
+  assert.equal(pickupSelection.totalPrice, 250);
+  assert.equal(pickupSelection.requiresAddress, false);
+  assert.equal(deliverySelection.shippingTotal, 30);
+  assert.equal(deliverySelection.totalPrice, 280);
+  assert.equal(deliverySelection.requiresAddress, true);
+  assert.equal(deliverySelection.addressHeading, "Shipping Address");
+});
+
+test("42 checkout with no available methods retains its empty state", () => {
+  assert.equal(getDefaultShippingMethodId([]), null);
+  assert.deepEqual(getCheckoutShippingSelection([], null, 250), {
+    method: null,
+    shippingTotal: 0,
+    totalPrice: 250,
+    requiresAddress: false,
+    addressHeading: "Shipping Address",
+  });
 });

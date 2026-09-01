@@ -361,12 +361,33 @@ test("shipping admin exposes lightweight persisted drag reordering", async () =>
   assert.match(page, /ShippingMethodOrderList/);
   assert.match(page, /orderBy\(asc\(shippingMethods\.sortOrder\)/);
   assert.match(list, /GripVertical/);
-  assert.match(list, /draggable/);
-  assert.match(list, /onPointerMove/);
+  assert.match(list, /DndContext/);
+  assert.match(list, /MouseSensor/);
+  assert.match(list, /TouchSensor/);
+  assert.match(list, /KeyboardSensor/);
+  assert.match(list, /useSortable/);
+  assert.match(list, /DragOverlay/);
+  assert.match(list, /setActivatorNodeRef/);
+  assert.match(list, /moveShippingMethod/);
+  assert.match(list, /setDirty\(true\)/);
+  assert.match(list, /disabled=\{!dirty\}/);
+  assert.doesNotMatch(list, /draggable|onPointerMove|elementFromPoint/);
   assert.match(list, /Save Order/);
   assert.match(actions, /reorderShippingMethods/);
   assert.match(actions, /requireTenantAdminDb\(\)/);
   assert.match(actions, /db\.transaction/);
   assert.match(actions, /revalidateTenantPath\("\/checkout"\)/);
   assert.doesNotMatch(actions, /schema_name|tenantSlug\s*:\s*formData/);
+});
+
+test("checkout visibly defaults to the first persisted shipping method", async () => {
+  const checkout = await readFile(
+    "src/app/(customer)/checkout/_components/CheckoutTable.tsx",
+    "utf8"
+  );
+  assert.match(checkout, /getDefaultShippingMethodId\(shippingMethods\)/);
+  assert.match(checkout, /checked=\{method\.id === selectedMethodId\}/);
+  assert.match(checkout, /formatCurrency\(selection\.shippingTotal\)/);
+  assert.match(checkout, /formatCurrency\(selection\.totalPrice\)/);
+  assert.match(checkout, /requireAddress=\{selection\.requiresAddress\}/);
 });

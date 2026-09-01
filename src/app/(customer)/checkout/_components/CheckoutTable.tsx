@@ -9,6 +9,10 @@ import {
 import ShippingAddress from "./ShippingAddress";
 import { Button } from "@/components/ui/button";
 import type { ShippingQuote } from "@/lib/shipping/core";
+import {
+  getCheckoutShippingSelection,
+  getDefaultShippingMethodId,
+} from "@/lib/shipping/checkout-selection";
 
 const initialState: CheckoutActionState = {
   success: false,
@@ -27,8 +31,14 @@ export default function CheckoutTable({
   shippingMethods: ShippingQuote[];
 }) {
   const [state, formAction] = useActionState(submitCheckout, initialState);
-  const [selectedMethodId, setSelectedMethodId] = useState<number | null>(null);
-  const selectedMethod = shippingMethods.find((method) => method.id === selectedMethodId);
+  const [selectedMethodId, setSelectedMethodId] = useState<number | null>(() =>
+    getDefaultShippingMethodId(shippingMethods)
+  );
+  const selection = getCheckoutShippingSelection(
+    shippingMethods,
+    selectedMethodId,
+    itemsSubtotal
+  );
 
   if (state.success && state.order) {
     return (
@@ -93,19 +103,19 @@ export default function CheckoutTable({
 
       <section className="rounded-lg border p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-semibold sm:text-xl">
-          {selectedMethod?.type === "store_pickup" ? "Contact details" : "Shipping Address"}
+          {selection.addressHeading}
         </h2>
         <ShippingAddress
           prefix="shipping"
           defaultName={customer?.displayName ?? ""}
-          requireAddress={selectedMethod?.type === "home_delivery"}
+          requireAddress={selection.requiresAddress}
         />
       </section>
 
       <section className="space-y-2 rounded-lg border p-4 sm:p-6">
         <div className="flex justify-between"><span>Items subtotal</span><span>{formatCurrency(itemsSubtotal)}</span></div>
-        <div className="flex justify-between"><span>Shipping</span><span>{selectedMethod ? formatCurrency(selectedMethod.shippingPrice) : "—"}</span></div>
-        <div className="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span>{selectedMethod ? formatCurrency(itemsSubtotal + selectedMethod.shippingPrice) : formatCurrency(itemsSubtotal)}</span></div>
+        <div className="flex justify-between"><span>Shipping</span><span>{selection.method ? formatCurrency(selection.shippingTotal) : "—"}</span></div>
+        <div className="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span>{formatCurrency(selection.totalPrice)}</span></div>
       </section>
 
       <section className="space-y-2 rounded-lg border p-4 sm:p-6">
