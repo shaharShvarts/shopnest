@@ -27,7 +27,8 @@
     "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts",
     "storefront-catalog:test": "node --experimental-strip-types --test tests/storefront-catalog.test.mts",
     "customer-auth:test": "node --experimental-strip-types --test tests/customer-auth.test.mts",
-    "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts"
+    "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts",
+    "cli-env:test": "node --test tests/cli-env.test.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

@@ -44,21 +44,24 @@ Provision a configured tenant with the safe CLI:
 npm run tenant:create -- panda-pop
 ```
 
-The command reads `DATABASE_URL` from the environment. For compatibility with
-the existing application configuration, `DB_USER`, `DB_PASSWORD`, `DB_HOST`,
-`DB_PORT`, and `DB_NAME` may be supplied instead. Credentials are never stored
-in the command or repository.
+The command automatically loads the private root `.env` and reads
+`DATABASE_URL`. For compatibility with the existing application configuration,
+`DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, and `DB_NAME` may be supplied
+instead. Existing variables supplied by the shell, CI, Docker, Vercel, or a
+production secret manager take precedence over `.env`. Credentials are never
+printed or stored in the command or repository, and `.env` remains uncommitted.
 
 ### Local usage
 
-Set the database connection in your shell, then run the command:
+Add the database connection to the repository-root `.env`, then run the normal
+npm command without `--env-file`:
 
 ```bash
-export DATABASE_URL="postgresql://..."
 npm run tenant:create -- panda-pop
 ```
 
-In PowerShell:
+Supplying the connection through the shell remains supported and overrides the
+local `.env`. For example, in PowerShell:
 
 ```powershell
 $env:DATABASE_URL = "postgresql://..."

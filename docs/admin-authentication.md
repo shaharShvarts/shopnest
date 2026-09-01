@@ -87,8 +87,9 @@ response. Suspension management UI is future work.
 
 ## Bootstrap and access management
 
-Set `DATABASE_URL` (or the existing `DB_*` variables), apply control-plane
-migrations, and create the first super admin:
+For local development, put `DATABASE_URL` (or the existing `DB_*` variables)
+in the private, uncommitted root `.env`, apply control-plane migrations, and
+create the first super admin:
 
 ```bash
 npm run control-plane:migrate
@@ -99,6 +100,12 @@ The command prompts without echoing the password. In a non-interactive secure
 deployment environment, inject `ADMIN_BOOTSTRAP_PASSWORD` for that process
 only. The password must be at least 12 characters. The command prints neither
 the password nor its hash and revokes previous sessions when updating a user.
+
+ShopNest CLI entry points automatically load the project-root `.env`, even
+when invoked from another working directory. Variables already supplied by
+the shell, CI, Docker, Vercel, or a production secret manager always take
+precedence and are never overwritten by `.env`. The loader prints no values;
+keep `.env` private and uncommitted.
 
 Create or update a tenant admin and assign one or more tenants:
 
