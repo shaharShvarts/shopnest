@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import {
   getCategoryCatalog,
@@ -194,12 +195,13 @@ test("Drizzle catalog store enforces hierarchy and storefront visibility", async
 
 test("subcategory route is tenant-aware, validates both IDs, and returns 404", async () => {
   const page = await readFile(
-    "src/app/(customer)/categories/[categoryId]/subcategories/[subcategoryId]/page.tsx",
+    "src/app/(customer)/categories/[id]/subcategories/[subcategoryId]/page.tsx",
     "utf8"
   );
   assert.match(page, /const tenant = await getTenant\(\)/);
   assert.match(page, /getDbForTenant\(tenant\)/);
-  assert.match(page, /getSubcategoryCatalog[\s\S]*Number\(categoryId\)[\s\S]*Number\(subcategoryId\)/);
+  assert.match(page, /params: Promise<\{ id: string; subcategoryId: string \}>/);
+  assert.match(page, /getSubcategoryCatalog[\s\S]*Number\(id\)[\s\S]*Number\(subcategoryId\)/);
   assert.match(page, /if \(!catalog\) notFound\(\)/);
   assert.match(page, /`\/categories\/\$\{category\.id\}\/products`/);
 });
@@ -207,7 +209,7 @@ test("subcategory route is tenant-aware, validates both IDs, and returns 404", a
 test("breadcrumbs and navigation use category, subcategory, and product paths", async () => {
   const [subcategoryPage, productPage, subcategoryCard] = await Promise.all([
     readFile(
-      "src/app/(customer)/categories/[categoryId]/subcategories/[subcategoryId]/page.tsx",
+      "src/app/(customer)/categories/[id]/subcategories/[subcategoryId]/page.tsx",
       "utf8"
     ),
     readFile("src/app/(customer)/products/[id]/details/page.tsx", "utf8"),
@@ -223,6 +225,40 @@ test("breadcrumbs and navigation use category, subcategory, and product paths", 
   );
   assert.match(subcategoryPage, /label: category\.name/);
   assert.match(subcategoryPage, /label: subcategory\.name/);
+});
+
+test("App Router siblings use one dynamic slug name per URL level", async () => {
+  const dynamicNamesByUrlLevel = new Map<string, Set<string>>();
+
+  async function visit(directory: string, urlSegments: string[] = []) {
+    const entries = await readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const isRouteGroup = /^\(.+\)$/.test(entry.name);
+      const nextUrlSegments = isRouteGroup
+        ? urlSegments
+        : [...urlSegments, entry.name];
+      const dynamicMatch = entry.name.match(/^\[\[?\.\.\.([^\]]+)\]\]?$/) ??
+        entry.name.match(/^\[([^\]]+)\]$/);
+
+      if (dynamicMatch) {
+        const parentUrl = `/${urlSegments.join("/")}`;
+        const names = dynamicNamesByUrlLevel.get(parentUrl) ?? new Set<string>();
+        names.add(dynamicMatch[1]);
+        dynamicNamesByUrlLevel.set(parentUrl, names);
+      }
+
+      await visit(path.join(directory, entry.name), nextUrlSegments);
+    }
+  }
+
+  await visit("src/app");
+
+  const conflicts = [...dynamicNamesByUrlLevel.entries()]
+    .filter(([, names]) => names.size > 1)
+    .map(([url, names]) => `${url}: ${[...names].sort().join(", ")}`);
+  assert.deepEqual(conflicts, []);
 });
 
 test("redesigned ProductCard preserves stock policy, cart reservations, and search reuse", async () => {

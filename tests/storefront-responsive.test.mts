@@ -42,7 +42,7 @@ test("storefront navigation targets only implemented customer routes", async () 
     read("src/app/(customer)/components/CartTable.tsx"),
     read("src/app/(customer)/categories/[id]/products/page.tsx"),
     read("src/app/(customer)/products/[id]/details/page.tsx"),
-    read("src/app/(customer)/categories/[categoryId]/subcategories/[subcategoryId]/page.tsx"),
+    read("src/app/(customer)/categories/[id]/subcategories/[subcategoryId]/page.tsx"),
     read("src/app/components/CategoryCard.tsx"),
     read("src/app/components/SubcategoryCard.tsx"),
     read("src/app/components/ProductCard.tsx"),

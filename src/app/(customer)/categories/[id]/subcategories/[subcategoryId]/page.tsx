@@ -11,13 +11,13 @@ import { DrizzleStorefrontCatalogStore } from "@/lib/storefront-catalog/drizzle-
 import { getTenant } from "@/lib/tenant-context";
 
 type SubcategoryPageProps = {
-  params: Promise<{ categoryId: string; subcategoryId: string }>;
+  params: Promise<{ id: string; subcategoryId: string }>;
 };
 
 export default async function SubcategoryPage({
   params,
 }: SubcategoryPageProps) {
-  const { categoryId, subcategoryId } = await params;
+  const { id, subcategoryId } = await params;
   const tenant = await getTenant();
   if (!tenant) notFound();
 
@@ -25,7 +25,7 @@ export default async function SubcategoryPage({
   const catalog = await getSubcategoryCatalog(
     new DrizzleStorefrontCatalogStore(db),
     new InventoryService(new DrizzleInventoryStore(db)),
-    Number(categoryId),
+    Number(id),
     Number(subcategoryId)
   );
   if (!catalog) notFound();
