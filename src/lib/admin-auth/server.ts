@@ -157,4 +157,3 @@ function tenantAdminResult(
     principal: access.principal,
   };
 }
-
