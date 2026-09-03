@@ -19,6 +19,7 @@ import {
   resolveGlobalAdminPageAccess,
   resolveTenantAdminPageAccess,
 } from "../src/lib/admin-auth/navigation.ts";
+import { shouldUseSecureAdminCookie } from "../src/lib/admin-auth/cookie.ts";
 import { hashAdminPassword } from "../src/lib/admin-auth/password.mjs";
 import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 import { provisionAdminAccount } from "../scripts/lib/admin-account-provisioning.mjs";
@@ -156,6 +157,41 @@ test("global admin pages redirect missing sessions without weakening role checks
   );
 });
 
+test("admin session cookies follow the actual request protocol", () => {
+  assert.equal(
+    shouldUseSecureAdminCookie({
+      origin: "http://192.168.0.184:3000",
+      forwardedProto: null,
+      nodeEnv: "production",
+    }),
+    false
+  );
+  assert.equal(
+    shouldUseSecureAdminCookie({
+      origin: "https://shop.example.com",
+      forwardedProto: "https",
+      nodeEnv: "production",
+    }),
+    true
+  );
+  assert.equal(
+    shouldUseSecureAdminCookie({
+      origin: null,
+      forwardedProto: "https, http",
+      nodeEnv: "production",
+    }),
+    true
+  );
+  assert.equal(
+    shouldUseSecureAdminCookie({
+      origin: null,
+      forwardedProto: null,
+      nodeEnv: "production",
+    }),
+    true
+  );
+});
+
 test("admin page, action, and API boundaries use their intended auth behavior", async () => {
   const [
     server,
@@ -165,6 +201,7 @@ test("admin page, action, and API boundaries use their intended auth behavior", 
     shippingPage,
     categoriesPage,
     shippingActions,
+    authActions,
     subcategoriesApi,
   ] = await Promise.all([
     readFile("src/lib/admin-auth/server.ts", "utf8"),
@@ -174,6 +211,7 @@ test("admin page, action, and API boundaries use their intended auth behavior", 
     readFile("src/app/admin/shipping/page.tsx", "utf8"),
     readFile("src/app/admin/categories/page.tsx", "utf8"),
     readFile("src/app/admin/_actions/shipping.ts", "utf8"),
+    readFile("src/app/admin/_actions/auth.ts", "utf8"),
     readFile("src/app/api/subcategories/route.ts", "utf8"),
   ]);
 
@@ -187,6 +225,12 @@ test("admin page, action, and API boundaries use their intended auth behavior", 
   for (const protectedSource of [shippingPage, categoriesPage, shippingActions]) {
     assert.match(protectedSource, /requireTenantAdminDb/);
   }
+
+  assert.match(authActions, /shouldUseSecureAdminCookie/);
+  assert.doesNotMatch(
+    authActions,
+    /secure:\s*process\.env\.NODE_ENV\s*===\s*["']production["']/
+  );
 
   assert.match(subcategoriesApi, /requireTenantAdminApiDb/);
   assert.match(subcategoriesApi, /NextResponse\.json/);
