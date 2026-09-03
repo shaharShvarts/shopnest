@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { controlPlaneDb } from "@/drizzle/db";
 import { adminUserTenants } from "@/drizzle/control-plane-schema";
@@ -18,6 +18,7 @@ import {
   getAdminAuthRepository,
   getControlTenant,
 } from "@/lib/admin-auth/server";
+import { shouldUseSecureAdminCookie } from "@/lib/admin-auth/cookie";
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -102,9 +103,14 @@ export async function logoutCurrentAdmin() {
 }
 
 async function setAdminSessionCookie(session: { token: string; expiresAt: Date }) {
+  const requestHeaders = await headers();
   (await cookies()).set(ADMIN_SESSION_COOKIE, session.token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureAdminCookie({
+      origin: requestHeaders.get("origin"),
+      forwardedProto: requestHeaders.get("x-forwarded-proto"),
+      nodeEnv: process.env.NODE_ENV,
+    }),
     sameSite: "lax",
     path: "/",
     expires: session.expiresAt,
