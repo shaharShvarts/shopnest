@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   ADMIN_SESSION_TTL_MS,
@@ -14,7 +15,12 @@ import {
   type StoredAdminSession,
   type TenantControlRecord,
 } from "../src/lib/admin-auth/core.ts";
+import {
+  resolveGlobalAdminPageAccess,
+  resolveTenantAdminPageAccess,
+} from "../src/lib/admin-auth/navigation.ts";
 import { hashAdminPassword } from "../src/lib/admin-auth/password.mjs";
+import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 import { provisionAdminAccount } from "../scripts/lib/admin-account-provisioning.mjs";
 
 const validPassword = "correct horse battery staple";
@@ -26,6 +32,7 @@ const pandaTenant: TenantControlRecord = {
   displayName: "Panda Pop",
   status: "active",
 };
+const pandaRouteTenant = resolveConfiguredTenant("panda-pop")!;
 
 test("valid admin login succeeds and invalid password is rejected", async () => {
   const repository = new FakeAdminRepository([tenantAdmin()]);
@@ -68,6 +75,123 @@ test("session expiration and disabled users invalidate existing sessions", async
   const nextSession = await createAdminSession(repository, 1, now);
   repository.users.get(1)!.isActive = false;
   assert.equal(await resolveAdminSession(repository, nextSession.token, now), null);
+});
+
+test("missing and expired tenant admin sessions redirect to the tenant login", async () => {
+  const missingOutcome = resolveTenantAdminPageAccess({
+    decision: "unauthenticated",
+    principal: null,
+    tenant: pandaRouteTenant,
+    controlTenant: pandaTenant,
+  });
+  assert.deepEqual(missingOutcome, {
+    kind: "redirect",
+    location: "/panda-pop/admin/login",
+  });
+
+  const repository = new FakeAdminRepository([tenantAdmin()]);
+  const now = new Date("2026-01-01T00:00:00Z");
+  const session = await createAdminSession(repository, 1, now);
+  const expiredPrincipal = await resolveAdminSession(
+    repository,
+    session.token,
+    new Date(now.getTime() + ADMIN_SESSION_TTL_MS + 1)
+  );
+  assert.equal(expiredPrincipal, null);
+  assert.deepEqual(
+    resolveTenantAdminPageAccess({
+      decision: "unauthenticated",
+      principal: expiredPrincipal,
+      tenant: pandaRouteTenant,
+      controlTenant: pandaTenant,
+    }),
+    { kind: "redirect", location: "/panda-pop/admin/login" }
+  );
+});
+
+test("authenticated tenant admins load assigned tenants and forbidden stays forbidden", () => {
+  const principal = tenantPrincipal();
+  assert.deepEqual(
+    resolveTenantAdminPageAccess({
+      decision: authorizeTenantAdmin(principal, pandaTenant),
+      principal,
+      tenant: pandaRouteTenant,
+      controlTenant: pandaTenant,
+    }),
+    { kind: "allowed" }
+  );
+
+  const giftControlTenant = {
+    ...pandaTenant,
+    slug: "gift-shop",
+    schemaName: "gift_shop",
+  };
+  const giftRouteTenant = resolveConfiguredTenant("gift-shop")!;
+  assert.deepEqual(
+    resolveTenantAdminPageAccess({
+      decision: authorizeTenantAdmin(principal, giftControlTenant),
+      principal,
+      tenant: giftRouteTenant,
+      controlTenant: giftControlTenant,
+    }),
+    { kind: "forbidden" }
+  );
+});
+
+test("global admin pages redirect missing sessions without weakening role checks", () => {
+  assert.deepEqual(resolveGlobalAdminPageAccess(null), {
+    kind: "redirect",
+    location: "/shopnest/admin/login",
+  });
+  assert.deepEqual(resolveGlobalAdminPageAccess(tenantPrincipal()), {
+    kind: "forbidden",
+  });
+  assert.deepEqual(
+    resolveGlobalAdminPageAccess({
+      ...tenantPrincipal(),
+      role: "super_admin",
+      tenantSlugs: [],
+    }),
+    { kind: "allowed" }
+  );
+});
+
+test("admin page, action, and API boundaries use their intended auth behavior", async () => {
+  const [
+    server,
+    tenantLayout,
+    globalLayout,
+    globalPage,
+    shippingPage,
+    categoriesPage,
+    shippingActions,
+    subcategoriesApi,
+  ] = await Promise.all([
+    readFile("src/lib/admin-auth/server.ts", "utf8"),
+    readFile("src/app/admin/layout.tsx", "utf8"),
+    readFile("src/app/shopnest/admin/layout.tsx", "utf8"),
+    readFile("src/app/shopnest/admin/page.tsx", "utf8"),
+    readFile("src/app/admin/shipping/page.tsx", "utf8"),
+    readFile("src/app/admin/categories/page.tsx", "utf8"),
+    readFile("src/app/admin/_actions/shipping.ts", "utf8"),
+    readFile("src/app/api/subcategories/route.ts", "utf8"),
+  ]);
+
+  assert.match(server, /resolveTenantAdminPageAccess/);
+  assert.match(server, /outcome\.kind === "redirect"\) redirect/);
+  assert.match(server, /export async function requireTenantAdminApiDb/);
+  assert.match(tenantLayout, /await requireTenantAdmin\(\)/);
+  assert.match(globalLayout, /await requireSuperAdminPage\(\)/);
+  assert.match(globalPage, /await requireSuperAdminPage\(\)/);
+
+  for (const protectedSource of [shippingPage, categoriesPage, shippingActions]) {
+    assert.match(protectedSource, /requireTenantAdminDb/);
+  }
+
+  assert.match(subcategoriesApi, /requireTenantAdminApiDb/);
+  assert.match(subcategoriesApi, /NextResponse\.json/);
+  assert.match(subcategoriesApi, /status: error\.status/);
+  assert.doesNotMatch(subcategoriesApi, /redirect\(|admin\/login/);
 });
 
 test("logout invalidates the current server-side session", async () => {
@@ -330,3 +454,4 @@ async function provision(
     tenantSlugs,
   });
 }
+
