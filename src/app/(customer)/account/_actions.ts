@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDbForTenant } from "@/drizzle/db";
@@ -9,8 +9,15 @@ import {
   createCustomerSession,
   CUSTOMER_PASSWORD_MIN_LENGTH,
   registerCustomer,
+  requestCustomerPasswordReset,
+  resetCustomerPassword,
   resolveSafeTenantCallback,
 } from "@/lib/customer-auth/core";
+import {
+  getCustomerSessionCookieOptions,
+  resolveCustomerRequestOrigin,
+} from "@/lib/customer-auth/cookie";
+import { createPasswordResetDelivery } from "@/lib/customer-auth/password-reset-delivery";
 import {
   CUSTOMER_SESSION_COOKIE,
   getCustomerAuthRepository,
@@ -23,6 +30,10 @@ import { getTenant } from "@/lib/tenant-context";
 const loginSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
+  rememberMe: z.preprocess(
+    (value) => value === "true" || value === "on",
+    z.boolean()
+  ),
   callback: z.string().optional(),
 });
 
@@ -38,6 +49,22 @@ const registerSchema = z
     path: ["passwordConfirmation"],
     message: "Passwords do not match",
   });
+
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().email().max(320),
+});
+
+const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1).max(512),
+    password: z.string().min(CUSTOMER_PASSWORD_MIN_LENGTH).max(256),
+    passwordConfirmation: z.string(),
+  })
+  .refine((value) => value.password === value.passwordConfirmation, {
+    path: ["passwordConfirmation"],
+  });
+
+const passwordResetDelivery = createPasswordResetDelivery();
 
 export type CustomerAuthActionState = {
   success: false;
@@ -95,8 +122,10 @@ export async function loginCustomerAction(
   await logoutCustomerToken(
     cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value
   );
-  const session = await createCustomerSession(repository, customer.id);
-  setCustomerSessionCookie(cookieStore, session);
+  const session = await createCustomerSession(repository, customer.id, {
+    rememberMe: parsed.data.rememberMe,
+  });
+  await setCustomerSessionCookie(cookieStore, session);
   redirect(
     linkResult.adjustments.length > 0
       ? `${tenant.basePath}/carts?merge=adjusted`
@@ -159,7 +188,7 @@ export async function registerCustomerAction(
     cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value
   );
   const session = await createCustomerSession(repository, customer.id);
-  setCustomerSessionCookie(cookieStore, session);
+  await setCustomerSessionCookie(cookieStore, session);
   redirect(
     linkResult.adjustments.length > 0
       ? `${tenant.basePath}/carts?merge=adjusted`
@@ -175,15 +204,99 @@ export async function logoutCustomerAction() {
   redirect(tenant?.basePath || "/");
 }
 
-function setCustomerSessionCookie(
-  cookieStore: Awaited<ReturnType<typeof cookies>>,
-  session: { token: string; expiresAt: Date }
-) {
-  cookieStore.set(CUSTOMER_SESSION_COOKIE, session.token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: session.expiresAt,
+export type ForgotPasswordActionState = {
+  submitted: boolean;
+  message?: "invalidEmail";
+};
+
+export async function forgotCustomerPasswordAction(
+  _state: ForgotPasswordActionState,
+  formData: FormData
+): Promise<ForgotPasswordActionState> {
+  const parsed = forgotPasswordSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { submitted: false, message: "invalidEmail" };
+
+  const tenant = await getTenant();
+  if (!tenant) return { submitted: true };
+  const requestHeaders = await headers();
+  let origin: string;
+  try {
+    origin = resolveCustomerRequestOrigin({
+      origin: requestHeaders.get("origin"),
+      forwardedProto: requestHeaders.get("x-forwarded-proto"),
+      forwardedHost: requestHeaders.get("x-forwarded-host"),
+      host: requestHeaders.get("host"),
+      nodeEnv: process.env.NODE_ENV,
+    });
+  } catch {
+    return { submitted: true };
+  }
+
+  await requestCustomerPasswordReset(
+    getCustomerAuthRepository(),
+    passwordResetDelivery,
+    {
+      email: parsed.data.email,
+      buildResetUrl: (token) =>
+        new URL(
+          `${tenant.basePath}/reset-password?token=${encodeURIComponent(token)}`,
+          origin
+        ).toString(),
+    }
+  );
+  return { submitted: true };
+}
+
+export type ResetPasswordActionState = {
+  success: false;
+  message?:
+    | "invalidResetLink"
+    | "passwordMismatch"
+    | "invalidNewPassword";
+};
+
+export async function resetCustomerPasswordAction(
+  _state: ResetPasswordActionState,
+  formData: FormData
+): Promise<ResetPasswordActionState> {
+  const data = Object.fromEntries(formData);
+  const parsed = resetPasswordSchema.safeParse(data);
+  if (!parsed.success) {
+    const mismatch =
+      typeof data.password === "string" &&
+      typeof data.passwordConfirmation === "string" &&
+      data.password !== data.passwordConfirmation;
+    return {
+      success: false,
+      message: mismatch ? "passwordMismatch" : "invalidNewPassword",
+    };
+  }
+
+  const tenant = await getTenant();
+  if (!tenant) return { success: false, message: "invalidResetLink" };
+  const reset = await resetCustomerPassword(getCustomerAuthRepository(), {
+    token: parsed.data.token,
+    password: parsed.data.password,
   });
+  if (!reset) return { success: false, message: "invalidResetLink" };
+
+  const cookieStore = await cookies();
+  cookieStore.delete(CUSTOMER_SESSION_COOKIE);
+  redirect(`${tenant.basePath}/account/login?reset=success`);
+}
+
+async function setCustomerSessionCookie(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  session: { token: string; expiresAt: Date; maxAgeSeconds: number }
+) {
+  const requestHeaders = await headers();
+  cookieStore.set(
+    CUSTOMER_SESSION_COOKIE,
+    session.token,
+    getCustomerSessionCookieOptions(session, {
+      origin: requestHeaders.get("origin"),
+      forwardedProto: requestHeaders.get("x-forwarded-proto"),
+      nodeEnv: process.env.NODE_ENV,
+    })
+  );
 }

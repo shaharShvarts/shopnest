@@ -11,6 +11,7 @@ services:
       DB_HOST: db
       DB_NAME: shopnest
       SHOPNEST_UPLOADS_DIR: /app/uploads
+      SHOPNEST_PASSWORD_RESET_DEV_CAPTURE: ${SHOPNEST_PASSWORD_RESET_DEV_CAPTURE:-}
     depends_on:
       - db
     volumes:

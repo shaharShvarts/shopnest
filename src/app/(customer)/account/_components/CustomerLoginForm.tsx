@@ -28,6 +28,24 @@ export function CustomerLoginForm({ callback }: { callback: string }) {
         <Label htmlFor="customer-password">{t("password")}</Label>
         <Input id="customer-password" name="password" type="password" autoComplete="current-password" required />
       </div>
+      <div className="flex items-center justify-between gap-4">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <input
+            id="customer-remember-me"
+            name="rememberMe"
+            type="checkbox"
+            value="true"
+            className="size-4 rounded border-input accent-primary"
+          />
+          <span>{t("rememberMe")}</span>
+        </label>
+        <TenantLink
+          href="/forgot-password"
+          className="text-sm font-medium text-foreground underline underline-offset-4"
+        >
+          {t("forgotPassword")}
+        </TenantLink>
+      </div>
       {state.message && <p role="alert" className="text-sm text-destructive">{t(state.message)}</p>}
       <SubmitButton label={t("signIn")} pendingLabel={t("signingIn")} />
       <TenantLink href={callback} className="block min-h-11 rounded-lg px-3 py-2 text-center text-sm font-medium text-muted-foreground hover:bg-muted">

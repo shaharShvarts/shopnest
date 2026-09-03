@@ -2,20 +2,41 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
+  CUSTOMER_NORMAL_SESSION_TTL_MS,
+  CUSTOMER_PASSWORD_RESET_COOLDOWN_MS,
+  CUSTOMER_PASSWORD_RESET_TTL_MS,
+  CUSTOMER_REMEMBERED_SESSION_TTL_MS,
   CUSTOMER_SESSION_TTL_MS,
   authenticateCustomer,
   createCustomerSession,
+  generateCustomerPasswordResetToken,
   getCustomerSocialProviderStatus,
+  hashCustomerPasswordResetToken,
+  hashCustomerSessionToken,
   logoutCustomer,
   normalizeCustomerEmail,
   registerCustomer,
+  requestCustomerPasswordReset,
+  resetCustomerPassword,
   resolveCustomerSession,
   resolveSafeTenantCallback,
   type CustomerAuthRepository,
   type CustomerRecord,
   type StoredCustomerSession,
 } from "../src/lib/customer-auth/core.ts";
-import { hashCustomerPassword } from "../src/lib/customer-auth/password.mjs";
+import {
+  hashCustomerPassword,
+  verifyCustomerPassword,
+} from "../src/lib/customer-auth/password.mjs";
+import {
+  getCustomerSessionCookieOptions,
+  shouldUseSecureCustomerCookie,
+} from "../src/lib/customer-auth/cookie.ts";
+import {
+  createPasswordResetDelivery,
+  DevelopmentPasswordResetDelivery,
+  UnconfiguredPasswordResetDelivery,
+} from "../src/lib/customer-auth/password-reset-delivery.ts";
 import {
   linkGuestCartToCustomer,
   mergeCartQuantities,
@@ -100,6 +121,77 @@ test("customer session stores only a hash of the opaque browser token", async ()
   assert.match([...repository.sessions.keys()][0], /^[a-f0-9]{64}$/);
 });
 
+test("normal and remembered sessions use the server-owned 24 hour and 30 day policies", async () => {
+  const repository = await repositoryWithCustomer();
+  const now = new Date("2026-01-01T00:00:00Z");
+  const normal = await createCustomerSession(repository, 1, { now });
+  const remembered = await createCustomerSession(repository, 1, {
+    now,
+    rememberMe: true,
+  });
+  assert.equal(
+    normal.expiresAt.getTime() - now.getTime(),
+    CUSTOMER_NORMAL_SESSION_TTL_MS
+  );
+  assert.equal(normal.maxAgeSeconds, CUSTOMER_NORMAL_SESSION_TTL_MS / 1000);
+  assert.equal(
+    remembered.expiresAt.getTime() - now.getTime(),
+    CUSTOMER_REMEMBERED_SESSION_TTL_MS
+  );
+  assert.equal(
+    remembered.maxAgeSeconds,
+    CUSTOMER_REMEMBERED_SESSION_TTL_MS / 1000
+  );
+  assert.ok(await resolveCustomerSession(repository, normal.token, now));
+  assert.ok(await resolveCustomerSession(repository, remembered.token, now));
+});
+
+test("arbitrary client expiry input cannot override the remembered-session policy", async () => {
+  const repository = await repositoryWithCustomer();
+  const now = new Date("2026-01-01T00:00:00Z");
+  const session = await createCustomerSession(repository, 1, {
+    rememberMe: true,
+    now,
+    expiresAt: new Date("2099-01-01T00:00:00Z"),
+  } as { rememberMe: boolean; now: Date });
+  assert.equal(
+    session.expiresAt.getTime() - now.getTime(),
+    CUSTOMER_REMEMBERED_SESSION_TTL_MS
+  );
+  const actions = await readFile("src/app/(customer)/account/_actions.ts", "utf8");
+  assert.doesNotMatch(actions, /formData[^\n]*(expiry|duration|maxAge)/i);
+});
+
+test("cookie expiry matches DB policy and Secure follows the actual request protocol", async () => {
+  const repository = await repositoryWithCustomer();
+  const now = new Date("2026-01-01T00:00:00Z");
+  const session = await createCustomerSession(repository, 1, {
+    rememberMe: true,
+    now,
+  });
+  const options = getCustomerSessionCookieOptions(session, {
+    origin: "http://localhost:3000",
+    forwardedProto: null,
+    nodeEnv: "production",
+  });
+  assert.equal(options.expires, session.expiresAt);
+  assert.equal(
+    options.expires.getTime() - now.getTime(),
+    CUSTOMER_REMEMBERED_SESSION_TTL_MS
+  );
+  assert.equal(options.httpOnly, true);
+  assert.equal(options.sameSite, "lax");
+  assert.equal(options.secure, false);
+  assert.equal(
+    shouldUseSecureCustomerCookie({
+      origin: "https://shop.example",
+      forwardedProto: null,
+      nodeEnv: "development",
+    }),
+    true
+  );
+});
+
 test("successful authentication rotates any existing customer session token", async () => {
   const actions = await readFile(
     "src/app/(customer)/account/_actions.ts",
@@ -114,7 +206,7 @@ test("successful authentication rotates any existing customer session token", as
 test("expired customer session is rejected and removed", async () => {
   const repository = await repositoryWithCustomer();
   const now = new Date("2026-01-01T00:00:00Z");
-  const session = await createCustomerSession(repository, 1, now);
+  const session = await createCustomerSession(repository, 1, { now });
   assert.equal(
     await resolveCustomerSession(
       repository,
@@ -124,6 +216,55 @@ test("expired customer session is rejected and removed", async () => {
     null
   );
   assert.equal(repository.sessions.size, 0);
+});
+
+test("normal and remembered sessions are rejected at their respective expiries", async () => {
+  const repository = await repositoryWithCustomer();
+  const now = new Date("2026-01-01T00:00:00Z");
+  const normal = await createCustomerSession(repository, 1, { now });
+  const remembered = await createCustomerSession(repository, 1, {
+    now,
+    rememberMe: true,
+  });
+  assert.equal(
+    await resolveCustomerSession(
+      repository,
+      normal.token,
+      new Date(now.getTime() + CUSTOMER_NORMAL_SESSION_TTL_MS + 1)
+    ),
+    null
+  );
+  assert.equal(
+    await resolveCustomerSession(
+      repository,
+      remembered.token,
+      new Date(now.getTime() + CUSTOMER_REMEMBERED_SESSION_TTL_MS + 1)
+    ),
+    null
+  );
+});
+
+test("existing seven-day sessions remain valid until their stored server expiry", async () => {
+  const repository = await repositoryWithCustomer();
+  const token = "legacy-seven-day-session";
+  const now = new Date("2026-01-01T00:00:00Z");
+  repository.sessions.set(hashCustomerSessionToken(token), {
+    tokenHash: hashCustomerSessionToken(token),
+    expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+    customer: {
+      id: 1,
+      email: "customer@example.com",
+      displayName: "Customer",
+      status: "active",
+    },
+  });
+  assert.ok(
+    await resolveCustomerSession(
+      repository,
+      token,
+      new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)
+    )
+  );
 });
 
 test("customer and admin authentication use separate cookies, repositories, and routes", async () => {
@@ -254,6 +395,329 @@ test("unimplemented Google and Apple providers are disabled honestly", () => {
   });
 });
 
+test("forgot password returns the same neutral result for existing, missing, and disabled customers", async () => {
+  const knownRepository = await repositoryWithCustomer();
+  const missingRepository = await repositoryWithCustomer();
+  const disabledRepository = await repositoryWithCustomer();
+  disabledRepository.users.get(1)!.status = "disabled";
+  const now = new Date("2026-01-01T00:00:00Z");
+  const knownDelivery = new CapturingResetDelivery();
+  const missingDelivery = new CapturingResetDelivery();
+  const disabledDelivery = new CapturingResetDelivery();
+
+  const known = await requestCustomerPasswordReset(
+    knownRepository,
+    knownDelivery,
+    resetRequest("customer@example.com", now)
+  );
+  const missing = await requestCustomerPasswordReset(
+    missingRepository,
+    missingDelivery,
+    resetRequest("missing@example.com", now)
+  );
+  const disabled = await requestCustomerPasswordReset(
+    disabledRepository,
+    disabledDelivery,
+    resetRequest("customer@example.com", now)
+  );
+
+  assert.deepEqual(known, { accepted: true });
+  assert.deepEqual(missing, known);
+  assert.deepEqual(disabled, known);
+  assert.equal(knownDelivery.messages.length, 1);
+  assert.equal(missingDelivery.messages.length, 0);
+  assert.equal(disabledDelivery.messages.length, 0);
+});
+
+test("reset tokens use 256 bits of randomness and only their SHA-256 hash is stored", async () => {
+  const generated = generateCustomerPasswordResetToken();
+  assert.equal(Buffer.from(generated, "base64url").byteLength, 32);
+  assert.match(hashCustomerPasswordResetToken(generated), /^[a-f0-9]{64}$/);
+
+  const repository = await repositoryWithCustomer();
+  const delivery = new CapturingResetDelivery();
+  await requestCustomerPasswordReset(
+    repository,
+    delivery,
+    resetRequest("customer@example.com", new Date("2026-01-01T00:00:00Z"))
+  );
+  const rawToken = tokenFromDelivery(delivery);
+  assert.equal(repository.resetTokens.has(rawToken), false);
+  assert.equal(
+    repository.resetTokens.has(hashCustomerPasswordResetToken(rawToken)),
+    true
+  );
+});
+
+test("invalid, expired, and already-used reset tokens are rejected", async () => {
+  const repository = await repositoryWithCustomer();
+  const now = new Date("2026-01-01T00:00:00Z");
+  assert.equal(
+    await resetCustomerPassword(repository, {
+      token: "invalid",
+      password: "new correct horse battery staple",
+      now,
+    }),
+    false
+  );
+
+  const delivery = new CapturingResetDelivery();
+  await requestCustomerPasswordReset(
+    repository,
+    delivery,
+    resetRequest("customer@example.com", now)
+  );
+  const token = tokenFromDelivery(delivery);
+  assert.equal(
+    await resetCustomerPassword(repository, {
+      token,
+      password: "new correct horse battery staple",
+      now: new Date(now.getTime() + CUSTOMER_PASSWORD_RESET_TTL_MS + 1),
+    }),
+    false
+  );
+
+  const secondNow = new Date(
+    now.getTime() + CUSTOMER_PASSWORD_RESET_TTL_MS +
+      CUSTOMER_PASSWORD_RESET_COOLDOWN_MS + 1
+  );
+  const secondDelivery = new CapturingResetDelivery();
+  await requestCustomerPasswordReset(
+    repository,
+    secondDelivery,
+    resetRequest("customer@example.com", secondNow)
+  );
+  const secondToken = tokenFromDelivery(secondDelivery);
+  assert.equal(
+    await resetCustomerPassword(repository, {
+      token: secondToken,
+      password: "new correct horse battery staple",
+      now: secondNow,
+    }),
+    true
+  );
+  assert.equal(
+    await resetCustomerPassword(repository, {
+      token: secondToken,
+      password: "another correct horse battery staple",
+      now: secondNow,
+    }),
+    false
+  );
+});
+
+test("concurrent reuse can consume a reset token only once", async () => {
+  const repository = await repositoryWithCustomer();
+  const delivery = new CapturingResetDelivery();
+  const now = new Date("2026-01-01T00:00:00Z");
+  await requestCustomerPasswordReset(
+    repository,
+    delivery,
+    resetRequest("customer@example.com", now)
+  );
+  const token = tokenFromDelivery(delivery);
+  const results = await Promise.all([
+    resetCustomerPassword(repository, {
+      token,
+      password: "first valid replacement password",
+      now,
+    }),
+    resetCustomerPassword(repository, {
+      token,
+      password: "second valid replacement password",
+      now,
+    }),
+  ]);
+  assert.deepEqual(results.sort(), [false, true]);
+});
+
+test("successful reset changes the password, revokes all sessions, and invalidates outstanding tokens", async () => {
+  const repository = await repositoryWithCustomer();
+  const oldNormal = await createCustomerSession(repository, 1);
+  const oldRemembered = await createCustomerSession(repository, 1, {
+    rememberMe: true,
+  });
+  const now = new Date("2026-01-01T00:00:00Z");
+  const firstDelivery = new CapturingResetDelivery();
+  await requestCustomerPasswordReset(
+    repository,
+    firstDelivery,
+    resetRequest("customer@example.com", now)
+  );
+  const firstToken = tokenFromDelivery(firstDelivery);
+
+  const replacementTime = new Date(
+    now.getTime() + CUSTOMER_PASSWORD_RESET_COOLDOWN_MS + 1
+  );
+  const replacementDelivery = new CapturingResetDelivery();
+  await requestCustomerPasswordReset(
+    repository,
+    replacementDelivery,
+    resetRequest("customer@example.com", replacementTime)
+  );
+  const replacementToken = tokenFromDelivery(replacementDelivery);
+  assert.equal(
+    await resetCustomerPassword(repository, {
+      token: firstToken,
+      password: "a new password with 12 chars",
+      now: replacementTime,
+    }),
+    false
+  );
+
+  const nextPassword = "a much better new password";
+  assert.equal(
+    await resetCustomerPassword(repository, {
+      token: replacementToken,
+      password: nextPassword,
+      now: replacementTime,
+    }),
+    true
+  );
+  const customer = repository.users.get(1)!;
+  assert.equal(await verifyCustomerPassword(password, customer.passwordHash!), false);
+  assert.equal(await verifyCustomerPassword(nextPassword, customer.passwordHash!), true);
+  assert.equal(
+    await authenticateCustomer(repository, customer.email, password),
+    null
+  );
+  assert.equal(
+    (await authenticateCustomer(repository, customer.email, nextPassword))?.id,
+    1
+  );
+  assert.equal(await resolveCustomerSession(repository, oldNormal.token), null);
+  assert.equal(await resolveCustomerSession(repository, oldRemembered.token), null);
+  assert.equal(
+    [...repository.resetTokens.values()].every((token) => token.usedAt !== null),
+    true
+  );
+});
+
+test("password reset enforces the existing password policy", async () => {
+  const repository = await repositoryWithCustomer();
+  const delivery = new CapturingResetDelivery();
+  const now = new Date("2026-01-01T00:00:00Z");
+  await requestCustomerPasswordReset(
+    repository,
+    delivery,
+    resetRequest("customer@example.com", now)
+  );
+  assert.equal(
+    await resetCustomerPassword(repository, {
+      token: tokenFromDelivery(delivery),
+      password: "too short",
+      now,
+    }),
+    false
+  );
+});
+
+test("reset form rejects a password mismatch before token consumption", async () => {
+  const actions = await readFile("src/app/(customer)/account/_actions.ts", "utf8");
+  assert.match(
+    actions,
+    /resetPasswordSchema[\s\S]*value\.password === value\.passwordConfirmation/
+  );
+  assert.match(
+    actions,
+    /data\.password !== data\.passwordConfirmation[\s\S]*passwordMismatch/
+  );
+});
+
+test("reset requests are cooled down and active tokens stay bounded", async () => {
+  const repository = await repositoryWithCustomer();
+  const delivery = new CapturingResetDelivery();
+  const now = new Date("2026-01-01T00:00:00Z");
+  await requestCustomerPasswordReset(
+    repository,
+    delivery,
+    resetRequest("customer@example.com", now)
+  );
+  await requestCustomerPasswordReset(
+    repository,
+    delivery,
+    resetRequest(
+      "customer@example.com",
+      new Date(now.getTime() + CUSTOMER_PASSWORD_RESET_COOLDOWN_MS - 1)
+    )
+  );
+  assert.equal(delivery.messages.length, 1);
+  assert.equal(
+    [...repository.resetTokens.values()].filter((token) => !token.usedAt).length,
+    1
+  );
+});
+
+test("customer reset remains global identity only and never selects a tenant database", async () => {
+  const [actions, repository, migration] = await Promise.all([
+    readFile("src/app/(customer)/account/_actions.ts", "utf8"),
+    readFile("src/lib/customer-auth/drizzle-repository.ts", "utf8"),
+    readFile(
+      "src/drizzle/control-migrations/0002_customer_password_reset.sql",
+      "utf8"
+    ),
+  ]);
+  const resetAction = actions.slice(actions.indexOf("forgotCustomerPasswordAction"));
+  assert.match(resetAction, /getTenant\(\)/);
+  assert.doesNotMatch(resetAction, /getDbForTenant|schema|formData\.get\([^)]*tenant/);
+  assert.match(repository, /controlPlaneDb\.transaction/);
+  assert.doesNotMatch(repository, /adminUsers|DrizzleAdminAuthRepository/);
+  assert.match(migration, /customer_password_reset_tokens/);
+  assert.doesNotMatch(migration, /CREATE SCHEMA|tenant_slug/);
+});
+
+test("admin identities are never eligible for the customer reset repository", async () => {
+  const [actions, repository, migration] = await Promise.all([
+    readFile("src/app/(customer)/account/_actions.ts", "utf8"),
+    readFile("src/lib/customer-auth/drizzle-repository.ts", "utf8"),
+    readFile(
+      "src/drizzle/control-migrations/0002_customer_password_reset.sql",
+      "utf8"
+    ),
+  ]);
+  assert.doesNotMatch(actions, /admin-auth|adminUsers|ADMIN_SESSION/);
+  assert.doesNotMatch(repository, /adminUsers|admin_sessions/);
+  assert.match(migration, /REFERENCES "public"\."customer_accounts"/);
+  assert.doesNotMatch(migration, /admin_users/);
+});
+
+test("forgot/reset routes, localized UI, and a production-safe delivery boundary are present", async () => {
+  const [login, forgot, reset, delivery, english, hebrew] = await Promise.all([
+    readFile("src/app/(customer)/account/_components/CustomerLoginForm.tsx", "utf8"),
+    readFile("src/app/(customer)/forgot-password/page.tsx", "utf8"),
+    readFile("src/app/(customer)/reset-password/page.tsx", "utf8"),
+    readFile("src/lib/customer-auth/password-reset-delivery.ts", "utf8"),
+    readFile("src/messages/en.json", "utf8"),
+    readFile("src/messages/he.json", "utf8"),
+  ]);
+  assert.match(login, /name="rememberMe"[\s\S]*forgotPassword/);
+  assert.match(forgot, /ForgotPasswordForm/);
+  assert.match(reset, /ResetPasswordForm/);
+  assert.match(
+    delivery,
+    /nodeEnv !== "production" \|\| developmentCaptureEnabled[\s\S]*UnconfiguredPasswordResetDelivery/
+  );
+  assert.match(english, /Remember me[\s\S]*Forgot password/);
+  assert.match(hebrew, /זכור אותי[\s\S]*שכחת סיסמה/);
+});
+
+test("production reset delivery is silent unless local capture is explicitly enabled", () => {
+  assert.ok(
+    createPasswordResetDelivery({ nodeEnv: "production" }) instanceof
+      UnconfiguredPasswordResetDelivery
+  );
+  assert.ok(
+    createPasswordResetDelivery({
+      nodeEnv: "production",
+      developmentCaptureEnabled: true,
+    }) instanceof DevelopmentPasswordResetDelivery
+  );
+  assert.ok(
+    createPasswordResetDelivery({ nodeEnv: "test" }) instanceof
+      DevelopmentPasswordResetDelivery
+  );
+});
+
 test("customer identity migration is public, journaled, and control-plane idempotency remains hash-checked", async () => {
   const [migration, journal, provisioner] = await Promise.all([
     readFile("src/drizzle/control-migrations/0001_customer_identity.sql", "utf8"),
@@ -263,7 +727,16 @@ test("customer identity migration is public, journaled, and control-plane idempo
   assert.match(migration, /CREATE TABLE "customer_accounts"/);
   assert.match(migration, /REFERENCES "public"\."tenants"/);
   assert.doesNotMatch(migration, /CREATE SCHEMA/);
-  assert.equal(JSON.parse(journal).entries.at(-1).tag, "0001_customer_identity");
+  assert.equal(
+    JSON.parse(journal).entries.some(
+      (entry: { tag: string }) => entry.tag === "0001_customer_identity"
+    ),
+    true
+  );
+  assert.equal(
+    JSON.parse(journal).entries.at(-1).tag,
+    "0002_customer_password_reset"
+  );
   assert.match(provisioner, /SELECT hash[\s\S]*assertMigrationHash/);
 });
 
@@ -295,13 +768,39 @@ test("tenant-prefixed account routes exist without introducing a customer admin 
     "src/app/(customer)/account/login/page.tsx",
     "src/app/(customer)/account/register/page.tsx",
     "src/app/(customer)/account/orders/page.tsx",
+    "src/app/(customer)/forgot-password/page.tsx",
+    "src/app/(customer)/reset-password/page.tsx",
   ].map((path) => readFile(path, "utf8")));
-  assert.equal(routes.length, 4);
+  assert.equal(routes.length, 6);
   assert.equal(routes.every((source) => source.length > 0), true);
   const layout = await readFile("src/app/(customer)/layout.tsx", "utf8");
   assert.match(layout, /account\/login/);
   assert.doesNotMatch(layout, /account\/admin|admin\/account/);
 });
+
+class CapturingResetDelivery {
+  messages: Array<{ email: string; resetUrl: string }> = [];
+  async deliverPasswordReset(input: { email: string; resetUrl: string }) {
+    this.messages.push(input);
+  }
+}
+
+function resetRequest(email: string, now: Date) {
+  return {
+    email,
+    now,
+    buildResetUrl: (token: string) =>
+      `https://shop.example/gift-shop/reset-password?token=${encodeURIComponent(token)}`,
+  };
+}
+
+function tokenFromDelivery(delivery: CapturingResetDelivery) {
+  const resetUrl = delivery.messages.at(-1)?.resetUrl;
+  assert.ok(resetUrl);
+  const token = new URL(resetUrl).searchParams.get("token");
+  assert.ok(token);
+  return token;
+}
 
 class FakeCartLinkStore implements CustomerCartLinkStore {
   calls: Array<{ customerId: number; guestSessionId: string }> = [];
@@ -318,6 +817,15 @@ class FakeCartLinkStore implements CustomerCartLinkStore {
 class FakeCustomerRepository implements CustomerAuthRepository {
   users = new Map<number, CustomerRecord>();
   sessions = new Map<string, StoredCustomerSession>();
+  resetTokens = new Map<
+    string,
+    {
+      customerId: number;
+      expiresAt: Date;
+      usedAt: Date | null;
+      createdAt: Date;
+    }
+  >();
   memberships = new Set<string>();
 
   async findCustomerByNormalizedEmail(email: string) {
@@ -343,6 +851,69 @@ class FakeCustomerRepository implements CustomerAuthRepository {
     return { ...session, customer: { ...session.customer, status: this.users.get(session.customer.id)!.status } };
   }
   async deleteSessionByTokenHash(tokenHash: string) { this.sessions.delete(tokenHash); }
+  async issuePasswordResetToken(input: {
+    emailNormalized: string;
+    tokenHash: string;
+    expiresAt: Date;
+    now: Date;
+    cooldownMs: number;
+  }) {
+    const customer = await this.findCustomerByNormalizedEmail(
+      input.emailNormalized
+    );
+    if (!customer || customer.status !== "active" || !customer.passwordHash) {
+      return null;
+    }
+    const latestActive = [...this.resetTokens.values()]
+      .filter((token) => token.customerId === customer.id && !token.usedAt)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    if (
+      latestActive &&
+      input.now.getTime() - latestActive.createdAt.getTime() < input.cooldownMs
+    ) {
+      return null;
+    }
+    for (const token of this.resetTokens.values()) {
+      if (token.customerId === customer.id && !token.usedAt) {
+        token.usedAt = input.now;
+      }
+    }
+    this.resetTokens.set(input.tokenHash, {
+      customerId: customer.id,
+      expiresAt: input.expiresAt,
+      usedAt: null,
+      createdAt: input.now,
+    });
+    return { customerId: customer.id, email: customer.email };
+  }
+  async consumePasswordResetToken(input: {
+    tokenHash: string;
+    passwordHash: string;
+    now: Date;
+  }) {
+    const token = this.resetTokens.get(input.tokenHash);
+    if (
+      !token ||
+      token.usedAt ||
+      token.expiresAt.getTime() <= input.now.getTime()
+    ) {
+      return false;
+    }
+    const customer = this.users.get(token.customerId);
+    if (!customer || customer.status !== "active" || !customer.passwordHash) {
+      return false;
+    }
+    customer.passwordHash = input.passwordHash;
+    for (const [hash, session] of this.sessions) {
+      if (session.customer.id === customer.id) this.sessions.delete(hash);
+    }
+    for (const resetToken of this.resetTokens.values()) {
+      if (resetToken.customerId === customer.id && !resetToken.usedAt) {
+        resetToken.usedAt = input.now;
+      }
+    }
+    return true;
+  }
   async upsertTenantMembership(input: { customerId: number; tenantSlug: string; seenAt: Date }) { this.memberships.add(`${input.customerId}:${input.tenantSlug}`); }
   async hasTenantMembership(customerId: number, tenantSlug: string) { return this.memberships.has(`${customerId}:${tenantSlug}`); }
 }
