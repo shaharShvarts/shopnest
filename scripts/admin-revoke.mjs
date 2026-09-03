@@ -1,6 +1,9 @@
 import { Pool } from "pg";
 import { resolveDatabaseUrl } from "../src/data/env/database-url.mjs";
 import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
+import { loadProjectEnv } from "./lib/load-project-env.mjs";
+
+loadProjectEnv();
 
 const email = process.argv[2]?.trim().toLowerCase();
 const tenantSlug = process.argv[3]?.trim().toLowerCase();

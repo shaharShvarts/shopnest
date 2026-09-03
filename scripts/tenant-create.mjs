@@ -6,6 +6,9 @@ import {
   resolveConfiguredTenant,
 } from "../src/lib/tenant-validation.mjs";
 import { provisionTenant } from "./lib/tenant-provisioning.mjs";
+import { loadProjectEnv } from "./lib/load-project-env.mjs";
+
+loadProjectEnv();
 
 const slugArgument = process.argv[2];
 

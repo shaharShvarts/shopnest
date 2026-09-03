@@ -2,6 +2,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveDatabaseUrl } from "../src/data/env/database-url.mjs";
 import { provisionControlPlane } from "./lib/control-plane-provisioning.mjs";
+import { loadProjectEnv } from "./lib/load-project-env.mjs";
+
+loadProjectEnv();
 
 try {
   const repositoryRoot = path.resolve(

@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { forbidden, notFound, redirect } from "next/navigation";
 import { controlPlaneDb, getDbForTenant } from "@/drizzle/db";
 import { controlPlaneTenants } from "@/drizzle/control-plane-schema";
 import { getTenant } from "@/lib/tenant-context";
@@ -15,6 +16,10 @@ import {
   type TenantControlRecord,
 } from "./core";
 import { DrizzleAdminAuthRepository } from "./drizzle-repository";
+import {
+  resolveGlobalAdminPageAccess,
+  resolveTenantAdminPageAccess,
+} from "./navigation";
 
 export const ADMIN_SESSION_COOKIE = "shopnest_admin_session";
 const repository = new DrizzleAdminAuthRepository();
@@ -71,6 +76,12 @@ export async function getTenantAdminAccess(): Promise<{
 
 export async function requireTenantAdmin() {
   const access = await getTenantAdminAccess();
+  enforceTenantAdminPageAccess(access);
+  return tenantAdminResult(access);
+}
+
+export async function requireTenantAdminForApi() {
+  const access = await getTenantAdminAccess();
   if (access.decision === "unauthenticated") {
     throw new AdminAuthorizationError(401, "Admin login required");
   }
@@ -80,15 +91,16 @@ export async function requireTenantAdmin() {
   if (access.decision !== "allowed" || !access.principal) {
     throw new AdminAuthorizationError(403, "Tenant access denied");
   }
-  return {
-    tenant: access.tenant,
-    controlTenant: access.controlTenant!,
-    principal: access.principal,
-  };
+  return tenantAdminResult(access);
 }
 
 export async function requireTenantAdminDb() {
   const access = await requireTenantAdmin();
+  return { ...access, db: getDbForTenant(access.tenant) };
+}
+
+export async function requireTenantAdminApiDb() {
+  const access = await requireTenantAdminForApi();
   return { ...access, db: getDbForTenant(access.tenant) };
 }
 
@@ -99,6 +111,15 @@ export async function requireSuperAdmin() {
     throw new AdminAuthorizationError(403, "Super admin access denied");
   }
   return principal;
+}
+
+export async function requireSuperAdminPage() {
+  const principal = await getCurrentAdminSession();
+  const outcome = resolveGlobalAdminPageAccess(principal);
+  if (outcome.kind === "redirect") redirect(outcome.location);
+  if (outcome.kind === "forbidden") forbidden();
+  if (outcome.kind === "not-found") notFound();
+  return principal!;
 }
 
 export async function requireActiveTenantStorefront() {
@@ -113,4 +134,26 @@ export async function requireActiveTenantStorefront() {
 
 export function getAdminAuthRepository() {
   return repository;
+}
+
+function enforceTenantAdminPageAccess(
+  access: Awaited<ReturnType<typeof getTenantAdminAccess>>
+) {
+  const outcome = resolveTenantAdminPageAccess(access);
+  if (outcome.kind === "redirect") redirect(outcome.location);
+  if (outcome.kind === "forbidden") forbidden();
+  if (outcome.kind === "not-found") notFound();
+}
+
+function tenantAdminResult(
+  access: Awaited<ReturnType<typeof getTenantAdminAccess>>
+) {
+  if (!access.tenant || !access.controlTenant || !access.principal) {
+    throw new Error("Allowed tenant admin access is missing required context");
+  }
+  return {
+    tenant: access.tenant,
+    controlTenant: access.controlTenant,
+    principal: access.principal,
+  };
 }

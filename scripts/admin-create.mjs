@@ -4,6 +4,9 @@ import { hashAdminPassword } from "../src/lib/admin-auth/password.mjs";
 import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 import { provisionAdminAccount } from "./lib/admin-account-provisioning.mjs";
 import { readAdminPassword } from "./lib/secure-password-prompt.mjs";
+import { loadProjectEnv } from "./lib/load-project-env.mjs";
+
+loadProjectEnv();
 
 const args = process.argv.slice(2);
 const email = args[0]?.trim().toLowerCase();

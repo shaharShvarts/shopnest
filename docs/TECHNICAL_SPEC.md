@@ -127,6 +127,18 @@ Checkout creates a tenant-local order from the active cart belonging to the curr
 
 The current lifecycle ends at a pending order plus a 15-minute hard inventory reservation. The cart and its historical rows are retained; a later request may create a new active cart.
 
+## Shipping and fulfillment — CURRENT / AGREED
+
+Shipping configuration is commerce data stored independently in every tenant schema. A method has a merchant-defined name and code, one of the supported types (`home_delivery`, `pickup_point`, or `store_pickup`), active state, non-negative integer price, optional non-negative free-shipping threshold, and sort order. No method is enabled or priced automatically for a new tenant. Deactivation is preferred to deletion so historical references remain understandable.
+
+Checkout lists only active methods loaded from the trusted current tenant. The browser submits only `shippingMethodId`; it cannot submit an authoritative shipping amount or schema. Inside the order transaction, ShopNest reloads that active tenant-local method and calculates shipping from the current server-side product subtotal. A non-null threshold makes shipping free when the products subtotal is at or above it; otherwise the configured price applies. A zero-price method is always free. The final total is `items_subtotal + shipping_total`, using the existing integer ILS representation.
+
+The order snapshots the method ID where available, code, name, type, charged price, whether its threshold applied, product subtotal, shipping total, and final total. Later method edits or deactivation cannot alter the historical order. Home delivery requires and snapshots a complete checkout address. Store pickup requires no fake delivery address. Pickup-point methods are only a safe type foundation in the current implementation; no external point is selected or implied.
+
+Fulfillment state is separate from order/payment state. Supported states are `unfulfilled`, `processing`, `shipped`, `delivered`, `ready_for_pickup`, `picked_up`, and `cancelled`. New orders begin `unfulfilled`. Authorized tenant admins may correct the state and manually record a bounded tracking number for delivery orders. Entering shipped, delivered, ready-for-pickup, or picked-up records the corresponding timestamp once. Store pickup uses pickup states and has no tracking number; delivery methods use shipped/delivered states. Customer order history shows the tenant-local shipping snapshot, fulfillment state, and tracking number when present. Guest and authenticated checkout use the same shipping calculation and isolation rules.
+
+Shipping calculation does not reserve, release, or consume inventory. The existing inventory service continues to own those semantics. Payment remains `pending_payment`; the shipping total is merely included in the server-authoritative amount a future provider will charge.
+
 ### Payment-provider architecture — PLANNED, NOT IMPLEMENTED
 
 Payment integration will use a provider abstraction owned by ShopNest application code. Each merchant will connect and own its own payment-provider account/credentials; ShopNest must not silently route all tenant sales through one platform merchant account. Secrets belong in secure server-side configuration and must never be accepted from storefront request data or committed to Git.
@@ -159,7 +171,7 @@ Everything in this section is explicitly undecided and must not be described as 
 - **Customer account expansion:** saved address books, profile preferences, post-purchase guest-order claiming, deletion/export automation, and production social sign-in beyond the current account foundation.
 - **Refunds:** payment-provider workflow, order states, inventory return policy, and accounting/invoice effects.
 - **Partial refunds:** line allocation, quantity handling, shipping/tax allocation, multiple refund attempts, and idempotency.
-- **Shipping and fulfillment:** rate calculation, carrier integration, shipment states, tracking, split shipments, pickup, and fulfillment permissions.
+- **Shipping evolution:** carrier APIs, automatic tracking, shipping-label generation, real pickup-point provider selection and metadata snapshots, dynamic carrier rates, split shipments, multi-package fulfillment, returns labels, and merchant pickup schedules/instructions.
 - **Returns:** authorization, return windows, condition, restocking decisions, exchanges, shipping labels, and invoice documents.
 - **Subscriptions:** recurring products, renewal reservations, failed-payment recovery, cancellation, plan changes, and tenant/provider support.
 

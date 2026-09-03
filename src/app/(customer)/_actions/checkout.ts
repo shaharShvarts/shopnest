@@ -25,6 +25,8 @@ export type CheckoutActionState = {
     id: number;
     number: string;
     totalPrice: number;
+    itemsSubtotal: number;
+    shippingTotal: number;
   };
 };
 
@@ -53,20 +55,21 @@ export async function submitCheckout(
 
   const identity = await getCommerceIdentity();
 
-  const shippingAddress = JSON.stringify({
-    address: result.data.shipping_address,
-    city: result.data.shipping_city,
-    state: result.data.shipping_state,
-    postalCode: result.data.shipping_postal,
-  });
+  const shippingAddress = result.data.shipping_address
+    ? {
+        address: result.data.shipping_address,
+        city: result.data.shipping_city,
+        state: result.data.shipping_state,
+        postalCode: result.data.shipping_postal,
+      }
+    : null;
   const details: CheckoutDetails = {
     email: result.data.email,
     firstName: result.data.shipping_name,
     lastName: result.data.shipping_lastName,
     phoneNumber: result.data.shipping_phone,
-    shippingMethod: result.data.shipping_method,
+    shippingMethodId: result.data.shipping_method_id,
     shippingAddress,
-    billingAddress: shippingAddress,
   };
 
   try {
@@ -87,6 +90,8 @@ export async function submitCheckout(
         id: order.orderId,
         number: order.orderNumber,
         totalPrice: order.totalPrice,
+        itemsSubtotal: order.itemsSubtotal,
+        shippingTotal: order.shippingTotal,
       },
     };
   } catch (error) {

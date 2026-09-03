@@ -3,6 +3,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { SHIPPING_CODE_HTML_PATTERN } from "../src/lib/shipping/core.ts";
 import {
   normalizeImageUrl,
   parseTenantMediaUrl,
@@ -313,4 +316,95 @@ test("admin create and edit pages retain deterministic tenant-aware Back links",
       /router\.back|panda-pop|gift-shop|dvorik-collection/
     );
   }
+});
+
+test("shipping create and edit share a browser-safe code pattern", async () => {
+  const [form, createPage, editPage, english, hebrew] = await Promise.all([
+    readFile("src/app/admin/shipping/_components/ShippingMethodForm.tsx", "utf8"),
+    readFile("src/app/admin/shipping/new/page.tsx", "utf8"),
+    readFile("src/app/admin/shipping/[id]/edit/page.tsx", "utf8"),
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+
+  assert.match(createPage, /ShippingMethodForm/);
+  assert.match(editPage, /ShippingMethodForm/);
+  assert.match(form, /getTranslations\("Shipping"\)/);
+  assert.match(form, /aria-describedby="shipping-code-help"/);
+  assert.match(form, /text-xs text-muted-foreground/);
+  assert.match(form, /aria-describedby="shipping-name-help"/);
+  assert.doesNotMatch(form, /name="sortOrder"|>Sort order</);
+  assert.doesNotMatch(form, /\[a-z0-9\]\+\(\[_-\]\[a-z0-9\]\+\)\*/);
+  assert.match(form, /pattern=\{SHIPPING_CODE_HTML_PATTERN\}/);
+  assert.equal(
+    SHIPPING_CODE_HTML_PATTERN,
+    "[a-z0-9]+(?:[_\\-][a-z0-9]+)*"
+  );
+  assert.doesNotThrow(() => new RegExp(SHIPPING_CODE_HTML_PATTERN, "v"));
+  const renderedCodeInput = renderToStaticMarkup(
+    createElement("input", { pattern: SHIPPING_CODE_HTML_PATTERN })
+  );
+  assert.ok(
+    renderedCodeInput.includes(`pattern="${SHIPPING_CODE_HTML_PATTERN}"`),
+    `Rendered input did not preserve the escaped hyphen: ${renderedCodeInput}`
+  );
+  assert.equal(
+    english.Shipping.nameHelp,
+    "The name shown to the customer during checkout."
+  );
+  assert.equal(
+    hebrew.Shipping.nameHelp,
+    "השם שיופיע ללקוח בדף הקניה"
+  );
+  assert.equal(
+    english.Shipping.codeHelp,
+    "Internal identifier, e.g. home_delivery. Avoid changing it after the method has been used in orders."
+  );
+  assert.equal(
+    hebrew.Shipping.codeHelp,
+    "מזהה פנימי, לדוגמה home_delivery. מומלץ לא לשנות אותו לאחר שנעשה בו שימוש בהזמנות."
+  );
+});
+
+test("shipping admin exposes lightweight persisted drag reordering", async () => {
+  const [page, list, actions] = await Promise.all([
+    readFile("src/app/admin/shipping/page.tsx", "utf8"),
+    readFile(
+      "src/app/admin/shipping/_components/ShippingMethodOrderList.tsx",
+      "utf8"
+    ),
+    readFile("src/app/admin/_actions/shipping.ts", "utf8"),
+  ]);
+  assert.match(page, /ShippingMethodOrderList/);
+  assert.match(page, /orderBy\(asc\(shippingMethods\.sortOrder\)/);
+  assert.match(list, /GripVertical/);
+  assert.match(list, /DndContext/);
+  assert.match(list, /MouseSensor/);
+  assert.match(list, /TouchSensor/);
+  assert.match(list, /KeyboardSensor/);
+  assert.match(list, /useSortable/);
+  assert.match(list, /DragOverlay/);
+  assert.match(list, /setActivatorNodeRef/);
+  assert.match(list, /moveShippingMethod/);
+  assert.match(list, /setDirty\(true\)/);
+  assert.match(list, /disabled=\{!dirty\}/);
+  assert.doesNotMatch(list, /draggable|onPointerMove|elementFromPoint/);
+  assert.match(list, /Save Order/);
+  assert.match(actions, /reorderShippingMethods/);
+  assert.match(actions, /requireTenantAdminDb\(\)/);
+  assert.match(actions, /db\.transaction/);
+  assert.match(actions, /revalidateTenantPath\("\/checkout"\)/);
+  assert.doesNotMatch(actions, /schema_name|tenantSlug\s*:\s*formData/);
+});
+
+test("checkout visibly defaults to the first persisted shipping method", async () => {
+  const checkout = await readFile(
+    "src/app/(customer)/checkout/_components/CheckoutTable.tsx",
+    "utf8"
+  );
+  assert.match(checkout, /getDefaultShippingMethodId\(shippingMethods\)/);
+  assert.match(checkout, /checked=\{method\.id === selectedMethodId\}/);
+  assert.match(checkout, /formatCurrency\(selection\.shippingTotal\)/);
+  assert.match(checkout, /formatCurrency\(selection\.totalPrice\)/);
+  assert.match(checkout, /requireAddress=\{selection\.requiresAddress\}/);
 });

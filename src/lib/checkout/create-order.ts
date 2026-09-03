@@ -1,3 +1,9 @@
+import {
+  ShippingError,
+  validateSelectedShippingMethod,
+  type ShippingMethod,
+} from "../shipping/core.ts";
+
 export type CheckoutIdentity = {
   customerAccountId: number | null;
   userId: number | null;
@@ -9,15 +15,23 @@ export type CheckoutDetails = {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  shippingMethod: string;
-  shippingAddress: string;
-  billingAddress: string;
+  shippingMethodId: number;
+  shippingAddress: CheckoutAddress | null;
+};
+
+export type CheckoutAddress = {
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
 };
 
 export type CheckoutResult = {
   orderId: number;
   orderNumber: string;
   totalPrice: number;
+  itemsSubtotal: number;
+  shippingTotal: number;
 };
 
 export type CheckoutCart = {
@@ -31,15 +45,27 @@ export type CheckoutCartItem = {
   price: number | null;
 };
 
-export type NewCheckoutOrder = CheckoutIdentity &
-  CheckoutDetails & {
-    cartId: string;
-    checkoutToken: string;
-    orderNumber: string;
-    numberOfItems: number;
-    currency: string;
-    totalPrice: number;
-  };
+export type NewCheckoutOrder = CheckoutIdentity & {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  cartId: string;
+  checkoutToken: string;
+  orderNumber: string;
+  numberOfItems: number;
+  currency: string;
+  totalPrice: number;
+  itemsSubtotal: number;
+  shippingTotal: number;
+  shippingMethodId: number;
+  shippingMethodCode: string;
+  shippingMethodName: string;
+  shippingMethodType: "home_delivery" | "pickup_point" | "store_pickup";
+  shippingFreeThresholdApplied: boolean;
+  shippingAddress: string | null;
+  billingAddress: string | null;
+};
 
 export type NewCheckoutOrderProduct = {
   orderId: number;
@@ -56,6 +82,7 @@ export interface CheckoutTransaction {
   ): Promise<CheckoutResult | null>;
   lockActiveCart(identity: CheckoutIdentity): Promise<CheckoutCart | null>;
   getCartItems(cartId: string): Promise<CheckoutCartItem[]>;
+  findActiveShippingMethod(id: number): Promise<ShippingMethod | null>;
   reserveInventory(input: {
     ownerKey: string;
     cartId: string;
@@ -80,6 +107,8 @@ export type CheckoutErrorCode =
   | "missing_product"
   | "insufficient_stock"
   | "invalid_cart_item"
+  | "invalid_shipping_method"
+  | "shipping_address_required"
   | "cart_changed";
 
 export class CheckoutError extends Error {
@@ -151,15 +180,54 @@ export async function createCheckoutOrder(
       (sum, item) => sum + item.quantity,
       0
     );
-    const totalPrice = cartItems.reduce(
+    const itemsSubtotal = cartItems.reduce(
       (sum, item) => sum + item.price! * item.quantity,
       0
     );
 
-    if (!Number.isSafeInteger(totalPrice)) {
+    if (!Number.isSafeInteger(itemsSubtotal)) {
       throw new CheckoutError(
         "invalid_cart_item",
         "The cart total is outside the supported range."
+      );
+    }
+
+    let shipping;
+    try {
+      shipping = await validateSelectedShippingMethod(
+        {
+          listActive: async () => [],
+          findActiveById: tx.findActiveShippingMethod,
+        },
+        details.shippingMethodId,
+        itemsSubtotal
+      );
+    } catch (error) {
+      if (error instanceof ShippingError) {
+        throw new CheckoutError("invalid_shipping_method", error.message);
+      }
+      throw error;
+    }
+
+    if (
+      shipping.type === "home_delivery" &&
+      !isCompleteAddress(details.shippingAddress)
+    ) {
+      throw new CheckoutError(
+        "shipping_address_required",
+        "A complete shipping address is required for home delivery."
+      );
+    }
+
+    const shippingAddress = details.shippingAddress
+      ? JSON.stringify(details.shippingAddress)
+      : null;
+    const shippingTotal = shipping.shippingPrice;
+    const totalPrice = itemsSubtotal + shippingTotal;
+    if (!Number.isSafeInteger(totalPrice)) {
+      throw new CheckoutError(
+        "invalid_cart_item",
+        "The order total is outside the supported range."
       );
     }
 
@@ -191,13 +259,25 @@ export async function createCheckoutOrder(
 
     const order = await tx.createOrder({
       ...identity,
-      ...details,
+      email: details.email,
+      firstName: details.firstName,
+      lastName: details.lastName,
+      phoneNumber: details.phoneNumber,
       cartId: cart.id,
       checkoutToken,
       orderNumber: createOrderNumber(),
       numberOfItems,
       currency: cart.currency,
       totalPrice,
+      itemsSubtotal,
+      shippingTotal,
+      shippingMethodId: shipping.id,
+      shippingMethodCode: shipping.code,
+      shippingMethodName: shipping.name,
+      shippingMethodType: shipping.type,
+      shippingFreeThresholdApplied: shipping.freeShippingThresholdApplied,
+      shippingAddress,
+      billingAddress: shippingAddress,
     });
 
     await tx.createOrderProducts(
@@ -220,6 +300,18 @@ export async function createCheckoutOrder(
       orderId: order.id,
       orderNumber: order.orderNumber,
       totalPrice,
+      itemsSubtotal,
+      shippingTotal,
     };
   });
+}
+
+function isCompleteAddress(address: CheckoutAddress | null) {
+  return Boolean(
+    address &&
+      address.address.trim() &&
+      address.city.trim() &&
+      address.state.trim() &&
+      address.postalCode.trim()
+  );
 }

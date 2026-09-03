@@ -16,6 +16,7 @@ import type {
 import { transitionCartToCheckoutInTransaction } from "./inventory/core";
 import { getCheckoutReservationDurationMs } from "./inventory/config";
 import { DrizzleInventoryTransaction } from "./inventory/drizzle-store";
+import { DrizzleShippingMethodStore } from "./shipping/drizzle-store";
 
 type TenantDatabase = ReturnType<typeof getDbForTenant>;
 
@@ -51,6 +52,8 @@ export class DrizzleCheckoutStore implements CheckoutStore {
               orderId: orders.id,
               orderNumber: orders.orderNumber,
               totalPrice: orders.totalPrice,
+              itemsSubtotal: orders.itemsSubtotal,
+              shippingTotal: orders.shippingTotal,
             })
             .from(orders)
             .where(
@@ -61,7 +64,13 @@ export class DrizzleCheckoutStore implements CheckoutStore {
             )
             .limit(1);
 
-          return order ?? null;
+          return order
+            ? {
+                ...order,
+                itemsSubtotal: order.itemsSubtotal ?? order.totalPrice,
+                shippingTotal: order.shippingTotal ?? 0,
+              }
+            : null;
         },
 
         async lockActiveCart(identity) {
@@ -92,6 +101,10 @@ export class DrizzleCheckoutStore implements CheckoutStore {
             .where(eq(cartProducts.cartId, cartId));
         },
 
+        async findActiveShippingMethod(id) {
+          return new DrizzleShippingMethodStore(tx).findActiveById(id);
+        },
+
         async reserveInventory(input) {
           await transitionCartToCheckoutInTransaction(
             new DrizzleInventoryTransaction(tx),
@@ -116,7 +129,16 @@ export class DrizzleCheckoutStore implements CheckoutStore {
               firstName: order.firstName,
               lastName: order.lastName,
               phoneNumber: order.phoneNumber,
-              shippingMethod: order.shippingMethod,
+              shippingMethod: order.shippingMethodName,
+              shippingMethodId: order.shippingMethodId,
+              shippingMethodCode: order.shippingMethodCode,
+              shippingMethodName: order.shippingMethodName,
+              shippingMethodType: order.shippingMethodType,
+              shippingPrice: order.shippingTotal,
+              shippingFreeThresholdApplied:
+                order.shippingFreeThresholdApplied,
+              itemsSubtotal: order.itemsSubtotal,
+              shippingTotal: order.shippingTotal,
               numberOfItems: order.numberOfItems,
               currency: order.currency,
               status: "pending",
@@ -124,6 +146,7 @@ export class DrizzleCheckoutStore implements CheckoutStore {
               shippingAddress: order.shippingAddress,
               billingAddress: order.billingAddress,
               paymentMethod: "pending_payment",
+              fulfillmentStatus: "unfulfilled",
             })
             .returning({ id: orders.id, orderNumber: orders.orderNumber });
 

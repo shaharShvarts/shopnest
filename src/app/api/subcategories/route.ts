@@ -1,6 +1,6 @@
 import {
   AdminAuthorizationError,
-  requireTenantAdminDb,
+  requireTenantAdminApiDb,
 } from "@/lib/admin-auth/server";
 import { categories, subcategories } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid categoryId" }, { status: 400 });
     }
 
-    const { db } = await requireTenantAdminDb();
+    const { db } = await requireTenantAdminApiDb();
     const [category] = await db
       .select({ id: categories.id })
       .from(categories)
