@@ -4,8 +4,12 @@ import {
   verifyCustomerPassword,
 } from "./password.mjs";
 
-export const CUSTOMER_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const CUSTOMER_NORMAL_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+export const CUSTOMER_REMEMBERED_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const CUSTOMER_SESSION_TTL_MS = CUSTOMER_NORMAL_SESSION_TTL_MS;
 export const CUSTOMER_PASSWORD_MIN_LENGTH = 12;
+export const CUSTOMER_PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
+export const CUSTOMER_PASSWORD_RESET_COOLDOWN_MS = 60 * 1000;
 
 export type CustomerStatus = "active" | "disabled";
 export type CustomerRecord = {
@@ -28,6 +32,18 @@ export type StoredCustomerSession = {
   customer: CustomerPrincipal;
 };
 
+export type PasswordResetRecipient = {
+  customerId: number;
+  email: string;
+};
+
+export interface CustomerPasswordResetDelivery {
+  deliverPasswordReset(input: {
+    email: string;
+    resetUrl: string;
+  }): Promise<void>;
+}
+
 export interface CustomerAuthRepository {
   findCustomerByNormalizedEmail(email: string): Promise<CustomerRecord | null>;
   createCustomerWithPassword(input: {
@@ -45,6 +61,18 @@ export interface CustomerAuthRepository {
     tokenHash: string
   ): Promise<StoredCustomerSession | null>;
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;
+  issuePasswordResetToken(input: {
+    emailNormalized: string;
+    tokenHash: string;
+    expiresAt: Date;
+    now: Date;
+    cooldownMs: number;
+  }): Promise<PasswordResetRecipient | null>;
+  consumePasswordResetToken(input: {
+    tokenHash: string;
+    passwordHash: string;
+    now: Date;
+  }): Promise<boolean>;
   upsertTenantMembership(input: {
     customerId: number;
     tenantSlug: string;
@@ -93,13 +121,64 @@ export async function authenticateCustomer(
 export async function createCustomerSession(
   repository: CustomerAuthRepository,
   customerId: number,
-  now = new Date()
+  options: { rememberMe?: boolean; now?: Date } = {}
 ) {
+  const now = options.now ?? new Date();
+  const ttlMs = options.rememberMe
+    ? CUSTOMER_REMEMBERED_SESSION_TTL_MS
+    : CUSTOMER_NORMAL_SESSION_TTL_MS;
   const token = randomBytes(32).toString("base64url");
   const tokenHash = hashCustomerSessionToken(token);
-  const expiresAt = new Date(now.getTime() + CUSTOMER_SESSION_TTL_MS);
+  const expiresAt = new Date(now.getTime() + ttlMs);
   await repository.createSession({ tokenHash, customerId, expiresAt });
-  return { token, expiresAt };
+  return { token, expiresAt, maxAgeSeconds: ttlMs / 1000 };
+}
+
+export async function requestCustomerPasswordReset(
+  repository: CustomerAuthRepository,
+  delivery: CustomerPasswordResetDelivery,
+  input: {
+    email: string;
+    buildResetUrl: (token: string) => string;
+    now?: Date;
+  }
+) {
+  const now = input.now ?? new Date();
+  const token = generateCustomerPasswordResetToken();
+  const tokenHash = hashCustomerPasswordResetToken(token);
+  const recipient = await repository.issuePasswordResetToken({
+    emailNormalized: normalizeCustomerEmail(input.email),
+    tokenHash,
+    expiresAt: new Date(now.getTime() + CUSTOMER_PASSWORD_RESET_TTL_MS),
+    now,
+    cooldownMs: CUSTOMER_PASSWORD_RESET_COOLDOWN_MS,
+  });
+
+  if (recipient) {
+    try {
+      await delivery.deliverPasswordReset({
+        email: recipient.email,
+        resetUrl: input.buildResetUrl(token),
+      });
+    } catch {
+      // Delivery failures must not disclose whether the account exists.
+    }
+  }
+
+  return { accepted: true as const };
+}
+
+export async function resetCustomerPassword(
+  repository: CustomerAuthRepository,
+  input: { token: string; password: string; now?: Date }
+) {
+  if (input.password.length < CUSTOMER_PASSWORD_MIN_LENGTH) return false;
+  const passwordHash = await hashCustomerPassword(input.password);
+  return repository.consumePasswordResetToken({
+    tokenHash: hashCustomerPasswordResetToken(input.token),
+    passwordHash,
+    now: input.now ?? new Date(),
+  });
 }
 
 export async function resolveCustomerSession(
@@ -130,6 +209,14 @@ export async function logoutCustomer(
 }
 
 export function hashCustomerSessionToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export function generateCustomerPasswordResetToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashCustomerPasswordResetToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 

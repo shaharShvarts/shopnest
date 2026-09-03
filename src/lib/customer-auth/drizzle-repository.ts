@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { controlPlaneDb } from "@/drizzle/db";
 import {
   customerAccounts,
   customerAuthIdentities,
+  customerPasswordResetTokens,
   customerSessions,
   customerTenants,
 } from "@/drizzle/control-plane-schema";
@@ -96,6 +97,140 @@ export class DrizzleCustomerAuthRepository implements CustomerAuthRepository {
     await controlPlaneDb
       .delete(customerSessions)
       .where(eq(customerSessions.tokenHash, tokenHash));
+  }
+
+  issuePasswordResetToken(input: {
+    emailNormalized: string;
+    tokenHash: string;
+    expiresAt: Date;
+    now: Date;
+    cooldownMs: number;
+  }) {
+    return controlPlaneDb.transaction(async (tx) => {
+      const [customer] = await tx
+        .select(customerSelection)
+        .from(customerAccounts)
+        .where(eq(customerAccounts.emailNormalized, input.emailNormalized))
+        .limit(1)
+        .for("update");
+      if (
+        !customer ||
+        customer.status !== "active" ||
+        !customer.passwordHash
+      ) {
+        return null;
+      }
+
+      const [latestActive] = await tx
+        .select({ createdAt: customerPasswordResetTokens.createdAt })
+        .from(customerPasswordResetTokens)
+        .where(
+          and(
+            eq(customerPasswordResetTokens.customerId, customer.id),
+            isNull(customerPasswordResetTokens.usedAt)
+          )
+        )
+        .orderBy(desc(customerPasswordResetTokens.createdAt))
+        .limit(1);
+      if (
+        latestActive &&
+        input.now.getTime() - latestActive.createdAt.getTime() <
+          input.cooldownMs
+      ) {
+        return null;
+      }
+
+      await tx
+        .update(customerPasswordResetTokens)
+        .set({ usedAt: input.now })
+        .where(
+          and(
+            eq(customerPasswordResetTokens.customerId, customer.id),
+            isNull(customerPasswordResetTokens.usedAt)
+          )
+        );
+      await tx.insert(customerPasswordResetTokens).values({
+        customerId: customer.id,
+        tokenHash: input.tokenHash,
+        expiresAt: input.expiresAt,
+        createdAt: input.now,
+      });
+      return { customerId: customer.id, email: customer.email };
+    });
+  }
+
+  consumePasswordResetToken(input: {
+    tokenHash: string;
+    passwordHash: string;
+    now: Date;
+  }) {
+    return controlPlaneDb.transaction(async (tx) => {
+      const [tokenOwner] = await tx
+        .select({ customerId: customerPasswordResetTokens.customerId })
+        .from(customerPasswordResetTokens)
+        .where(eq(customerPasswordResetTokens.tokenHash, input.tokenHash))
+        .limit(1);
+      if (!tokenOwner) return false;
+
+      const [customer] = await tx
+        .select({
+          id: customerAccounts.id,
+          status: customerAccounts.status,
+          passwordHash: customerAccounts.passwordHash,
+        })
+        .from(customerAccounts)
+        .where(eq(customerAccounts.id, tokenOwner.customerId))
+        .limit(1)
+        .for("update");
+      if (
+        !customer ||
+        customer.status !== "active" ||
+        !customer.passwordHash
+      ) {
+        return false;
+      }
+
+      const [resetToken] = await tx
+        .select({
+          customerId: customerPasswordResetTokens.customerId,
+          expiresAt: customerPasswordResetTokens.expiresAt,
+          usedAt: customerPasswordResetTokens.usedAt,
+        })
+        .from(customerPasswordResetTokens)
+        .where(
+          and(
+            eq(customerPasswordResetTokens.tokenHash, input.tokenHash),
+            eq(customerPasswordResetTokens.customerId, customer.id)
+          )
+        )
+        .limit(1)
+        .for("update");
+      if (
+        !resetToken ||
+        resetToken.usedAt ||
+        resetToken.expiresAt.getTime() <= input.now.getTime()
+      ) {
+        return false;
+      }
+
+      await tx
+        .update(customerAccounts)
+        .set({ passwordHash: input.passwordHash, updatedAt: input.now })
+        .where(eq(customerAccounts.id, customer.id));
+      await tx
+        .delete(customerSessions)
+        .where(eq(customerSessions.customerId, customer.id));
+      await tx
+        .update(customerPasswordResetTokens)
+        .set({ usedAt: input.now })
+        .where(
+          and(
+            eq(customerPasswordResetTokens.customerId, customer.id),
+            isNull(customerPasswordResetTokens.usedAt)
+          )
+        );
+      return true;
+    });
   }
 
   async upsertTenantMembership(input: {
