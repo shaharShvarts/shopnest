@@ -397,6 +397,38 @@ test("shipping admin exposes lightweight persisted drag reordering", async () =>
   assert.doesNotMatch(actions, /schema_name|tenantSlug\s*:\s*formData/);
 });
 
+test("shipping Edit remains a first-click link outside drag activation", async () => {
+  const list = await readFile(
+    "src/app/admin/shipping/_components/ShippingMethodOrderList.tsx",
+    "utf8"
+  );
+  assert.match(list, /<DndContext\s+id="shipping-method-order"/);
+  const dndStart = list.indexOf("<DndContext");
+  const dndEnd = list.indexOf("</DndContext>", dndStart);
+  const reorderFormStart = list.indexOf('<form action={formAction}>');
+  assert.ok(dndStart >= 0 && dndEnd > dndStart, "sortable list was not found");
+  assert.ok(
+    reorderFormStart > dndEnd,
+    "sortable links must not be descendants of the reordering server-action form"
+  );
+
+  const handleStart = list.indexOf("ref={setActivatorNodeRef}");
+  const handleEnd = list.indexOf("</button>", handleStart);
+  const handle = list.slice(handleStart, handleEnd);
+  assert.match(handle, /\{\.\.\.attributes\}/);
+  assert.match(handle, /\{\.\.\.listeners\}/);
+
+  const editStart = list.indexOf("<TenantLink", handleEnd);
+  const editEnd = list.indexOf("</TenantLink>", editStart);
+  const editLink = list.slice(editStart, editEnd);
+  assert.match(editLink, /href=\{`\/admin\/shipping\/\$\{method\.id\}\/edit`\}/);
+  assert.doesNotMatch(
+    editLink,
+    /listeners|attributes|draggable|onPointer|onMouse|onClick|preventDefault/
+  );
+  assert.match(list, /<form\s+action=\{toggleShippingMethod\.bind/);
+});
+
 test("checkout visibly defaults to the first persisted shipping method", async () => {
   const checkout = await readFile(
     "src/app/(customer)/checkout/_components/CheckoutTable.tsx",

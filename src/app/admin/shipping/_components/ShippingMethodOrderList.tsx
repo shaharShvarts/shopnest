@@ -79,13 +79,9 @@ export function ShippingMethodOrderList({
     orderedMethods.find((method) => method.id === activeId) ?? null;
 
   return (
-    <form action={formAction} className="space-y-4">
-      <input
-        type="hidden"
-        name="orderedIds"
-        value={JSON.stringify(orderedMethods.map((method) => method.id))}
-      />
+    <div className="space-y-4">
       <DndContext
+        id="shipping-method-order"
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
@@ -108,20 +104,27 @@ export function ShippingMethodOrderList({
           ) : null}
         </DragOverlay>
       </DndContext>
-      <div className="flex flex-wrap items-center gap-3">
-        <SaveOrderButton disabled={!dirty} />
-        {state.message && (
-          <p
-            role="status"
-            className={`text-sm ${
-              state.success ? "text-green-700" : "text-destructive"
-            }`}
-          >
-            {state.message}
-          </p>
-        )}
-      </div>
-    </form>
+      <form action={formAction}>
+        <input
+          type="hidden"
+          name="orderedIds"
+          value={JSON.stringify(orderedMethods.map((method) => method.id))}
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <SaveOrderButton disabled={!dirty} />
+          {state.message && (
+            <p
+              role="status"
+              className={`text-sm ${
+                state.success ? "text-green-700" : "text-destructive"
+              }`}
+            >
+              {state.message}
+            </p>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -162,17 +165,16 @@ function SortableShippingMethod({ method }: { method: ShippingMethod }) {
             Edit
           </TenantLink>
         </Button>
-        <Button
-          type="submit"
-          formAction={toggleShippingMethod.bind(
-            null,
-            method.id,
-            !method.isActive
-          )}
-          variant={method.isActive ? "secondary" : "default"}
+        <form
+          action={toggleShippingMethod.bind(null, method.id, !method.isActive)}
         >
-          {method.isActive ? "Disable" : "Enable"}
-        </Button>
+          <Button
+            type="submit"
+            variant={method.isActive ? "secondary" : "default"}
+          >
+            {method.isActive ? "Disable" : "Enable"}
+          </Button>
+        </form>
       </div>
     </article>
   );
