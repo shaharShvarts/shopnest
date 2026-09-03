@@ -18,10 +18,15 @@ export class DevelopmentPasswordResetDelivery
   }
 }
 
-export function createPasswordResetDelivery(
-  nodeEnv = process.env.NODE_ENV
-): CustomerPasswordResetDelivery {
-  return nodeEnv === "production"
-    ? new UnconfiguredPasswordResetDelivery()
-    : new DevelopmentPasswordResetDelivery();
+export function createPasswordResetDelivery(input: {
+  nodeEnv?: string;
+  developmentCaptureEnabled?: boolean;
+} = {}): CustomerPasswordResetDelivery {
+  const nodeEnv = input.nodeEnv ?? process.env.NODE_ENV;
+  const developmentCaptureEnabled =
+    input.developmentCaptureEnabled ??
+    process.env.SHOPNEST_PASSWORD_RESET_DEV_CAPTURE === "1";
+  return nodeEnv !== "production" || developmentCaptureEnabled
+    ? new DevelopmentPasswordResetDelivery()
+    : new UnconfiguredPasswordResetDelivery();
 }

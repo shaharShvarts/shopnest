@@ -33,6 +33,11 @@ import {
   shouldUseSecureCustomerCookie,
 } from "../src/lib/customer-auth/cookie.ts";
 import {
+  createPasswordResetDelivery,
+  DevelopmentPasswordResetDelivery,
+  UnconfiguredPasswordResetDelivery,
+} from "../src/lib/customer-auth/password-reset-delivery.ts";
+import {
   linkGuestCartToCustomer,
   mergeCartQuantities,
   type CartLinkResult,
@@ -688,9 +693,29 @@ test("forgot/reset routes, localized UI, and a production-safe delivery boundary
   assert.match(login, /name="rememberMe"[\s\S]*forgotPassword/);
   assert.match(forgot, /ForgotPasswordForm/);
   assert.match(reset, /ResetPasswordForm/);
-  assert.match(delivery, /nodeEnv === "production"[\s\S]*UnconfiguredPasswordResetDelivery/);
+  assert.match(
+    delivery,
+    /nodeEnv !== "production" \|\| developmentCaptureEnabled[\s\S]*UnconfiguredPasswordResetDelivery/
+  );
   assert.match(english, /Remember me[\s\S]*Forgot password/);
   assert.match(hebrew, /זכור אותי[\s\S]*שכחת סיסמה/);
+});
+
+test("production reset delivery is silent unless local capture is explicitly enabled", () => {
+  assert.ok(
+    createPasswordResetDelivery({ nodeEnv: "production" }) instanceof
+      UnconfiguredPasswordResetDelivery
+  );
+  assert.ok(
+    createPasswordResetDelivery({
+      nodeEnv: "production",
+      developmentCaptureEnabled: true,
+    }) instanceof DevelopmentPasswordResetDelivery
+  );
+  assert.ok(
+    createPasswordResetDelivery({ nodeEnv: "test" }) instanceof
+      DevelopmentPasswordResetDelivery
+  );
 });
 
 test("customer identity migration is public, journaled, and control-plane idempotency remains hash-checked", async () => {
