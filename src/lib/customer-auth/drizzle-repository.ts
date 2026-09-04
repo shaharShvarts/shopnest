@@ -1,8 +1,9 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { controlPlaneDb } from "@/drizzle/db";
 import {
   customerAccounts,
   customerAuthIdentities,
+  customerOAuthTransactions,
   customerPasswordResetTokens,
   customerSessions,
   customerTenants,
@@ -12,6 +13,10 @@ import type {
   CustomerRecord,
   StoredCustomerSession,
 } from "./core";
+import type {
+  GoogleOAuthRepository,
+  StoredGoogleOAuthTransaction,
+} from "./google-oauth";
 
 const customerSelection = {
   id: customerAccounts.id,
@@ -22,7 +27,9 @@ const customerSelection = {
   status: customerAccounts.status,
 };
 
-export class DrizzleCustomerAuthRepository implements CustomerAuthRepository {
+export class DrizzleCustomerAuthRepository
+  implements CustomerAuthRepository, GoogleOAuthRepository
+{
   async findCustomerByNormalizedEmail(email: string) {
     const [customer] = await controlPlaneDb
       .select(customerSelection)
@@ -97,6 +104,153 @@ export class DrizzleCustomerAuthRepository implements CustomerAuthRepository {
     await controlPlaneDb
       .delete(customerSessions)
       .where(eq(customerSessions.tokenHash, tokenHash));
+  }
+
+  async createGoogleOAuthTransaction(input: {
+    stateHash: string;
+    browserBindingHash: string;
+    tenantSlug: string;
+    callbackPath: string;
+    nonceHash: string;
+    codeVerifier: string;
+    expiresAt: Date;
+    createdAt: Date;
+  }) {
+    await controlPlaneDb.transaction(async (tx) => {
+      await tx
+        .delete(customerOAuthTransactions)
+        .where(lt(customerOAuthTransactions.expiresAt, input.createdAt));
+      await tx.insert(customerOAuthTransactions).values(input);
+    });
+  }
+
+  async consumeGoogleOAuthTransaction(input: {
+    stateHash: string;
+    browserBindingHash: string;
+    tenantSlug: string;
+    now: Date;
+  }): Promise<StoredGoogleOAuthTransaction | null> {
+    const [transaction] = await controlPlaneDb
+      .delete(customerOAuthTransactions)
+      .where(
+        and(
+          eq(customerOAuthTransactions.stateHash, input.stateHash),
+          eq(
+            customerOAuthTransactions.browserBindingHash,
+            input.browserBindingHash
+          ),
+          eq(customerOAuthTransactions.tenantSlug, input.tenantSlug),
+          gt(customerOAuthTransactions.expiresAt, input.now)
+        )
+      )
+      .returning({
+        tenantSlug: customerOAuthTransactions.tenantSlug,
+        callbackPath: customerOAuthTransactions.callbackPath,
+        nonceHash: customerOAuthTransactions.nonceHash,
+        codeVerifier: customerOAuthTransactions.codeVerifier,
+        expiresAt: customerOAuthTransactions.expiresAt,
+      });
+    return transaction ?? null;
+  }
+
+  resolveGoogleCustomer(input: {
+    subject: string;
+    email: string;
+    emailNormalized: string;
+    displayName: string | null;
+    verifiedAt: Date;
+  }): Promise<CustomerRecord> {
+    return controlPlaneDb.transaction(async (tx) => {
+      const lockKeys = [
+        `customer-email:${input.emailNormalized}`,
+        `google-sub:${input.subject}`,
+      ].sort();
+      for (const key of lockKeys) {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`
+        );
+      }
+
+      const existingIdentity = await findGoogleIdentity(tx, input.subject);
+      if (existingIdentity) {
+        if (existingIdentity.status !== "active") {
+          throw new Error("google_account_unavailable");
+        }
+        await tx
+          .update(customerAuthIdentities)
+          .set({ providerEmail: input.emailNormalized, updatedAt: input.verifiedAt })
+          .where(eq(customerAuthIdentities.id, existingIdentity.identityId));
+        return existingIdentity.customer;
+      }
+
+      let [customer] = await tx
+        .select({
+          ...customerSelection,
+          emailVerifiedAt: customerAccounts.emailVerifiedAt,
+        })
+        .from(customerAccounts)
+        .where(eq(customerAccounts.emailNormalized, input.emailNormalized))
+        .limit(1)
+        .for("update");
+
+      if (!customer) {
+        [customer] = await tx
+          .insert(customerAccounts)
+          .values({
+            email: input.email,
+            emailNormalized: input.emailNormalized,
+            displayName: input.displayName,
+            emailVerifiedAt: input.verifiedAt,
+          })
+          .onConflictDoNothing({ target: customerAccounts.emailNormalized })
+          .returning({
+            ...customerSelection,
+            emailVerifiedAt: customerAccounts.emailVerifiedAt,
+          });
+      }
+
+      if (!customer) {
+        [customer] = await tx
+          .select({
+            ...customerSelection,
+            emailVerifiedAt: customerAccounts.emailVerifiedAt,
+          })
+          .from(customerAccounts)
+          .where(eq(customerAccounts.emailNormalized, input.emailNormalized))
+          .limit(1)
+          .for("update");
+      }
+      if (!customer || customer.status !== "active") {
+        throw new Error("google_account_unavailable");
+      }
+
+      await tx
+        .insert(customerAuthIdentities)
+        .values({
+          customerId: customer.id,
+          provider: "google",
+          providerAccountId: input.subject,
+          providerEmail: input.emailNormalized,
+        })
+        .onConflictDoNothing({
+          target: [
+            customerAuthIdentities.provider,
+            customerAuthIdentities.providerAccountId,
+          ],
+        });
+
+      const linkedIdentity = await findGoogleIdentity(tx, input.subject);
+      if (!linkedIdentity || linkedIdentity.customer.id !== customer.id) {
+        throw new Error("google_identity_conflict");
+      }
+      if (!customer.emailVerifiedAt) {
+        await tx
+          .update(customerAccounts)
+          .set({ emailVerifiedAt: input.verifiedAt, updatedAt: input.verifiedAt })
+          .where(eq(customerAccounts.id, customer.id));
+      }
+      return linkedIdentity.customer;
+    });
   }
 
   issuePasswordResetToken(input: {
@@ -265,4 +419,44 @@ export class DrizzleCustomerAuthRepository implements CustomerAuthRepository {
       .limit(1);
     return Boolean(membership);
   }
+}
+
+type CustomerAuthTransaction = Parameters<
+  Parameters<typeof controlPlaneDb.transaction>[0]
+>[0];
+
+async function findGoogleIdentity(
+  tx: CustomerAuthTransaction,
+  subject: string
+) {
+  const [row] = await tx
+    .select({
+      identityId: customerAuthIdentities.id,
+      ...customerSelection,
+    })
+    .from(customerAuthIdentities)
+    .innerJoin(
+      customerAccounts,
+      eq(customerAuthIdentities.customerId, customerAccounts.id)
+    )
+    .where(
+      and(
+        eq(customerAuthIdentities.provider, "google"),
+        eq(customerAuthIdentities.providerAccountId, subject)
+      )
+    )
+    .limit(1);
+  if (!row) return null;
+  return {
+    identityId: row.identityId,
+    status: row.status,
+    customer: {
+      id: row.id,
+      email: row.email,
+      emailNormalized: row.emailNormalized,
+      passwordHash: row.passwordHash,
+      displayName: row.displayName,
+      status: row.status,
+    },
+  };
 }

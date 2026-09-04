@@ -388,9 +388,9 @@ test("callbacks remain tenant-local and cannot target admin or external origins"
   }
 });
 
-test("unimplemented Google and Apple providers are disabled honestly", () => {
+test("Google is implemented while Apple remains planned", () => {
   assert.deepEqual(getCustomerSocialProviderStatus(), {
-    google: "not_implemented",
+    google: "implemented",
     apple: "planned",
   });
 });
@@ -735,7 +735,7 @@ test("customer identity migration is public, journaled, and control-plane idempo
   );
   assert.equal(
     JSON.parse(journal).entries.at(-1).tag,
-    "0002_customer_password_reset"
+    "0003_customer_google_oauth"
   );
   assert.match(provisioner, /SELECT hash[\s\S]*assertMigrationHash/);
 });
@@ -770,8 +770,10 @@ test("tenant-prefixed account routes exist without introducing a customer admin 
     "src/app/(customer)/account/orders/page.tsx",
     "src/app/(customer)/forgot-password/page.tsx",
     "src/app/(customer)/reset-password/page.tsx",
+    "src/app/(customer)/account/google/start/route.ts",
+    "src/app/api/customer-auth/google/callback/route.ts",
   ].map((path) => readFile(path, "utf8")));
-  assert.equal(routes.length, 6);
+  assert.equal(routes.length, 8);
   assert.equal(routes.every((source) => source.length > 0), true);
   const layout = await readFile("src/app/(customer)/layout.tsx", "utf8");
   assert.match(layout, /account\/login/);

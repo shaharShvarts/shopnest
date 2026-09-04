@@ -8,3 +8,4 @@ export * from "@/drizzle/control-schema/customerTenant";
 export * from "@/drizzle/control-schema/customerAuthIdentity";
 export * from "@/drizzle/control-schema/customerSession";
 export * from "@/drizzle/control-schema/customerPasswordReset";
+export * from "@/drizzle/control-schema/customerOAuthTransaction";

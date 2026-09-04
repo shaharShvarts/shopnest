@@ -248,7 +248,7 @@ export function resolveSafeTenantCallback(
 
 export function getCustomerSocialProviderStatus() {
   return {
-    google: "not_implemented" as const,
+    google: "implemented" as const,
     apple: "planned" as const,
   };
 }

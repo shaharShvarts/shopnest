@@ -27,6 +27,7 @@
     "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts",
     "storefront-catalog:test": "node --experimental-strip-types --test tests/storefront-catalog.test.mts",
     "customer-auth:test": "node --experimental-strip-types --test tests/customer-auth.test.mts",
+    "google-auth:test": "node --experimental-strip-types --test tests/google-auth.test.mts",
     "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts",
     "cli-env:test": "node --test tests/cli-env.test.mjs"
   },
@@ -46,6 +47,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "drizzle-orm": "^0.44.2",
+    "jose": "^6.2.10",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.525.0",
     "nanoid": "^5.1.5",
