@@ -141,7 +141,7 @@ The notification abstraction is implemented, but real delivery is not. The datab
 
 Checkout creates a tenant-local order from the active cart belonging to the current user/session. Customer and shipping data are validated, product existence is rechecked, totals and `price_at_purchase` are calculated from server-side product prices, order items are copied, and the cart is deactivated atomically. The customer-facing order number is unique and non-sequential. Initial status is `pending`, payment method is explicitly `pending_payment`, and the order is not marked paid.
 
-The current lifecycle ends at a pending order plus a 15-minute hard inventory reservation. The cart and its historical rows are retained; a later request may create a new active cart.
+Checkout now calls the tenant payment framework after creating the pending order and 15-minute hard inventory reservation. All current provider definitions are non-live; without an implemented provider, the order remains pending. The cart and its historical rows are retained; a later request may create a new active cart.
 
 ## Shipping and fulfillment — CURRENT / AGREED
 
@@ -153,13 +153,19 @@ The order snapshots the method ID where available, code, name, type, charged pri
 
 Fulfillment state is separate from order/payment state. Supported states are `unfulfilled`, `processing`, `shipped`, `delivered`, `ready_for_pickup`, `picked_up`, and `cancelled`. New orders begin `unfulfilled`. Authorized tenant admins may correct the state and manually record a bounded tracking number for delivery orders. Entering shipped, delivered, ready-for-pickup, or picked-up records the corresponding timestamp once. Store pickup uses pickup states and has no tracking number; delivery methods use shipped/delivered states. Customer order history shows the tenant-local shipping snapshot, fulfillment state, and tracking number when present. Guest and authenticated checkout use the same shipping calculation and isolation rules.
 
-Shipping calculation does not reserve, release, or consume inventory. The existing inventory service continues to own those semantics. Payment remains `pending_payment`; the shipping total is merely included in the server-authoritative amount a future provider will charge.
+Shipping calculation does not reserve, release, or consume inventory. The existing inventory service continues to own those semantics. The initial payment method remains `pending_payment`; the shipping total is included in the server-authoritative amount passed to the payment framework. Shipping never confirms payment.
 
-### Payment-provider architecture — PLANNED, NOT IMPLEMENTED
+### Payment-provider framework — CURRENT / AGREED (network providers PLANNED)
 
-Payment integration will use a provider abstraction owned by ShopNest application code. Each merchant will connect and own its own payment-provider account/credentials; ShopNest must not silently route all tenant sales through one platform merchant account. Secrets belong in secure server-side configuration and must never be accepted from storefront request data or committed to Git.
+Tenant admins configure their own provider through /<tenant>/admin/payments. A singleton tenant-local settings row guarantees one selected provider; provider metadata drives fields, validation and capabilities. Cardcom configuration metadata is implemented; Cardcom, Pelecard and Tranzila network adapters are explicitly non-live and cannot be activated. There is no fake success or connection test. See [payments.md](payments.md) for the support matrix and official-documentation gaps.
 
-The planned flow is: create/reuse the pending order and hard reservation, initiate a provider payment attempt with tenant/order idempotency, then process a verified provider callback in trusted tenant context. Only a confirmed successful payment may consume the reservation, decrement physical stock, and move the order to a paid/processing state. Failure/cancellation releases the hold; timeout lets it expire. Callback replay must be idempotent. Exact provider selection, onboarding, fee model, and final status vocabulary remain **FUTURE / OPEN**.
+Credentials use server-only AES-256-GCM encryption with PAYMENT_ENCRYPTION_KEY, authenticated to tenant/provider/environment. The browser receives configured-state indicators only. Tenant settings never use a public database fallback. Payment attempts preserve encrypted configuration snapshots so replacement does not change in-flight verification.
+
+Checkout reloads the owned tenant order and server amount, validates the bound hard reservation and persists one idempotent attempt before a provider call. Ambiguous creation is never blindly retried. Only authenticated adapter evidence matching tenant-local attempt, provider reference, order amount and currency may confirm payment. A return URL is read-only and cannot mark paid.
+
+Confirmation locks the order/attempt and consumes the complete matching hard reservation through the existing inventory abstraction in the same transaction as payment/order updates. Verified payment decrements physical stock once and changes payment_status to paid and order status to processing. Replays cannot decrement again or regress paid. Failed/cancelled/expired outcomes do not decrement stock and release the hold; missing callbacks retain logical expiry. Verified funds after an expired/released hold become review_required, leaving stock and order payment status unchanged for operator reconciliation.
+
+The legacy iCount payment route is explicitly retired with HTTP 410. Its old shipping caller now redirects to tenant checkout. ShopNest collects/stores no raw card data. Live Cardcom verification, provider status reconciliation, connection tests where supported, new payment attempts after failure and refunds are PLANNED; provider-specific contracts must be verified before activation.
 
 ### Invoice-provider architecture — PLANNED, NOT IMPLEMENTED
 

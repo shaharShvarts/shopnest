@@ -82,6 +82,8 @@ export const orders = pgTable(
     shippingAddress: text("shipping_address"),
     billingAddress: text("billing_address"),
     paymentMethod: text("payment_method").notNull(),
+    paymentStatus: text("payment_status").$type<"pending" | "paid">().notNull().default("pending"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
     fulfillmentStatus: fulfillmentStatusEnum("fulfillment_status")
       .notNull()
       .default("unfulfilled"),
@@ -98,6 +100,8 @@ export const orders = pgTable(
     createdAt,
   },
   (table) => [
+    check("order_payment_status_valid", sql`${table.paymentStatus} in ('pending', 'paid')`),
+    check("order_paid_timestamp_required", sql`${table.paymentStatus} <> 'paid' or ${table.paidAt} is not null`),
     check(
       "orders_customer_or_session",
       sql`${table.userId} IS NOT NULL OR ${table.sessionId} IS NOT NULL OR ${table.customerAccountId} IS NOT NULL`

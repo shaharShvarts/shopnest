@@ -29,7 +29,8 @@
     "customer-auth:test": "node --experimental-strip-types --test tests/customer-auth.test.mts",
     "google-auth:test": "node --experimental-strip-types --test tests/google-auth.test.mts",
     "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts",
-    "cli-env:test": "node --test tests/cli-env.test.mjs"
+    "cli-env:test": "node --test tests/cli-env.test.mjs",
+    "payment:test": "node --conditions=react-server --experimental-strip-types --test tests/payment.test.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -61,6 +62,7 @@
     "react-dropzone": "^14.3.8",
     "react-icons": "^5.5.0",
     "react-toastify": "^11.0.5",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.76"
   },

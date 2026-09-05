@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import {
   submitCheckout,
   type CheckoutActionState,
@@ -31,6 +32,7 @@ export default function CheckoutTable({
   shippingMethods: ShippingQuote[];
 }) {
   const [state, formAction] = useActionState(submitCheckout, initialState);
+  const paymentT = useTranslations("Payments");
   const [selectedMethodId, setSelectedMethodId] = useState<number | null>(() =>
     getDefaultShippingMethodId(shippingMethods)
   );
@@ -44,7 +46,7 @@ export default function CheckoutTable({
     return (
       <section className="mx-auto w-full max-w-2xl space-y-3 rounded-lg border p-4 sm:p-6">
         <h2 className="text-xl font-semibold text-green-700 sm:text-2xl">
-          Order confirmed
+          {paymentT("orderCreated")}
         </h2>
         <p>Your order number is:</p>
         <p className="break-all font-mono text-lg font-semibold sm:text-xl">
@@ -54,8 +56,9 @@ export default function CheckoutTable({
         <p>Shipping: {formatCurrency(state.order.shippingTotal)}</p>
         <p>Total: {formatCurrency(state.order.totalPrice)}</p>
         <p className="text-sm text-muted-foreground">
-          Payment is still pending. No payment has been collected.
+          {state.payment?.redirectUrl ? paymentT("continueExplanation") : paymentT("paymentUnavailable")}
         </p>
+        {state.payment?.redirectUrl && <Button asChild><a href={state.payment.redirectUrl} rel="noreferrer">{paymentT("continuePayment")}</a></Button>}
       </section>
     );
   }

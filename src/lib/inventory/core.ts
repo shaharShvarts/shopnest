@@ -175,6 +175,7 @@ export type ReserveCartInventoryInput = Omit<
 
 export type ConsumeReservationInput = Omit<ReservationAttemptIdentity, "purpose"> & {
   now?: Date;
+  expectedItems?: ReservationItem[];
 };
 
 export type CustomerStockMessage =
@@ -402,25 +403,7 @@ export class InventoryService {
   }
 
   releaseReservation(input: ConsumeReservationInput) {
-    const now = input.now ?? new Date();
-    return this.store.transaction(async (tx) => {
-      validateAttempt(input);
-      await tx.lockReservationAttempt(input.checkoutToken);
-      const reservations = await tx.getAttemptReservations(input.checkoutToken);
-      if (reservations.length === 0) {
-        throw new InventoryError(
-          "reservation_not_found",
-          "No checkout reservation was found."
-        );
-      }
-      const attempt = checkoutAttempt(input);
-      assertAttemptBinding(reservations, attempt);
-      return tx.markAttemptReservations(
-        attempt,
-        "released",
-        now
-      );
-    });
+    return this.store.transaction((tx) => releaseReservationInTransaction(tx, input));
   }
 
   consumeReservation(input: ConsumeReservationInput) {
@@ -686,12 +669,32 @@ async function reserveAttemptItems(
   };
 }
 
+export async function validateCheckoutReservationInTransaction(tx: InventoryTransaction, input: ConsumeReservationInput) {
+  validateAttempt(input);
+  await tx.lockReservationAttempt(input.checkoutToken);
+  const reservations = await tx.getAttemptReservations(input.checkoutToken);
+  if (!reservations.length) throw new InventoryError("reservation_not_found", "No checkout reservation was found.");
+  assertAttemptBinding(reservations, checkoutAttempt(input));
+  if (reservations.some((row) => row.checkoutToken !== input.checkoutToken)) throw new InventoryError("invalid_attempt", "Reservation token mismatch.");
+  if (input.expectedItems) {
+    const expected = new Map(input.expectedItems.map((item) => [item.productId, item.quantity]));
+    if (!expected.size || expected.size !== input.expectedItems.length || reservations.length !== expected.size || reservations.some((row) => expected.get(row.productId) !== row.quantity)) throw new InventoryError("invalid_attempt", "Reservation items do not match the order.");
+  }
+  return reservations.every((row) => row.state === "active" && row.expiresAt.getTime() > (input.now ?? new Date()).getTime());
+}
+
+export async function releaseReservationInTransaction(tx: InventoryTransaction, input: ConsumeReservationInput) {
+  await validateCheckoutReservationInTransaction(tx, input);
+  return tx.markAttemptReservations(checkoutAttempt(input), "released", input.now ?? new Date());
+}
+
 export async function consumeReservationInTransaction(
   tx: InventoryTransaction,
   input: ConsumeReservationInput,
   notificationService: InventoryNotificationService
 ) {
   const now = input.now ?? new Date();
+  if (!(await validateCheckoutReservationInTransaction(tx, { ...input, now }))) throw new InventoryError("reservation_expired", "The checkout reservation has expired.");
   validateAttempt(input);
   const attempt = checkoutAttempt(input);
   await tx.lockReservationAttempt(input.checkoutToken);
