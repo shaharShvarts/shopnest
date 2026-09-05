@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { getTenant } from "@/lib/tenant-context";
-import { commerceOwnerKey, getCommerceIdentity } from "@/lib/customer-commerce/identity";
+import { getCommerceIdentity } from "@/lib/customer-commerce/identity";
+import { paymentOwnerKey } from "@/lib/payments/ownership";
 import { DrizzlePaymentStore } from "@/lib/payments/drizzle-store";
 
 // Read only. Even ?success=true or a forged provider redirect cannot mark paid.
@@ -10,7 +11,7 @@ export default async function PaymentReturnPage({ params }: { params: Promise<{ 
   const tenant = await getTenant();
   const { id } = await params;
   if (!tenant || !z.string().uuid().safeParse(id).success) notFound();
-  const ownerKey = commerceOwnerKey(await getCommerceIdentity());
+  const ownerKey = paymentOwnerKey(await getCommerceIdentity());
   const store = new DrizzlePaymentStore(tenant);
   const attempt = await store.getAttempt(id);
   if (!attempt || !ownerKey) notFound();

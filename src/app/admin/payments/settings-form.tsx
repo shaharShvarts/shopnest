@@ -110,7 +110,7 @@ export function PaymentSettingsForm({
                 name={field.id}
                 type={field.type}
                 maxLength={field.maxLength}
-                autoComplete="off"
+                autoComplete={field.type === "password" ? "new-password" : "off"}
                 required={
                   !(
                     sameConfiguration &&

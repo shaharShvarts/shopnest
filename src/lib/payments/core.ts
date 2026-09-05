@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 import {
   PaymentError,
   type PaymentAttempt,
+  type PaymentOrder,
   type PaymentProvider,
   type PaymentResult,
   type PaymentSettings,
   type PaymentStatus,
   type VerifiedPayment,
 } from "./types.ts";
-import type { PaymentStore } from "./store.ts";
+import type { PaymentStore, PaymentTransaction } from "./store.ts";
 
 export type AdapterResolver = (
   settings: Pick<
@@ -58,6 +59,28 @@ function assertMoney(amount: number, currency: string) {
     throw new PaymentError("invalid_amount");
 }
 
+async function assertResumable(
+  tx: PaymentTransaction,
+  order: PaymentOrder,
+  attempt: PaymentAttempt,
+  adapterFor: AdapterResolver,
+) {
+  if (!order.payable || order.paymentStatus !== "pending")
+    throw new PaymentError("order_not_payable");
+  if (order.amount !== attempt.amount || order.currency !== attempt.currency)
+    throw new PaymentError("invalid_amount");
+  const settings = await tx.getSettings();
+  if (
+    !settings?.enabled ||
+    settings.provider !== attempt.provider ||
+    settings.environment !== attempt.environment
+  )
+    throw new PaymentError("disabled");
+  adapterFor(attempt);
+  if (!(await tx.reservationValid(order)))
+    throw new PaymentError("reservation_expired");
+}
+
 export async function startPayment(
   store: PaymentStore,
   input: {
@@ -74,7 +97,11 @@ export async function startPayment(
     if (!order || order.ownerKey !== input.ownerKey)
       throw new PaymentError("order_not_found");
     const existing = await tx.findAttemptForOrder(order.id);
-    if (existing) return existing;
+    if (existing) {
+      if (existing.status === "pending")
+        await assertResumable(tx, order, existing, adapterFor);
+      return existing;
+    }
     if (!order.payable || order.paymentStatus !== "pending")
       throw new PaymentError("order_not_payable");
     assertMoney(order.amount, order.currency);
@@ -146,7 +173,7 @@ export async function startPayment(
     throw new PaymentError("creation_unconfirmed");
   }
   return store.transaction(async (tx) => {
-    await tx.lockOrder(attempt.orderId);
+    const order = await tx.lockOrder(attempt.orderId);
     const current = await tx.getAttempt(id);
     if (!current) throw new PaymentError("payment_not_found");
     const updated = {
@@ -155,6 +182,17 @@ export async function startPayment(
       status: transitionPayment(current.status, "pending"),
     };
     await tx.updateAttempt(updated);
+    // Keep the provider reference even when the hold expired during the network
+    // request. Verified late funds still need reconciliation, but no new redirect.
+    if (updated.status === "pending") {
+      try {
+        if (!order || order.ownerKey !== input.ownerKey)
+          throw new PaymentError("order_not_found");
+        await assertResumable(tx, order, updated, adapterFor);
+      } catch {
+        return { status: updated.status, redirectUrl: null };
+      }
+    }
     return paymentResult(updated);
   });
 }

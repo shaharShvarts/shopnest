@@ -29,6 +29,8 @@ import {
 import { resolveTenantRoute } from "../src/lib/tenant-routing/core.ts";
 import { authorizeTenantAdmin } from "../src/lib/admin-auth/core.ts";
 import { MemoryPaymentStore } from "./helpers/payment-store.mts";
+import { paymentOwnerKey } from "../src/lib/payments/ownership.ts";
+import { checkoutPaymentMessage } from "../src/lib/payments/presentation.ts";
 
 process.env.PAYMENT_ENCRYPTION_KEY = randomBytes(32).toString("base64");
 const secret = "test-only-credential-value";
@@ -237,11 +239,14 @@ test("replacing a secret works and blank fields preserve only same environment",
     code("invalid_credentials"),
   );
 });
-test("non-live provider cannot be enabled", () =>
-  assert.throws(
-    () => prepareSettings({ ...config, enabled: true }, null, "gift-shop"),
-    code("not_implemented"),
-  ));
+test("every non-live provider rejects server-side activation", () => {
+  for (const provider of providerRegistry)
+    assert.throws(
+      () => prepareSettings({ ...config, provider: provider.id,
+        environment: provider.environments[0], enabled: true }, null, "gift-shop"),
+      code("not_implemented"),
+    );
+});
 test("one settings row represents the selected provider", () => {
   const previous = prepareSettings(config, null, "gift-shop");
   const next = prepareSettings(
@@ -583,4 +588,77 @@ test("state transition table rejects reopening a failed payment", () => {
     code("invalid_transition"),
   );
   assert.equal(transitionPayment("paid", "failed"), "paid");
+});
+
+for (const changed of ["expired", "cancelled", "amount", "currency"] as const)
+  test(`retry rejects a pending payment after ${changed} changes`, async () => {
+    const store = await pending();
+    if (changed === "expired") store.reservations[0].expiresAt = new Date(0);
+    if (changed === "cancelled") store.order.payable = false;
+    if (changed === "amount") store.order.amount++;
+    if (changed === "currency") store.order.currency = "USD";
+    await assert.rejects(startPayment(store, input, () => fakeProvider()));
+    assert.equal(store.attempts.length, 1);
+    assert.equal(store.physical, 10);
+  });
+
+test("reservation expiring during provider creation suppresses the returned link", async () => {
+  const store = new MemoryPaymentStore();
+  const result = await startPayment(store, input, () => fakeProvider({
+    createPayment: async () => {
+      store.reservations[0].expiresAt = new Date(0);
+      return {providerTransactionId: "provider-test-id", redirectUrl: "https://hosted.example/pay"};
+    },
+  }));
+  assert.equal(result.redirectUrl, null);
+  assert.equal(store.attempts[0].providerTransactionId, "provider-test-id");
+  assert.equal(store.physical, 10);
+});
+
+test("payment ownership never trusts the unsigned legacy user_id cookie", async () => {
+  assert.equal(paymentOwnerKey({customerAccountId:null,userId:1,sessionId:null}), null);
+  assert.equal(paymentOwnerKey({customerAccountId:null,userId:1,sessionId:"attacker"}), null);
+  assert.equal(paymentOwnerKey({customerAccountId:7,userId:null,sessionId:null}), "customer:7");
+  assert.equal(paymentOwnerKey({customerAccountId:null,userId:null,sessionId:"buyer"}), "session:buyer");
+  for (const path of ["../src/app/(customer)/_actions/checkout.ts", "../src/app/(customer)/checkout/payment/[id]/page.tsx"])
+    assert.match(await source(path), /paymentOwnerKey\(/);
+});
+
+for (const change of ["disabled", "provider", "environment"] as const)
+  test(`pending link cannot resume after settings ${change}`, async () => {
+    const store = await pending();
+    if (change === "disabled") store.settings!.enabled = false;
+    if (change === "provider") store.settings!.provider = "tranzila";
+    if (change === "environment") store.settings!.environment = "production";
+    await assert.rejects(startPayment(store, input, () => fakeProvider()), code("disabled"));
+    assert.equal(store.attempts.length, 1);
+  });
+
+for (const mismatch of ["checkoutToken", "consumed"] as const)
+  test(`reservation ${mismatch} cannot consume again`, async () => {
+    const store = await pending();
+    if (mismatch === "checkoutToken") {
+      store.reservations[0].checkoutToken = "wrong";
+      await assert.rejects(confirmPayment(store, store.attempts[0].id, callback, () => fakeProvider()));
+    } else {
+      store.reservations[0].state = "consumed";
+      assert.equal(await confirmPayment(store, store.attempts[0].id, callback, () => fakeProvider()), "review_required");
+    }
+    assert.equal(store.physical, 10);
+    assert.equal(store.order.paymentStatus, "pending");
+  });
+
+test("paid checkout retry reports paid instead of claiming the order is unpaid", async () => {
+  const store = await pending();
+  await confirmPayment(store, store.attempts[0].id, callback, () => fakeProvider());
+  const result = await startPayment(store, input, () => fakeProvider());
+  assert.equal(result.status, "paid");
+  assert.equal(result.redirectUrl, null);
+  assert.equal(checkoutPaymentMessage(result), "statuses.paid");
+  assert.equal(store.consumed, 1);
+  assert.equal(checkoutPaymentMessage({status:"created",redirectUrl:null}), "paymentUnavailable");
+});
+
+test("provider secret fields discourage unrelated saved login autofill", async () => {
+  assert.match(await source("../src/app/admin/payments/settings-form.tsx"), /autoComplete=\{field.type === "password" \? "new-password" : "off"\}/);
 });

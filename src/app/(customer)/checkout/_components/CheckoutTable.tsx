@@ -10,6 +10,7 @@ import {
 import ShippingAddress from "./ShippingAddress";
 import { Button } from "@/components/ui/button";
 import type { ShippingQuote } from "@/lib/shipping/core";
+import { checkoutPaymentMessage } from "@/lib/payments/presentation";
 import {
   getCheckoutShippingSelection,
   getDefaultShippingMethodId,
@@ -56,7 +57,7 @@ export default function CheckoutTable({
         <p>Shipping: {formatCurrency(state.order.shippingTotal)}</p>
         <p>Total: {formatCurrency(state.order.totalPrice)}</p>
         <p className="text-sm text-muted-foreground">
-          {state.payment?.redirectUrl ? paymentT("continueExplanation") : paymentT("paymentUnavailable")}
+          {paymentT(checkoutPaymentMessage(state.payment))}
         </p>
         {state.payment?.redirectUrl && <Button asChild><a href={state.payment.redirectUrl} rel="noreferrer">{paymentT("continuePayment")}</a></Button>}
       </section>
