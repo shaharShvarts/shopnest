@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import type {
   PaymentEnvironment,
   ProviderMetadata,
 } from "@/lib/payments/types";
-import { savePaymentSettings, type PaymentSettingsState } from "./actions";
+import type { ConnectionState } from "@/lib/payments/connection";
+import { testPaymentConnection, savePaymentSettings, type PaymentSettingsState } from "./actions";
 
 export function PaymentSettingsForm({
   settings,
@@ -19,6 +20,22 @@ export function PaymentSettingsForm({
   providers: ProviderMetadata[];
 }) {
   const t = useTranslations("Payments");
+  const formRef = useRef<HTMLFormElement>(null);
+  const [testing, setTesting] = useState(false);
+  const [connection, setConnection] = useState<ConnectionState | null>(null);
+  async function testConnection() {
+    if (!formRef.current || testing) return;
+    const form = new FormData(formRef.current);
+    setConnection(null);
+    setTesting(true);
+    try {
+      setConnection(await testPaymentConnection({
+        provider: providerId, environment,
+        credentials: Object.fromEntries(provider.fields.map((field) => [field.id, String(form.get(field.id) ?? "")])),
+      }));
+    } catch { setConnection({ success: false, message: "connectionFailed" }); }
+    finally { setTesting(false); }
+  }
   const [providerId, setProvider] = useState(
     settings?.provider ?? providers[0].id,
   );
@@ -49,10 +66,12 @@ export function PaymentSettingsForm({
   );
   return (
     <form
+      ref={formRef}
+      onChange={() => setConnection(null)}
       action={action}
       className="max-w-2xl space-y-5 rounded-xl border p-4 sm:p-6"
     >
-      <fieldset disabled={pending} className="space-y-5">
+      <fieldset disabled={pending || testing} className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="provider">{t("provider")}</Label>
@@ -146,7 +165,12 @@ export function PaymentSettingsForm({
             {t("enabled")}
           </label>
         </div>
-        <p className="text-sm text-muted-foreground">{t("testUnsupported")}</p>
+        {provider.capabilities.testConnection ? (
+          <div className="space-y-2">
+            <Button type="button" onClick={testConnection}>{testing ? t("testingConnection") : t("testConnection")}</Button>
+            {connection && <p role="status" className={connection.success ? "text-green-700" : "text-destructive"}>{t(connection.message)}</p>}
+          </div>
+        ) : <p className="text-sm text-muted-foreground">{t("testUnsupported")}</p>}
         <Button type="submit">{pending ? t("saving") : t("save")}</Button>
       </fieldset>
       {state.message && (

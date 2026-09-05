@@ -10,7 +10,7 @@ Each merchant owns its payment account. Settings and transactions live only in t
 
 | Provider | Configuration | Network operations | Connection test |
 | --- | --- | --- | --- |
-| Cardcom | Terminal number and API username; test/production slots | Not implemented; activation blocked | Unsupported |
+| Cardcom | Terminal number, API username and API password; test/production slots | Read-only terminal lookup; payment activation blocked | GetUserTerminalList |
 | Pelecard | Reserved definition; credential and environment contract pending | Not implemented; activation blocked | Unsupported |
 | Tranzila | Reserved definition; credential and environment contract pending | Not implemented; activation blocked | Unsupported |
 
@@ -22,7 +22,7 @@ The central registry supplies metadata, credential validation, capability flags 
 
 Set `PAYMENT_ENCRYPTION_KEY` to a base64-encoded, cryptographically random **32-byte key**, using the deployment secret manager. AES-256-GCM uses a fresh 12-byte IV and 16-byte authentication tag for every encryption. The `v1` envelope is authenticated with tenant slug, provider and environment as additional authenticated data. Copying ciphertext to another tenant or environment fails authentication.
 
-The key is never stored in PostgreSQL. No default key or plaintext fallback exists. Missing/invalid key configuration blocks credential saving/use. All credential fields, including the terminal identifier, are encrypted. The client receives only provider/environment/enabled and configured field names. Blank fields preserve saved values only for the same provider and environment; replacement requires new input. Settings updates decrypt only inside the server-side merge boundary. Adapter invocation decrypts only on the server. Errors contain normalized codes rather than provider/SQL error text; submitted secrets and raw responses are never logged.
+The key is never stored in PostgreSQL. No default key or plaintext fallback exists. Missing/invalid key configuration blocks credential saving/use. All credential fields, including the terminal identifier, are encrypted. The client receives only provider/environment/enabled and configured field names. Blank fields preserve saved values only for the same provider and environment; replacement requires new input. Settings updates and connection tests decrypt only inside the shared server-side merge boundary. Adapter invocation decrypts only on the server. Errors contain normalized codes rather than provider/SQL error text; submitted secrets and raw responses are never logged.
 
 Keep the encryption key available for the lifetime of in-flight attempts. Each attempt retains an encrypted configuration snapshot so later merchant credential replacement cannot silently change which account verifies the payment. Backup the key securely. Automated key rotation/re-encryption and retention policies are FUTURE / OPEN; changing the key without re-encrypting existing rows makes them unreadable.
 
@@ -66,7 +66,7 @@ The old `/api/iCount/payment` prototype accepted a client amount and used platfo
 
 Decision C: explicitly deprecate, preserving the route with `410 Gone` and a generic message directing clients to tenant checkout. It no longer accesses credentials or makes network calls. The prototype component links to checkout; the shipping action retains address-cookie behavior and redirects to tenant checkout. No silent deletion or compatibility route can bypass order/payment invariants. Historical iCount credentials are not migrated or reused.
 
-## Cardcom integration — PLANNED
+## Cardcom payments — PLANNED
 
 Official material reviewed:
 
@@ -74,9 +74,9 @@ Official material reviewed:
 - [Official v11 API reference](https://secure.cardcom.solutions/Api/v11/Docs)
 - [Official test-environment guidance](https://support.cardcom.solutions/hc/he/articles/360002688814)
 
-The guide describes status verification after notification, but calls status retrieval GET while showing a JSON body. Its field table and sample also differ on transaction-ID spelling. The machine-readable reference was not retrievable in this environment. Therefore this release does not guess a usable network contract or claim an end-to-end Cardcom integration.
+The guide describes status verification after notification, but calls status retrieval GET while showing a JSON body. Its field table and sample also differ on transaction-ID spelling. The machine-readable payment reference was not retrievable during the original framework work. No end-to-end Cardcom payment integration is claimed. The separate read-only connection contract below is verified against the official SOAP operation documentation.
 
-Required before implementing/enabling the adapter:
+Required before implementing/enabling payment operations:
 
 - Resolve the status HTTP method, authenticated request contract, exact response fields/types and successful-charge evidence using the current official OpenAPI specification.
 - Confirm currency mapping, amount units, transaction-ID precision, terminal/environment binding and hosted-URL validation rules.
@@ -89,8 +89,35 @@ Pelecard and Tranzila require their own official onboarding/credential, hosted-p
 
 ## Validation
 
-`npm run payment:test` runs 55 tests with isolated fake adapters and the actual inventory domain abstraction. It covers configuration, authenticated encryption, secret projections, owner/tenant boundaries, server-priced amounts, concurrent starts/confirmations, rollback, terminal states, expiry/review handling, and the retired route. Server-only modules run under Node's `react-server` condition for these tests; no fake adapter is bundled into the application.
+`npm run payment:test` runs 76 tests with isolated fake adapters and the actual inventory domain abstraction. It covers configuration, authenticated encryption, secret projections, owner/tenant boundaries, server-priced amounts, concurrent starts/confirmations, rollback, terminal states, expiry/review handling, and the retired route. Server-only modules run under Node's `react-server` condition for these tests; no fake adapter is bundled into the application.
 
 `node --test tests/payment-db.test.mjs` is an explicit PostgreSQL integration check using the configured development database. It creates two random test schemas inside a transaction, runs every tenant migration, tests payment constraints and isolated reads/updates, and rolls everything back. It never migrates existing tenants. It requires schema-creation permission and is separate from the default payment unit suite.
 
-Required checkout, inventory, shipping, customer-auth, admin-auth, admin-ui and tenant suites, plus storefront-ui and Google-auth regressions, pass. TypeScript, lint and the production build pass. Local browser acceptance also covers disabled dummy-credential storage/replacement, tenant isolation, English/Hebrew layouts and pending guest checkout. This does not constitute provider sandbox certification; network operations remain disabled.
+Required checkout, inventory, shipping, customer-auth, admin-auth, admin-ui and tenant suites, plus storefront-ui and Google-auth regressions, pass. TypeScript, lint and the production build pass. Local browser acceptance also covers disabled dummy-credential storage/replacement, tenant isolation, English/Hebrew layouts and pending guest checkout. This does not constitute provider sandbox certification; payment operations remain disabled.
+
+## Cardcom read-only connection validation
+
+The server-only adapter uses the [official GetUserTerminalList SOAP 1.1 operation](https://secure.cardcom.solutions/Interface/BillGoldService.asmx?op=GetUserTerminalList). It POSTs to the fixed BillGoldService endpoint with SOAPAction `BillGoldService/GetUserTerminalList`. Success requires response code zero and the configured terminal in the returned list. Both environment slots use this documented endpoint; environment selection isolates saved credentials and does not establish payment sandbox capability.
+
+The admin test action authorizes before accessing the tenant-local singleton. It accepts only provider, environment and credential fields. Unsaved values override saved values; blank fields reuse saved values only for the same provider/environment, with authenticated tenant-bound decryption. It does not save, encrypt new settings, create attempts, or alter inventory. It returns only a boolean and a translated message key. Existing configurations without the new password require it to be entered before testing or saving. No migration is needed because credentials already use encrypted JSON.
+
+The request has a nine-second deadline covering headers and body, no retries, no redirects, and no caching. Response size is capped at 256 KiB. The narrowly scoped XML parser checks nesting, namespaces and the operation/result structure, and rejects DTDs, external entities, unknown entities, malformed XML and unsupported XML syntax. XML values are escaped. Neither requests, responses nor credentials are logged. Fetch and timeout duration can be injected by unit tests; all test credentials are synthetic.
+
+### Manual acceptance
+
+The maintainer reported that manual acceptance passed on 2026-09-05. The steps below document the acceptance procedure.
+
+1. Ensure the existing development database and payment encryption key are configured, then run `npm run dev` from this repository.
+2. Sign in as an authorized gift-shop tenant admin and open http://localhost:3000/gift-shop/admin/payments.
+3. Select Cardcom and environment Test.
+4. Manually enter the official Cardcom test terminal, API username and API password provided separately. Do not copy them into repository files or logs.
+5. Click **Test connection**; expect **Testing connection…**, then **Connection successful.** This must not save the form.
+6. Change the terminal to a syntactically valid number that is not assigned to that test account; test again and expect failure.
+7. Restore the official test terminal. Confirm **Enable payments** remains disabled.
+8. Confirm the Cardcom dashboard shows no transaction created by these checks, and ShopNest's recent payment attempts are unchanged.
+9. In browser DevTools, inspect action **response** payloads and page responses: no saved credentials, ciphertext, raw SOAP, or Cardcom description should appear. Newly typed credentials necessarily appear in the outgoing server-action request; they must never be echoed in its response.
+10. Check the server console and application logs for credential leakage without printing/copying the credentials into logs. Confirm there is no browser request directly to Cardcom.
+11. Separately save the test settings, reload, leave secrets blank and test again. Switch environment and verify blank values cannot reuse the Test credentials. Switch to Pelecard/Tranzila and confirm the unsupported message remains.
+12. Confirm an admin lacking access to another tenant cannot test its settings. Repeat tenant-local checks for panda-pop and dvorik-collection using only their own authorized settings.
+
+Live provider acceptance and runtime browser/log inspection were reported passed by the maintainer; these checks are manual. Automated tests verify safe response projections, failure normalization, non-live enforcement, authorization wiring and credential isolation. No production credentials or live payment operations are included.

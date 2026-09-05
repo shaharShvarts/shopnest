@@ -204,6 +204,11 @@
     }
   },
   "Payments": {
+    "testConnection": "Test connection",
+    "testingConnection": "Testing connection…",
+    "connectionSuccess": "Connection successful.",
+    "connectionFailed": "Connection failed. Check the credentials and terminal number.",
+    "connectionNotConfigured": "Enter the required connection credentials.",
     "title": "Payments",
     "description": "Configure your store’s payment provider. Credentials belong only to this store and are encrypted on the server.",
     "provider": "Provider",
@@ -232,7 +237,8 @@
     "goToCheckout": "Continue to checkout",
     "fields": {
       "terminalNumber": "Terminal number",
-      "apiName": "API username"
+      "apiName": "API username",
+      "apiPassword": "API password"
     },
     "statuses": {
       "created": "Awaiting payment setup or verification",

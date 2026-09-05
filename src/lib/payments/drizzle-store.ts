@@ -1,4 +1,5 @@
 import "server-only";
+import { testSettingsConnection } from "./connection";
 import { eq, sql, desc } from "drizzle-orm";
 import { getDbForTenant } from "@/drizzle/db";
 import {
@@ -59,6 +60,11 @@ export class DrizzlePaymentStore implements PaymentStore {
       .from(paymentProviderSettings)
       .where(eq(paymentProviderSettings.id, 1));
     return settingsReadModel(settings ?? null);
+  }
+
+  async testConnection(input: unknown) {
+    const [previous] = await this.database.select().from(paymentProviderSettings).where(eq(paymentProviderSettings.id, 1));
+    return testSettingsConnection(input, previous ?? null, this.tenant);
   }
 
   async saveSettings(input: unknown) {
