@@ -202,5 +202,46 @@
       "title": "Search products",
       "description": "Search the active ShopNest product catalog"
     }
+  },
+  "Payments": {
+    "title": "Payments",
+    "description": "Configure your store’s payment provider. Credentials belong only to this store and are encrypted on the server.",
+    "provider": "Provider",
+    "environment": "Environment",
+    "test": "Test",
+    "production": "Production",
+    "notLive": "This provider is not yet available for payments. You may save configuration, but activation remains unavailable.",
+    "credentialsPending": "Credential setup will become available after the provider integration is verified.",
+    "configured": "Configured. Leave blank to keep the saved value, or enter a replacement.",
+    "notConfigured": "Not configured. Enter a value.",
+    "enabled": "Enable payments",
+    "testUnsupported": "Connection test not supported by this provider.",
+    "save": "Save settings",
+    "saving": "Saving…",
+    "saved": "Payment settings saved.",
+    "saveFailed": "Unable to save. Check the required fields and server encryption configuration. Unsupported providers cannot be enabled.",
+    "recentPayments": "Recent payments",
+    "noPayments": "No payment attempts yet.",
+    "order": "Order",
+    "paymentStatus": "Payment status",
+    "returnExplanation": "Only verified provider confirmation can complete payment. Refresh this page to see the latest status.",
+    "orderCreated": "Order created",
+    "continueExplanation": "Your order is awaiting payment. Continue to the provider’s secure payment page.",
+    "paymentUnavailable": "Payment is not available yet or requires verification. Your order remains unpaid. Please contact the store; do not create another order to retry payment.",
+    "continuePayment": "Continue to payment",
+    "goToCheckout": "Continue to checkout",
+    "fields": {
+      "terminalNumber": "Terminal number",
+      "apiName": "API username"
+    },
+    "statuses": {
+      "created": "Awaiting payment setup or verification",
+      "pending": "Awaiting payment confirmation",
+      "paid": "Paid",
+      "failed": "Payment failed",
+      "cancelled": "Payment cancelled",
+      "expired": "Payment expired",
+      "review_required": "Payment received — store review required"
+    }
   }
 }

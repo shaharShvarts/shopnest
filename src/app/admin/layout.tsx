@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { logoutCurrentAdmin } from "./_actions/auth";
 import { requireTenantAdmin } from "@/lib/admin-auth/server";
 import { INTERNAL_PATH_HEADER } from "@/lib/tenant";
+import { getTranslations } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function AdminLayout({
   if (internalPath === "/admin/login") return children;
 
   await requireTenantAdmin();
+  const paymentT = await getTranslations("Payments");
 
   return (
     <>
@@ -28,6 +30,7 @@ export default async function AdminLayout({
         <NavLink href="/admin/subcategories">Subcategories</NavLink>
         <NavLink href="/admin/products">Products</NavLink>
         <NavLink href="/admin/shipping">Shipping</NavLink>
+        <NavLink href="/admin/payments">{paymentT("title")}</NavLink>
         <NavLink href="/admin/users">Customers</NavLink>
         <NavLink href="/admin/orders">Sales</NavLink>
         <form action={logoutCurrentAdmin} className="flex items-center ml-4">

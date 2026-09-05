@@ -8,7 +8,7 @@ import { useTenant } from "@/context/TenantContext";
 
 export function Nav({ children }: { children: ReactNode }) {
   return (
-    <nav className="bg-primary text-primary-foreground flex justify-center px-4">
+    <nav className="bg-primary text-primary-foreground flex flex-wrap justify-center px-4">
       {children}
     </nav>
   );

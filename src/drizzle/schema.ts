@@ -12,3 +12,4 @@ export * from "@/drizzle/schema/orderProduct";
 export * from "@/drizzle/schema/reservation";
 export * from "@/drizzle/schema/inventoryAlert";
 export * from "@/drizzle/schema/shippingMethod";
+export * from "@/drizzle/schema/payment";

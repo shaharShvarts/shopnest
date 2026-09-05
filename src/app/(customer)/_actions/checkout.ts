@@ -11,6 +11,10 @@ import { DrizzleCheckoutStore } from "@/lib/drizzle-checkout-store";
 import { getTenant } from "@/lib/tenant-context";
 import { checkoutSchema } from "../checkout/schema";
 import { getCommerceIdentity } from "@/lib/customer-commerce/identity";
+import { paymentOwnerKey } from "@/lib/payments/ownership";
+import { beginOrderPayment } from "@/lib/payments/service";
+import type { PaymentResult } from "@/lib/payments/types";
+import { requireActiveTenantStorefront } from "@/lib/admin-auth/server";
 
 const orderNumberSuffix = customAlphabet(
   "23456789ABCDEFGHJKLMNPQRSTUVWXYZ",
@@ -21,6 +25,7 @@ export type CheckoutActionState = {
   success: boolean;
   errors: Record<string, string[] | undefined>;
   message?: string;
+  payment?: PaymentResult;
   order?: {
     id: number;
     number: string;
@@ -54,6 +59,7 @@ export async function submitCheckout(
   }
 
   const identity = await getCommerceIdentity();
+  await requireActiveTenantStorefront();
 
   const shippingAddress = result.data.shipping_address
     ? {
@@ -82,8 +88,16 @@ export async function submitCheckout(
       createOrderNumber
     );
 
+    // A committed order/hold survives an unavailable payment provider.
+    let payment: PaymentResult = { status: "created", redirectUrl: null };
+    const ownerKey = paymentOwnerKey(identity);
+    if (ownerKey) {
+      try { payment = await beginOrderPayment(tenant, order.orderId, ownerKey); }
+      catch { /* Remains unpaid; the existing 15-minute hold expires logically. */ }
+    }
     return {
       success: true,
+      payment,
       errors: {},
       message: "Your order has been created.",
       order: {
