@@ -89,7 +89,7 @@ Pelecard and Tranzila require their own official onboarding/credential, hosted-p
 
 ## Validation
 
-`npm run payment:test` runs 76 tests with isolated fake adapters and the actual inventory domain abstraction. It covers configuration, authenticated encryption, secret projections, owner/tenant boundaries, server-priced amounts, concurrent starts/confirmations, rollback, terminal states, expiry/review handling, and the retired route. Server-only modules run under Node's `react-server` condition for these tests; no fake adapter is bundled into the application.
+`npm run payment:test` runs 107 tests with isolated fake adapters and the actual inventory domain abstraction. It covers configuration, authenticated encryption, secret projections, owner/tenant boundaries, server-priced amounts, concurrent starts/confirmations, rollback, terminal states, expiry/review handling, and the retired route. Server-only modules run under Node's `react-server` condition for these tests; no fake adapter is bundled into the application.
 
 `node --test tests/payment-db.test.mjs` is an explicit PostgreSQL integration check using the configured development database. It creates two random test schemas inside a transaction, runs every tenant migration, tests payment constraints and isolated reads/updates, and rolls everything back. It never migrates existing tenants. It requires schema-creation permission and is separate from the default payment unit suite.
 
@@ -101,7 +101,7 @@ The server-only adapter uses the [official GetUserTerminalList SOAP 1.1 operatio
 
 The admin test action authorizes before accessing the tenant-local singleton. It accepts only provider, environment and credential fields. Unsaved values override saved values; blank fields reuse saved values only for the same provider/environment, with authenticated tenant-bound decryption. It does not save, encrypt new settings, create attempts, or alter inventory. It returns only a boolean and a translated message key. Existing configurations without the new password require it to be entered before testing or saving. No migration is needed because credentials already use encrypted JSON.
 
-The request has a nine-second deadline covering headers and body, no retries, no redirects, and no caching. Response size is capped at 256 KiB. The narrowly scoped XML parser checks nesting, namespaces and the operation/result structure, and rejects DTDs, external entities, unknown entities, malformed XML and unsupported XML syntax. XML values are escaped. Neither requests, responses nor credentials are logged. Fetch and timeout duration can be injected by unit tests; all test credentials are synthetic.
+The request has a nine-second deadline covering headers and body, no retries, no redirects, and no caching. Response size is capped at 256 KiB. The narrowly scoped XML parser checks XML declaration quoting, namespace bindings, expanded attribute uniqueness, nesting and the complete operation/result structure, and rejects DTDs, external entities, unknown entities, malformed XML and unsupported XML syntax. XML values are escaped. Neither requests, responses nor credentials are logged. Fetch and timeout duration can be injected by unit tests; all test credentials are synthetic.
 
 ### Manual acceptance
 
@@ -121,3 +121,7 @@ The maintainer reported that manual acceptance passed on 2026-09-05. The steps b
 12. Confirm an admin lacking access to another tenant cannot test its settings. Repeat tenant-local checks for panda-pop and dvorik-collection using only their own authorized settings.
 
 Live provider acceptance and runtime browser/log inspection were reported passed by the maintainer; these checks are manual. Automated tests verify safe response projections, failure normalization, non-live enforcement, authorization wiring and credential isolation. No production credentials or live payment operations are included.
+
+### Acceptance security review
+
+Adversarial review reproduced false connection success for malformed XML declarations/attributes/namespaces and unexpected nested result content. The parser now rejects these cases and validates every terminal entry, including entries after a matching terminal. The payment suite adds regression coverage for these failures, valid namespace prefixes, redirects, legacy settings upgrades, unsaved credential overrides, coherent in-flight snapshots, actual server-action authorization and forged tenant headers. No payment capability, storage schema or locking behavior changed.
