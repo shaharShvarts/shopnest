@@ -13,11 +13,11 @@ const inputSchema = z
   })
   .strict();
 
-export function prepareSettings(
+export function resolveSettingsCredentials(
   input: unknown,
   previous: PaymentSettings | null,
   tenant: string,
-): PaymentSettings {
+) {
   const result = inputSchema.safeParse(input);
   if (!result.success) throw new PaymentError("invalid_settings");
   const data = result.data;
@@ -51,10 +51,15 @@ export function prepareSettings(
       ]),
     ),
   );
+  return { provider, credentials, context, enabled: data.enabled };
+}
+
+export function prepareSettings(input: unknown, previous: PaymentSettings | null, tenant: string): PaymentSettings {
+  const { provider, credentials, context, enabled } = resolveSettingsCredentials(input, previous, tenant);
   return {
     provider: provider.id,
-    environment: data.environment,
-    enabled: data.enabled,
+    environment: context.environment,
+    enabled,
     encryptedCredentials: encryptCredentials(credentials, context),
     configuredFields: Object.keys(credentials),
   };

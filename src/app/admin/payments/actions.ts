@@ -22,3 +22,12 @@ export async function savePaymentSettings(
   await revalidateTenantPath("/admin/payments");
   return { success: true, message: "saved" };
 }
+
+export async function testPaymentConnection(input: unknown): Promise<import("@/lib/payments/connection").ConnectionState> {
+  const { tenant } = await requireTenantAdminDb();
+  try {
+    return await new DrizzlePaymentStore(tenant).testConnection(input);
+  } catch {
+    return { success: false, message: "connectionFailed" };
+  }
+}

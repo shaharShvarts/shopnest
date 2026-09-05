@@ -1,3 +1,5 @@
+import "server-only";
+import { cardcomAdapter } from "./providers/cardcom-connection.ts";
 import { z } from "zod";
 import { metadata as cardcom, credentialsSchema } from "./providers/cardcom.ts";
 import { unavailableProvider } from "./providers/unavailable.ts";
@@ -33,7 +35,7 @@ function definition(
 }
 
 export const providerRegistry: readonly ProviderDefinition[] = [
-  definition(cardcom, credentialsSchema),
+  { ...definition(cardcom, credentialsSchema), createAdapter: cardcomAdapter },
   ...(["pelecard", "tranzila"] as const).map((id) =>
     definition(
       {

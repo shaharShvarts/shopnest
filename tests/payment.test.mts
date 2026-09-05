@@ -39,7 +39,7 @@ const context = {
   provider: "cardcom" as const,
   environment: "test" as const,
 };
-const credentials = { terminalNumber: "12345", apiName: secret };
+const credentials = { terminalNumber: "12345", apiName: secret, apiPassword: "synthetic-test-password" };
 const config = {
   provider: "cardcom",
   environment: "test",
@@ -101,7 +101,7 @@ test("registry includes three honest non-live providers and no fake adapter", as
   );
   for (const provider of providerRegistry) {
     assert.equal(provider.live, false);
-    assert.equal(provider.capabilities.testConnection, false);
+    assert.equal(provider.capabilities.testConnection, provider.id === "cardcom");
     const adapter = provider.createAdapter({}, "production");
     await assert.rejects(
       adapter.createPayment({
@@ -121,7 +121,7 @@ test("registry includes three honest non-live providers and no fake adapter", as
       adapter.verifyCallback({ ...callback, attempt: {} as PaymentAttempt }),
       code("not_implemented"),
     );
-    assert.equal(adapter.testConnection, undefined);
+    assert.equal(typeof adapter.testConnection, provider.id === "cardcom" ? "function" : "undefined");
   }
 });
 test("unknown provider rejected", () =>
@@ -213,6 +213,7 @@ test("admin payload never includes saved secrets or ciphertext", () => {
   assert.deepEqual(settingsReadModel(settings)?.configuredFields, [
     "terminalNumber",
     "apiName",
+    "apiPassword",
   ]);
 });
 test("replacing a secret works and blank fields preserve only same environment", () => {
@@ -228,6 +229,7 @@ test("replacing a secret works and blank fields preserve only same environment",
   assert.deepEqual(decryptCredentials(next.encryptedCredentials, context), {
     terminalNumber: "12345",
     apiName: "replacement-test-secret",
+    apiPassword: credentials.apiPassword,
   });
   assert.throws(
     () =>
@@ -661,4 +663,325 @@ test("paid checkout retry reports paid instead of claiming the order is unpaid",
 
 test("provider secret fields discourage unrelated saved login autofill", async () => {
   assert.match(await source("../src/app/admin/payments/settings-form.tsx"), /autoComplete=\{field.type === "password" \? "new-password" : "off"\}/);
+});
+
+// Synthetic credentials only. Never copy Cardcom's published credentials here.
+import { cardcomAdapter } from "../src/lib/payments/providers/cardcom-connection.ts";
+import { testSettingsConnection } from "../src/lib/payments/connection.ts";
+const connectionInput = { provider: config.provider, environment: config.environment, credentials };
+const soapResponse = (terminal = "12345", responseCode = "0") => `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><GetUserTerminalListResponse xmlns="BillGoldService"><GetUserTerminalListResult><ResponseCode>${responseCode}</ResponseCode><Description>Provider-only information</Description><Terminals><TerminalsList><TerminalNumber>${terminal}</TerminalNumber><Description>Merchant-only information</Description></TerminalsList></Terminals></GetUserTerminalListResult></GetUserTerminalListResponse></s:Body></s:Envelope>`;
+function networkResponse(body: string, status = 200): typeof fetch {
+  return async () => new Response(body, { status });
+}
+
+test("Cardcom exposes all required fields but only connection testing capability", () => {
+  const provider = getProvider("cardcom");
+  assert.deepEqual(provider.fields.map(({id}) => id), ["terminalNumber", "apiName", "apiPassword"]);
+  for (const name of ["apiName", "apiPassword"]) {
+    const field = provider.fields.find(({id}) => id === name)!;
+    assert.equal(field.type, "password");
+    assert.equal(field.secret, true);
+  }
+  assert.deepEqual(provider.capabilities, { hostedPayment: false, verification: false, testConnection: true });
+  for (const patch of [{ terminalNumber: "" }, { terminalNumber: "-1" }, { terminalNumber: "1.5" }, { terminalNumber: "abc" }, { terminalNumber: undefined }, { apiName: "  " }, { apiPassword: "" }, { apiPassword: "  " }, { apiPassword: undefined }, { unexpected: "x" }]) {
+    assert.throws(() => provider.validateCredentials({ ...credentials, ...patch }), code("invalid_credentials"));
+  }
+});
+
+test("password encryption and browser projection exclude plaintext and ciphertext", () => {
+  const saved = prepareSettings(config, null, "gift-shop");
+  assert.equal(saved.encryptedCredentials.includes(credentials.apiPassword), false);
+  const payload = JSON.stringify(settingsReadModel(saved));
+  assert.equal(payload.includes(credentials.apiPassword), false);
+  assert.equal(payload.includes(saved.encryptedCredentials), false);
+});
+
+test("connection test merges unsaved and blank saved credentials without modifying settings", async () => {
+  const previous = prepareSettings(config, null, "gift-shop");
+  const original = structuredClone(previous);
+  const result = await testSettingsConnection({ ...connectionInput, credentials: { terminalNumber: "54321", apiName: "", apiPassword: "" } }, previous, "gift-shop", async (resolved) => {
+    assert.deepEqual(resolved.credentials, { ...credentials, terminalNumber: "54321" });
+    assert.equal(resolved.context.tenant, "gift-shop");
+    return true;
+  });
+  assert.deepEqual(result, { success: true, message: "connectionSuccess" });
+  assert.deepEqual(previous, original);
+  assert.deepEqual(await testSettingsConnection(connectionInput, null, "gift-shop", async () => true), result);
+});
+
+test("connection test cannot reuse credentials from other environments/providers/tenants", async () => {
+  const previous = prepareSettings(config, null, "gift-shop");
+  let calls = 0;
+  const run = async () => { calls++; return true; };
+  for (const tenant of ["panda-pop", "dvorik-collection"]) {
+    assert.equal((await testSettingsConnection({ ...connectionInput, credentials: {} }, previous, tenant, run)).success, false);
+  }
+  assert.equal((await testSettingsConnection({ ...connectionInput, environment: "production", credentials: {} }, previous, "gift-shop", run)).success, false);
+  const other = prepareSettings({ provider: "tranzila", environment: "production", enabled: false, credentials: {} }, null, "gift-shop");
+  assert.equal((await testSettingsConnection({ ...connectionInput, credentials: {} }, other, "gift-shop", run)).success, false);
+  for (const extra of [{ tenant: "panda-pop" }, { schema: "panda_pop" }, { enabled: true }]) {
+    assert.equal((await testSettingsConnection({ ...connectionInput, ...extra }, previous, "gift-shop", run)).success, false);
+  }
+  assert.equal(calls, 0);
+});
+
+test("SOAP request escapes secrets and uses read-only operation with no redirects or caching", async () => {
+  let calls = 0;
+  const values = { ...credentials, apiName: `user<&>"'`, apiPassword: `pass<&>"'` };
+  const network: typeof fetch = async (url, options) => {
+    calls++;
+    assert.equal(url, "https://secure.cardcom.solutions/Interface/BillGoldService.asmx");
+    assert.equal(options?.method, "POST");
+    assert.equal(options?.redirect, "error");
+    assert.equal(options?.cache, "no-store");
+    assert.ok(options?.signal instanceof AbortSignal);
+    const headers = new Headers(options?.headers);
+    assert.equal(headers.get("SOAPAction"), '"BillGoldService/GetUserTerminalList"');
+    assert.equal(headers.get("Content-Type"), "text/xml; charset=utf-8");
+    assert.match(String(options?.body), /<userName>user&lt;&amp;&gt;&quot;&apos;<\/userName>/);
+    assert.match(String(options?.body), /<userPassword>pass&lt;&amp;&gt;&quot;&apos;<\/userPassword>/);
+    return new Response(soapResponse());
+  };
+  assert.equal(await cardcomAdapter(values, "test", network).testConnection!(), true);
+  assert.equal(calls, 1);
+  assert.doesNotMatch(await source("../src/lib/payments/providers/cardcom-connection.ts"), /console\.|logger\./);
+});
+
+for (const [name, body, expected] of [
+  ["matching terminal", soapResponse(), true],
+  ["different terminal", soapResponse("98765"), false],
+  ["auth error", soapResponse("12345", "1"), false],
+  ["malformed XML", soapResponse().replace("</Terminals>", "</Wrong>"), false],
+  ["missing result", soapResponse().replaceAll("GetUserTerminalListResult", "OtherResult"), false],
+  ["duplicate code", soapResponse().replace("</ResponseCode>", "</ResponseCode><ResponseCode>0</ResponseCode>"), false],
+  ["truncated XML", soapResponse().slice(0, -1), false],
+  ["DTD and XXE", '<!DOCTYPE x [<!ENTITY steal SYSTEM "file:///sensitive">]>' + soapResponse(), false],
+  ["unknown entity", soapResponse().replace("Provider-only information", "&steal;"), false],
+  ["wrong namespace", soapResponse().replace('xmlns="BillGoldService"', 'xmlns="untrusted"'), false],
+  ["SOAP fault", '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault/></s:Body></s:Envelope>', false],
+  ["extra root", soapResponse() + "<extra/>", false],
+  ["oversized response", soapResponse() + " ".repeat(262144), false],
+] as const) test(`Cardcom response: ${name}`, async () => {
+  assert.equal(await cardcomAdapter(credentials, "test", networkResponse(body)).testConnection!(), expected);
+});
+
+test("HTTP and network failures fail safely without retries", async () => {
+  for (const status of [401, 403, 500]) {
+    assert.equal(await cardcomAdapter(credentials, "test", networkResponse(soapResponse(), status)).testConnection!(), false);
+  }
+  let calls = 0;
+  assert.equal(await cardcomAdapter(credentials, "test", async () => { calls++; throw new Error(credentials.apiPassword); }).testConnection!(), false);
+  assert.equal(calls, 1);
+  const result = await testSettingsConnection(connectionInput, null, "gift-shop", async () => { throw new Error(credentials.apiPassword); });
+  assert.deepEqual(result, { success: false, message: "connectionFailed" });
+});
+
+test("timeout aborts fetch and response-body reading and returns failure", async () => {
+  let signal: AbortSignal | null | undefined;
+  const hanging: typeof fetch = async (_url, options) => { signal = options?.signal; return new Promise(() => {}); };
+  assert.equal(await cardcomAdapter(credentials, "test", hanging, 10).testConnection!(), false);
+  assert.equal(signal?.aborted, true);
+  const slowBody: typeof fetch = async (_url, options) => {
+    signal = options?.signal;
+    return new Response(new ReadableStream({ start() {} }));
+  };
+  assert.equal(await cardcomAdapter(credentials, "test", slowBody, 10).testConnection!(), false);
+  assert.equal(signal?.aborted, true);
+});
+
+test("connection action authorizes first and UI keeps test separate from save", async () => {
+  const actions = (await source("../src/app/admin/payments/actions.ts")).split("export async function testPaymentConnection")[1];
+  assert.ok(actions.indexOf("await requireTenantAdminDb()") < actions.indexOf("new DrizzlePaymentStore"));
+  assert.doesNotMatch(actions, /saveSettings|revalidateTenantPath|console\./);
+  const ui = await source("../src/app/admin/payments/settings-form.tsx");
+  assert.match(ui, /type="button" onClick=\{testConnection\}/);
+  assert.match(ui, /disabled=\{!provider.live\}/);
+  assert.doesNotMatch(ui, /secure\.cardcom|fetch\(/);
+});
+
+// Acceptance review regressions: malformed/ambiguous XML must never report success.
+for (const [name, body] of [
+  ["mismatched declaration quotes", soapResponse().replace('version="1.0"', 'version="1.0\'')],
+  ["duplicate expanded attributes", soapResponse().replace('<Terminals>', '<Terminals xmlns:a="urn:x" xmlns:b="urn:x" a:id="one" b:id="two">')],
+  ["reserved namespace rebinding", soapResponse().replace('<Terminals>', '<Terminals xmlns:xml="urn:invalid">')],
+  ["non-XML tag whitespace", soapResponse().replace('<Terminals>', '<Terminals\u00a0id="x">')],
+  ["malformed attribute QName", soapResponse().replace('<Terminals>', '<Terminals xmlns:a="urn:x" a:b:c="x">')],
+  ["nested duplicate result", soapResponse().replace('</GetUserTerminalListResult>', '</GetUserTerminalListResult><wrapper><GetUserTerminalListResult><ResponseCode>1</ResponseCode></GetUserTerminalListResult></wrapper>')],
+  ["missing response code", soapResponse().replace('<ResponseCode>0</ResponseCode>', '')],
+  ["missing terminals", soapResponse().replace(/<Terminals>.*<\/Terminals>/, '')],
+  ["terminal only in description", soapResponse("98765").replace('Provider-only information', '12345')],
+  ["terminal substring", soapResponse("123456")],
+  ["duplicate terminal nodes", soapResponse().replace('</TerminalNumber>', '</TerminalNumber><TerminalNumber>98765</TerminalNumber>')],
+  ["nested code", soapResponse().replace('>0</ResponseCode>', '><ResponseCode>0</ResponseCode></ResponseCode>')],
+  ["text outside root", soapResponse() + '&#32;'],
+  ["undeclared prototype attribute prefix", soapResponse().replace('<Terminals>', '<Terminals toString:id="x">')],
+  ["invalid XML character", soapResponse().replace('Provider-only information', '\uffff')],
+  ["mixed terminal-list content", soapResponse().replace('<Terminals>', '<Terminals>untrusted text')],
+] as const) test(`XML acceptance rejects ${name}`, async () => {
+  assert.equal(await cardcomAdapter(credentials, "test", networkResponse(body)).testConnection!(), false);
+});
+
+for (const status of [301, 302, 307, 308]) test(`redirect ${status} fails without forwarding credentials`, async () => {
+  let calls = 0;
+  const network: typeof fetch = async (url, options) => {
+    calls++;
+    assert.equal(url, "https://secure.cardcom.solutions/Interface/BillGoldService.asmx");
+    assert.equal(options?.redirect, "error");
+    return new Response(soapResponse(), { status, headers: { Location: "https://attacker.invalid/collect" } });
+  };
+  assert.equal(await cardcomAdapter(credentials, "test", network).testConnection!(), false);
+  assert.equal(calls, 1);
+});
+
+for (const [name, body] of [
+  ["namespace prefixes", soapResponse().replace('xmlns="BillGoldService"', 'xmlns:c="BillGoldService"').replace(/<(\/?)(GetUserTerminalListResponse|GetUserTerminalListResult|ResponseCode|Description|Terminals|TerminalsList|TerminalNumber)(?=[ >])/g, '<$1c:$2')],
+  ["single-quoted declaration", soapResponse().replace('version="1.0" encoding="utf-8"', "version='1.0' encoding='UTF-8'")],
+  ["multiple terminals", soapResponse().replace('<Terminals>', '<Terminals><TerminalsList><TerminalNumber>98765</TerminalNumber></TerminalsList>')],
+  ["escaped description", soapResponse().replace('Provider-only information', '&amp; &lt; &#65; &#x1F600;')],
+] as const) test(`valid XML still accepts ${name}`, async () => {
+  assert.equal(await cardcomAdapter(credentials, "test", networkResponse(body)).testConnection!(), true);
+});
+
+test("invalid trailing terminal entry fails even after an earlier match", async () => {
+  const body = soapResponse().replace('</Terminals>', '<TerminalsList><TerminalNumber>98765</TerminalNumber><TerminalNumber>12345</TerminalNumber></TerminalsList></Terminals>');
+  assert.equal(await cardcomAdapter(credentials, "test", networkResponse(body)).testConnection!(), false);
+});
+
+test("legacy Cardcom settings remain readable and upgrade safely with a password", async () => {
+  const legacyCredentials = { terminalNumber: credentials.terminalNumber, apiName: credentials.apiName };
+  const previous = {
+    provider: "cardcom" as const, environment: "test" as const, enabled: false,
+    encryptedCredentials: encryptCredentials(legacyCredentials, context),
+    configuredFields: ["terminalNumber", "apiName"],
+  };
+  assert.deepEqual(settingsReadModel(previous)?.configuredFields, ["terminalNumber", "apiName"]);
+  const result = await testSettingsConnection({ ...connectionInput, credentials: {} }, previous, "gift-shop", async () => { throw new Error("Network must not run"); });
+  assert.deepEqual(result, { success: false, message: "connectionNotConfigured" });
+  const upgraded = prepareSettings({ ...config, credentials: { apiPassword: credentials.apiPassword } }, previous, "gift-shop");
+  assert.deepEqual(decryptCredentials(upgraded.encryptedCredentials, context), credentials);
+  assert.deepEqual(decryptCredentials(previous.encryptedCredentials, context), legacyCredentials);
+});
+
+test("unsaved password overrides only the current test; reload retains saved secrets", async () => {
+  const previous = prepareSettings(config, null, "gift-shop");
+  const original = structuredClone(previous);
+  let observedPassword = "";
+  const run = async (resolved: Parameters<NonNullable<Parameters<typeof testSettingsConnection>[3]>>[0]) => {
+    observedPassword = resolved.credentials.apiPassword;
+    return true;
+  };
+  assert.equal((await testSettingsConnection({ ...connectionInput, credentials: {} }, previous, "gift-shop", run)).success, true);
+  assert.equal(observedPassword, credentials.apiPassword);
+  assert.equal((await testSettingsConnection({ ...connectionInput, credentials: { apiPassword: "unsaved-synthetic-password" } }, previous, "gift-shop", run)).success, true);
+  assert.equal(observedPassword, "unsaved-synthetic-password");
+  assert.deepEqual(previous, original);
+  await testSettingsConnection({ ...connectionInput, credentials: {} }, previous, "gift-shop", run);
+  assert.equal(observedPassword, credentials.apiPassword);
+  for (const provider of ["pelecard", "tranzila"]) {
+    const result = await testSettingsConnection({ provider, environment: "production", credentials: {} }, previous, "gift-shop", async () => { throw new Error("Unsupported provider invoked"); });
+    assert.deepEqual(result, { success: false, message: "connectionNotConfigured" });
+  }
+});
+
+test("in-flight testing retains a coherent snapshot while settings are replaced", async () => {
+  let saved = prepareSettings(config, null, "gift-shop");
+  const snapshot = saved;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const testing = testSettingsConnection({ ...connectionInput, credentials: {} }, saved, "gift-shop", async (resolved) => {
+    await gate;
+    assert.equal(resolved.context.environment, "test");
+    assert.deepEqual(resolved.credentials, credentials);
+    return true;
+  });
+  saved = prepareSettings({ ...config, environment: "production", credentials: { ...credentials, apiPassword: "replacement-production-fixture" } }, saved, "gift-shop");
+  release();
+  assert.equal((await testing).success, true);
+  assert.deepEqual(decryptCredentials(snapshot.encryptedCredentials, context), credentials);
+  assert.equal(saved.environment, "production");
+});
+
+// Execute the actual server action/middleware with controlled dependencies, not a
+// reimplementation of their guards. No Next server, database or live network is used.
+import ts from "typescript";
+import * as tenantRouting from "../src/lib/tenant-routing/core.ts";
+import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
+async function loadWithMocks<T>(path: string, mocks: Record<string, unknown>): Promise<T> {
+  const compiled = ts.transpileModule(await source(path), { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
+  } }).outputText;
+  const exports = {};
+  new Function("require", "exports", compiled)((name: string) => {
+    assert.ok(Object.hasOwn(mocks, name), `Unexpected dependency: ${name}`);
+    return mocks[name];
+  }, exports);
+  return exports as T;
+}
+
+test("actual connection action rejects unauthorized users before reading settings or calling network", async () => {
+  let reads = 0;
+  for (const reason of ["unauthenticated", "forbidden", "unknown_tenant"]) {
+    const denial = new Error(reason);
+    const actions = await loadWithMocks<{ testPaymentConnection(input: unknown): Promise<unknown> }>("../src/app/admin/payments/actions.ts", {
+      "@/lib/admin-auth/server": { requireTenantAdminDb: async () => { throw denial; } },
+      "@/lib/tenant-context": { revalidateTenantPath: () => { throw new Error("Unexpected write"); } },
+      "@/lib/payments/drizzle-store": { DrizzlePaymentStore: class { constructor() { reads++; } } },
+    });
+    await assert.rejects(actions.testPaymentConnection(connectionInput), (error) => error === denial);
+  }
+  assert.equal(reads, 0);
+});
+
+test("actual action isolates all three tenants and rejects forged selectors safely", async () => {
+  const slugs = ["gift-shop", "panda-pop", "dvorik-collection"];
+  const settings = new Map(slugs.map((slug) => [slug, prepareSettings({ ...config, credentials: { ...credentials, apiPassword: `synthetic-${slug}-password` } }, null, slug)]));
+  const before = structuredClone(settings);
+  for (const slug of slugs) {
+    const tenant = resolveConfiguredTenant(slug)!;
+    let authorized = false;
+    let networkCalls = 0;
+    const actions = await loadWithMocks<{ testPaymentConnection(input: unknown): Promise<{ success: boolean }> }>("../src/app/admin/payments/actions.ts", {
+      "@/lib/admin-auth/server": { requireTenantAdminDb: async () => { authorized = true; return { tenant }; } },
+      "@/lib/tenant-context": { revalidateTenantPath: () => { throw new Error("Unexpected write"); } },
+      "@/lib/payments/drizzle-store": { DrizzlePaymentStore: class {
+        constructor(trusted: unknown) { assert.equal(authorized, true); assert.equal(trusted, tenant); }
+        testConnection(input: unknown) {
+          return testSettingsConnection(input, settings.get(slug)!, slug, async (resolved) => {
+            networkCalls++;
+            assert.equal(resolved.credentials.apiPassword, `synthetic-${slug}-password`);
+            return true;
+          });
+        }
+      } },
+    });
+    assert.equal((await actions.testPaymentConnection({ ...connectionInput, credentials: {} })).success, true);
+    for (const patch of [{tenant:"other"}, {schema:"public"}, {"x-shopnest-tenant-schema":"panda_pop"}, {provider:"unknown"}, {environment:"sandbox"}, {environment:"production"}]) {
+      assert.equal((await actions.testPaymentConnection({ ...connectionInput, credentials: {}, ...patch })).success, false);
+    }
+    assert.equal(networkCalls, 1);
+  }
+  assert.deepEqual(settings, before);
+});
+
+test("middleware overwrites forged tenant headers on payment admin routes", async () => {
+  const capture = (_url: unknown, options: { request: { headers: Headers } }) => options.request.headers;
+  const { middleware } = await loadWithMocks<{ middleware(request: unknown): Promise<Headers> }>("../src/middleware.ts", {
+    nanoid: { nanoid: () => "synthetic-session" },
+    "next/server": { NextResponse: {
+      rewrite: capture,
+      next: (options: { request: { headers: Headers } }) => options.request.headers,
+    } },
+    "./lib/tenant-routing/core": tenantRouting,
+  });
+  for (const slug of ["gift-shop", "panda-pop", "dvorik-collection"]) {
+    const headers = await middleware({
+      nextUrl: new URL(`https://shop.example/${slug}/admin/payments`),
+      headers: new Headers({ "x-shopnest-tenant-slug": "attacker", "x-shopnest-tenant-schema": "public" }),
+    });
+    assert.equal(headers.get(tenantRouting.TENANT_HEADER), slug);
+    assert.equal(headers.get(tenantRouting.TENANT_SCHEMA_HEADER), resolveConfiguredTenant(slug)!.schema);
+  }
+  const headers = await middleware({ nextUrl: new URL("https://shop.example/admin/payments"), headers: new Headers({ "x-shopnest-tenant-slug": "gift-shop", "x-shopnest-tenant-schema": "gift_shop" }) });
+  assert.equal(headers.has(tenantRouting.TENANT_HEADER), false);
+  assert.equal(headers.has(tenantRouting.TENANT_SCHEMA_HEADER), false);
 });

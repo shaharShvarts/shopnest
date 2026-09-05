@@ -194,6 +194,11 @@
     }
   },
   "Payments": {
+    "testConnection": "בדיקת חיבור",
+    "testingConnection": "בודק חיבור…",
+    "connectionSuccess": "החיבור לקארדקום הצליח.",
+    "connectionFailed": "בדיקת החיבור נכשלה. יש לבדוק את פרטי ההתחברות ומספר המסוף.",
+    "connectionNotConfigured": "יש להזין את פרטי ההתחברות הנדרשים.",
     "title": "תשלומים",
     "description": "הגדרת ספק התשלומים של החנות. פרטי ההתחברות שייכים לחנות זו בלבד ומוצפנים בשרת.",
     "provider": "ספק",
@@ -222,7 +227,8 @@
     "goToCheckout": "המשך לקופה",
     "fields": {
       "terminalNumber": "מספר מסוף",
-      "apiName": "שם משתמש לממשק"
+      "apiName": "שם משתמש לממשק",
+      "apiPassword": "סיסמת API"
     },
     "statuses": {
       "created": "ממתין להכנה או לאימות תשלום",
