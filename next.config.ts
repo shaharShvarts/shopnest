@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const maxSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE);
@@ -28,4 +29,8 @@ const nextConfig: NextConfig = {
 
 const withNextIntl = createNextIntlPlugin();
 
-export default withNextIntl(nextConfig);
+// A production build must not overwrite chunks used by a running dev server.
+export default (phase: string) => withNextIntl({
+  ...nextConfig,
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
+});

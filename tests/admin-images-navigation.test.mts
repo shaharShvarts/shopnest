@@ -3,9 +3,23 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createRequire } from "node:module";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SHIPPING_CODE_HTML_PATTERN } from "../src/lib/shipping/core.ts";
+
+test("development output is isolated from production build and start", async () => {
+  const require = createRequire(import.meta.url);
+  const loadConfig = require("next/dist/server/config").default;
+  const phases = require("next/constants");
+  const dev = await loadConfig(phases.PHASE_DEVELOPMENT_SERVER, process.cwd());
+  const build = await loadConfig(phases.PHASE_PRODUCTION_BUILD, process.cwd());
+  const start = await loadConfig(phases.PHASE_PRODUCTION_SERVER, process.cwd());
+  assert.notEqual(dev.distDir, build.distDir);
+  assert.equal(build.distDir, start.distDir);
+  assert.equal(typeof dev.webpack, "function");
+  assert.equal(dev.experimental.authInterrupts, true);
+});
 import {
   normalizeImageUrl,
   parseTenantMediaUrl,
