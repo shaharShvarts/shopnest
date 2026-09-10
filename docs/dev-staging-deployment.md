@@ -92,7 +92,7 @@ Optional Google OAuth must use a test client and each exact environment callback
 
 The dedicated Dockerfile runs npm ci, npm run build and npm start as a non-root
 runtime user. Build uses a synthetic connection, without private env files.
-Public image validation is compiled for JPEG/PNG/WebP up to 5 MiB.
+Server-side image validation decodes supported formats with Sharp, with a 5 MiB input limit.
 The existing local npm run dev and default Compose workflow remain available.
 
 ```bash

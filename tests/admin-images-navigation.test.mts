@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -33,20 +34,14 @@ import {
   tenantMediaFilePath,
 } from "../src/lib/media/local-media-store.mjs";
 
-type TestFile = {
-  type: string;
-  arrayBuffer(): Promise<ArrayBuffer>;
-};
+async function imageBytes(contents: string) {
+  return sharp({ create: { width: 2, height: 2, channels: 3, background: {
+    r: contents.length * 7 % 256, g: contents.charCodeAt(0), b: 90,
+  } } }).png().toBuffer();
+}
 
-function imageFile(contents: string, type = "image/jpeg"): TestFile {
-  const bytes = Buffer.from(contents);
-  return {
-    type,
-    arrayBuffer: async () => bytes.buffer.slice(
-      bytes.byteOffset,
-      bytes.byteOffset + bytes.byteLength
-    ) as ArrayBuffer,
-  };
+async function imageFile(contents: string, type = "image/jpeg") {
+  return new File([new Uint8Array(await imageBytes(contents))], "fixture.jpg", { type });
 }
 
 async function withUploadsRoot(
@@ -65,19 +60,19 @@ test("a runtime image is readable immediately after upload without a rebuild", a
     const uploaded = await saveCatalogImage({
       tenantSlug: "gift-shop",
       kind: "categories",
-      file: imageFile("category-image"),
+      file: await imageFile("category-image"),
       uploadsRoot,
     });
     assert.match(
       uploaded.imageUrl,
-      /^\/gift-shop\/media\/categories\/[a-f0-9-]+\.jpg$/
+      /^\/gift-shop\/media\/categories\/[a-f0-9-]+\.png$/
     );
 
     const media = parseTenantMediaUrl(uploaded.imageUrl, "gift-shop");
     assert.ok(media);
     const response = await readCatalogImage({ ...media, uploadsRoot });
-    assert.equal(response.contentType, "image/jpeg");
-    assert.equal(response.bytes.toString(), "category-image");
+    assert.equal(response.contentType, "image/png");
+    assert.deepEqual(response.bytes, await imageBytes("category-image"));
   });
 });
 
@@ -86,13 +81,13 @@ test("gift-shop and panda-pop use separate physical namespaces", async () => {
     const gift = await saveCatalogImage({
       tenantSlug: "gift-shop",
       kind: "products",
-      file: imageFile("gift"),
+      file: await imageFile("gift"),
       uploadsRoot,
     });
     const panda = await saveCatalogImage({
       tenantSlug: "panda-pop",
       kind: "products",
-      file: imageFile("panda"),
+      file: await imageFile("panda"),
       uploadsRoot,
     });
 
@@ -112,7 +107,7 @@ test("gift-shop and panda-pop use separate physical namespaces", async () => {
       }),
       false
     );
-    assert.equal((await readFile(gift.filePath)).toString(), "gift");
+    assert.deepEqual(await readFile(gift.filePath), await imageBytes("gift"));
   });
 });
 
@@ -192,23 +187,23 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
       const original = await saveCatalogImage({
         tenantSlug: "gift-shop",
         kind,
-        file: imageFile(`${kind}-old`, "image/png"),
+        file: await imageFile(`${kind}-old`, "image/png"),
         uploadsRoot,
       });
-      assert.equal(
+      assert.deepEqual(
         (await readCatalogImage({
           tenantSlug: "gift-shop",
           kind,
           filename: original.filename,
           uploadsRoot,
-        })).bytes.toString(),
-        `${kind}-old`
+        })).bytes,
+        await imageBytes(`${kind}-old`)
       );
 
       const replacement = await saveCatalogImage({
         tenantSlug: "gift-shop",
         kind,
-        file: imageFile(`${kind}-new`, "image/webp"),
+        file: await imageFile(`${kind}-new`, "image/webp"),
         uploadsRoot,
       });
       assert.equal(
@@ -229,14 +224,14 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
         (error: unknown) =>
           error instanceof LocalMediaError && error.code === "NOT_FOUND"
       );
-      assert.equal(
+      assert.deepEqual(
         (await readCatalogImage({
           tenantSlug: "gift-shop",
           kind,
           filename: replacement.filename,
           uploadsRoot,
-        })).bytes.toString(),
-        `${kind}-new`
+        })).bytes,
+        await imageBytes(`${kind}-new`)
       );
       assert.equal(
         await deleteCatalogImage({

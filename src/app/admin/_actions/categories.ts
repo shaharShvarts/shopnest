@@ -40,7 +40,7 @@ export async function addCategory(
   formData: FormData
 ): Promise<AddCategoryResult> {
   const { db, tenant } = await requireTenantAdminDb();
-  const result = zodSchema.safeParse(Object.fromEntries(formData));
+  const result = await zodSchema.safeParseAsync(Object.fromEntries(formData));
 
   if (!result.success) {
     return {
@@ -90,7 +90,7 @@ export async function addCategory(
 
 export async function editCategory(id: number, _: unknown, formData: FormData) {
   const { db, tenant } = await requireTenantAdminDb();
-  const result = editSchema.safeParse(Object.fromEntries(formData));
+  const result = await editSchema.safeParseAsync(Object.fromEntries(formData));
 
   if (!result.success) {
     return {
