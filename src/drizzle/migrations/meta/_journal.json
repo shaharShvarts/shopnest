@@ -57,6 +57,13 @@
       "when": 1788592772020,
       "tag": "0007_payment_provider_framework",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788745751836,
+      "tag": "0008_cardcom_charge_reference",
+      "breakpoints": true
     }
   ]
 }

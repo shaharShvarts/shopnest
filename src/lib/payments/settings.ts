@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { getProvider } from "./registry.ts";
+import { paymentActivationAllowed } from "./activation.ts";
 import { decryptCredentials, encryptCredentials } from "./encryption.ts";
 import { PaymentError, type PaymentSettings } from "./types.ts";
 
@@ -24,7 +25,7 @@ export function resolveSettingsCredentials(
   const provider = getProvider(data.provider);
   if (!provider.environments.includes(data.environment))
     throw new PaymentError("invalid_environment");
-  if (data.enabled && !provider.live) throw new PaymentError("not_implemented");
+  if (data.enabled && !paymentActivationAllowed(provider, data.environment)) throw new PaymentError("not_implemented");
   const context = {
     tenant,
     provider: provider.id,
@@ -51,6 +52,7 @@ export function resolveSettingsCredentials(
       ]),
     ),
   );
+  if (data.enabled) provider.assertPaymentConfiguration?.(credentials, data.environment);
   return { provider, credentials, context, enabled: data.enabled };
 }
 

@@ -52,6 +52,8 @@ export type PaymentAttempt = {
   currency: string;
   externalReference: string;
   providerTransactionId: string | null;
+  // Hosted-session reference stays separate from the lossless charge reference.
+  providerChargeId?: string | null;
   redirectUrl: string | null;
   status: PaymentStatus;
   failureCode: string | null;
@@ -62,6 +64,7 @@ export type VerifiedPayment = {
   provider: ProviderId;
   externalReference: string;
   providerTransactionId: string;
+  providerChargeId?: string;
   amount: number;
   currency: string;
   status: "pending" | "paid" | "failed" | "cancelled" | "expired";
@@ -102,6 +105,7 @@ export type ProviderMetadata = {
   environments: readonly PaymentEnvironment[];
   fields: readonly ProviderField[];
   live: boolean;
+  testPayments?: boolean;
   capabilities: {
     hostedPayment: boolean;
     verification: boolean;

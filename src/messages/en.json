@@ -216,6 +216,7 @@
     "test": "Test",
     "production": "Production",
     "notLive": "This provider is not yet available for payments. You may save configuration, but activation remains unavailable.",
+    "testPaymentsOnly": "Test payments only, using Cardcom's official test terminal 1000. Production payments are unavailable.",
     "credentialsPending": "Credential setup will become available after the provider integration is verified.",
     "configured": "Configured. Leave blank to keep the saved value, or enter a replacement.",
     "notConfigured": "Not configured. Enter a value.",

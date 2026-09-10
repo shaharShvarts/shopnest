@@ -9,6 +9,11 @@ import {
 } from "./lib/tenant-routing/core";
 
 export async function middleware(req: NextRequest) {
+  console.log("MIDDLEWARE", {
+    host: req.headers.get("host"),
+    pathname: req.nextUrl.pathname,
+  });
+
   const routeResolution = resolveTenantRoute(req.nextUrl.pathname);
 
   if (routeResolution.kind === "not-found") {

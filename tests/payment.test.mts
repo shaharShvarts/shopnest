@@ -241,11 +241,11 @@ test("replacing a secret works and blank fields preserve only same environment",
     code("invalid_credentials"),
   );
 });
-test("every non-live provider rejects server-side activation", () => {
+test("every non-live provider rejects production activation", () => {
   for (const provider of providerRegistry)
     assert.throws(
       () => prepareSettings({ ...config, provider: provider.id,
-        environment: provider.environments[0], enabled: true }, null, "gift-shop"),
+        environment: "production", enabled: true }, null, "gift-shop"),
       code("not_implemented"),
     );
 });
@@ -483,13 +483,10 @@ for (const mismatch of ["ownerKey", "cartId", "quantity", "purpose"] as const)
     if (mismatch === "quantity") store.reservations[0].quantity = 3;
     else if (mismatch === "purpose") store.reservations[0].purpose = "cart";
     else store.reservations[0][mismatch] = "wrong";
-    await assert.rejects(
-      confirmPayment(store, store.attempts[0].id, callback, () =>
-        fakeProvider(),
-      ),
-    );
+    assert.equal(await confirmPayment(store, store.attempts[0].id, callback, () => fakeProvider()), "review_required");
     assert.equal(store.physical, 10);
-    assert.equal(store.attempts[0].status, "pending");
+    assert.equal(store.order.paymentStatus, "pending");
+    assert.equal(store.attempts[0].status, "review_required");
   });
 test("gift-shop callbacks cannot lookup or confirm panda-pop orders", async () => {
   const gift = await pending(new MemoryPaymentStore("gift-shop"));
@@ -641,7 +638,7 @@ for (const mismatch of ["checkoutToken", "consumed"] as const)
     const store = await pending();
     if (mismatch === "checkoutToken") {
       store.reservations[0].checkoutToken = "wrong";
-      await assert.rejects(confirmPayment(store, store.attempts[0].id, callback, () => fakeProvider()));
+      assert.equal(await confirmPayment(store, store.attempts[0].id, callback, () => fakeProvider()), "review_required");
     } else {
       store.reservations[0].state = "consumed";
       assert.equal(await confirmPayment(store, store.attempts[0].id, callback, () => fakeProvider()), "review_required");
@@ -674,7 +671,7 @@ function networkResponse(body: string, status = 200): typeof fetch {
   return async () => new Response(body, { status });
 }
 
-test("Cardcom exposes all required fields but only connection testing capability", () => {
+test("Cardcom exposes required fields and test-only hosted capabilities", () => {
   const provider = getProvider("cardcom");
   assert.deepEqual(provider.fields.map(({id}) => id), ["terminalNumber", "apiName", "apiPassword"]);
   for (const name of ["apiName", "apiPassword"]) {
@@ -682,7 +679,7 @@ test("Cardcom exposes all required fields but only connection testing capability
     assert.equal(field.type, "password");
     assert.equal(field.secret, true);
   }
-  assert.deepEqual(provider.capabilities, { hostedPayment: false, verification: false, testConnection: true });
+  assert.deepEqual(provider.capabilities, { hostedPayment: true, verification: true, testConnection: true });
   for (const patch of [{ terminalNumber: "" }, { terminalNumber: "-1" }, { terminalNumber: "1.5" }, { terminalNumber: "abc" }, { terminalNumber: undefined }, { apiName: "  " }, { apiPassword: "" }, { apiPassword: "  " }, { apiPassword: undefined }, { unexpected: "x" }]) {
     assert.throws(() => provider.validateCredentials({ ...credentials, ...patch }), code("invalid_credentials"));
   }
@@ -795,7 +792,7 @@ test("connection action authorizes first and UI keeps test separate from save", 
   assert.doesNotMatch(actions, /saveSettings|revalidateTenantPath|console\./);
   const ui = await source("../src/app/admin/payments/settings-form.tsx");
   assert.match(ui, /type="button" onClick=\{testConnection\}/);
-  assert.match(ui, /disabled=\{!provider.live\}/);
+  assert.match(ui, /disabled=\{!canEnable\}/);
   assert.doesNotMatch(ui, /secure\.cardcom|fetch\(/);
 });
 
@@ -904,6 +901,8 @@ test("in-flight testing retains a coherent snapshot while settings are replaced"
 // Execute the actual server action/middleware with controlled dependencies, not a
 // reimplementation of their guards. No Next server, database or live network is used.
 import ts from "typescript";
+import { z } from "zod";
+import { paymentActivationAllowed } from "../src/lib/payments/activation.ts";
 import * as tenantRouting from "../src/lib/tenant-routing/core.ts";
 import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 async function loadWithMocks<T>(path: string, mocks: Record<string, unknown>): Promise<T> {
@@ -917,6 +916,52 @@ async function loadWithMocks<T>(path: string, mocks: Record<string, unknown>): P
   }, exports);
   return exports as T;
 }
+
+test("actual payment service decrypts a Test snapshot and routes Cardcom success through inventory", async () => {
+  const oldOrigin = process.env.PAYMENT_PUBLIC_ORIGIN;
+  process.env.PAYMENT_PUBLIC_ORIGIN = "https://shop.example";
+  try {
+    const tenant = resolveConfiguredTenant("gift-shop")!;
+    const store = new MemoryPaymentStore();
+    const testCredentials = { ...credentials, terminalNumber: "1000" };
+    store.settings = prepareSettings({ ...config, enabled: true, credentials: testCredentials }, null, tenant.slug);
+    const lp = "11111111-2222-4333-8444-555555555555";
+    let calls = 0;
+    const service = await loadWithMocks<{ beginOrderPayment(tenant: unknown, orderId: number, owner: string): Promise<unknown>; processPaymentCallback(tenant: unknown, id: string, body: string, headers: Headers): Promise<string> }>("../src/lib/payments/service.ts", {
+      "server-only": {}, zod: { z },
+      "./registry": { getProvider: (id: string) => ({ ...getProvider(id), createAdapter: (values: Record<string, string>, environment: "test" | "production") => {
+        assert.deepEqual(values, testCredentials);
+        return cardcomAdapter(values, environment, async (endpoint, options) => {
+          calls++;
+          const sent = JSON.parse(String(options?.body));
+          assert.equal(sent.TerminalNumber, 1000);
+          const creating = String(endpoint).endsWith("/Create");
+          if (creating) { assert.equal(store.attempts.length, 1); assert.equal(sent.Amount, 250); }
+          const result = creating ? { ResponseCode: 0, LowProfileId: lp, Url: `https://secure.cardcom.solutions/EA/LPC6/1000/${lp}` } : {
+            ResponseCode: 0, LowProfileId: lp, TerminalNumber: 1000, ReturnValue: store.attempts[0].externalReference, Operation: "ChargeOnly", TranzactionId: 123,
+            TranzactionInfo: { ResponseCode: 0, TerminalNumber: 1000, Amount: 250, CoinId: 1, TranzactionId: 123, IsRefund: false, DealType: "Debit" },
+          };
+          return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json" } });
+        });
+      } }) },
+      "./activation": { paymentActivationAllowed }, "./encryption": { decryptCredentials },
+      "./core": { confirmPayment, startPayment }, "./types": { PaymentError },
+      "./drizzle-store": { DrizzlePaymentStore: function (trusted: unknown) { assert.equal(trusted, tenant); return store; } },
+    });
+    await service.beginOrderPayment(tenant, 1, "session:buyer");
+    assert.equal(await service.processPaymentCallback(tenant, store.attempts[0].id, JSON.stringify({ LowProfileId: lp }), new Headers()), "paid");
+    assert.equal(store.physical, 8); assert.equal(store.attempts[0].providerChargeId, "123");
+    assert.equal(calls, 2);
+    // Even a manually tampered enabled production row cannot reach an adapter.
+    store.settings.environment = "production";
+    store.attempts = []; store.order.paymentStatus = "pending";
+    await assert.rejects(service.beginOrderPayment(tenant, 1, "session:buyer"), code("not_implemented"));
+    assert.equal(calls, 2); assert.equal(store.attempts.length, 0);
+  } finally {
+    if (oldOrigin === undefined) delete process.env.PAYMENT_PUBLIC_ORIGIN;
+    else process.env.PAYMENT_PUBLIC_ORIGIN = oldOrigin;
+  }
+});
 
 test("actual connection action rejects unauthorized users before reading settings or calling network", async () => {
   let reads = 0;

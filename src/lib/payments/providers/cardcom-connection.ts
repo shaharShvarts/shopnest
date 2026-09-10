@@ -1,5 +1,6 @@
 import "server-only";
-import { PaymentError, type PaymentEnvironment, type PaymentProvider } from "../types.ts";
+import { type PaymentEnvironment, type PaymentProvider } from "../types.ts";
+import { cardcomHosted } from "./cardcom-hosted.ts";
 import { credentialsSchema } from "./cardcom.ts";
 
 const endpoint = "https://secure.cardcom.solutions/Interface/BillGoldService.asmx";
@@ -160,11 +161,8 @@ export function cardcomAdapter(
   network: typeof fetch = fetch,
   timeoutMs = 9000,
 ): PaymentProvider {
-  const unavailable = async (): Promise<never> => { throw new PaymentError("not_implemented"); };
   return {
-    createPayment: unavailable,
-    verifyCallback: unavailable,
-    getPaymentStatus: unavailable,
+    ...cardcomHosted(credentials, _environment, network, timeoutMs),
     async testConnection() {
       const controller = new AbortController();
       let timer: ReturnType<typeof setTimeout> | undefined;

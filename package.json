@@ -30,7 +30,7 @@
     "google-auth:test": "node --experimental-strip-types --test tests/google-auth.test.mts",
     "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts",
     "cli-env:test": "node --test tests/cli-env.test.mjs",
-    "payment:test": "node --conditions=react-server --experimental-strip-types --test tests/payment.test.mts"
+    "payment:test": "node --conditions=react-server --experimental-strip-types --test tests/payment.test.mts tests/cardcom-hosted.test.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

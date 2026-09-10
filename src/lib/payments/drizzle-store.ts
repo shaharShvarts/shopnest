@@ -170,6 +170,7 @@ export class DrizzlePaymentStore implements PaymentStore {
             .set({
               status: attempt.status,
               providerTransactionId: attempt.providerTransactionId,
+              providerChargeId: attempt.providerChargeId,
               redirectUrl: attempt.redirectUrl,
               failureCode: attempt.failureCode,
               confirmedAt: attempt.confirmedAt,

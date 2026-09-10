@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Tenant } from "@/lib/tenant";
 import { getProvider } from "./registry";
+import { paymentActivationAllowed } from "./activation";
 import { decryptCredentials } from "./encryption";
 import { confirmPayment, startPayment, type AdapterResolver } from "./core";
 import { DrizzlePaymentStore } from "./drizzle-store";
@@ -10,7 +11,7 @@ import { PaymentError } from "./types";
 function adapterResolver(tenant: Tenant): AdapterResolver {
   return (settings) => {
     const definition = getProvider(settings.provider);
-    if (!definition.live) throw new PaymentError("not_implemented");
+    if (!paymentActivationAllowed(definition, settings.environment)) throw new PaymentError("not_implemented");
     if (!definition.environments.includes(settings.environment))
       throw new PaymentError("invalid_environment");
     const credentials = decryptCredentials(settings.encryptedCredentials, {
@@ -18,10 +19,9 @@ function adapterResolver(tenant: Tenant): AdapterResolver {
       provider: settings.provider,
       environment: settings.environment,
     });
-    return definition.createAdapter(
-      definition.validateCredentials(credentials),
-      settings.environment,
-    );
+    const validated = definition.validateCredentials(credentials);
+    definition.assertPaymentConfiguration?.(validated, settings.environment);
+    return definition.createAdapter(validated, settings.environment);
   };
 }
 

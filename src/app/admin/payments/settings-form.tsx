@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SettingsReadModel } from "@/lib/payments/settings";
+import { paymentActivationAllowed } from "@/lib/payments/activation";
 import type {
   PaymentEnvironment,
   ProviderMetadata,
@@ -45,6 +46,7 @@ export function PaymentSettingsForm({
   );
   const sameConfiguration =
     settings?.provider === providerId && settings.environment === environment;
+  const canEnable = paymentActivationAllowed(provider, environment);
   const [state, action, pending] = useActionState<
     PaymentSettingsState,
     FormData
@@ -112,9 +114,9 @@ export function PaymentSettingsForm({
             </select>
           </div>
         </div>
-        {!provider.live && (
+        {(!canEnable || environment === "test") && (
           <p role="note" className="rounded-lg bg-muted p-3 text-sm">
-            {t("notLive")}
+            {t(canEnable ? "testPaymentsOnly" : "notLive")}
           </p>
         )}
         <div
@@ -157,9 +159,9 @@ export function PaymentSettingsForm({
             <input
               type="checkbox"
               name="enabled"
-              disabled={!provider.live}
+              disabled={!canEnable}
               defaultChecked={Boolean(
-                sameConfiguration && settings.enabled && provider.live,
+                sameConfiguration && settings.enabled && canEnable,
               )}
             />
             {t("enabled")}

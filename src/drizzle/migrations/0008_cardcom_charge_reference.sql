@@ -1,0 +1,3 @@
+ALTER TABLE "payment_transactions" ADD COLUMN "provider_charge_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "payment_provider_charge_unique" ON "payment_transactions" USING btree ("provider","environment","provider_charge_id");--> statement-breakpoint
+ALTER TABLE "payment_transactions" ADD CONSTRAINT "payment_charge_id_valid" CHECK ("payment_transactions"."provider_charge_id" is null or ("payment_transactions"."provider_charge_id" ~ '^[1-9][0-9]{0,18}$' and (length("payment_transactions"."provider_charge_id") < 19 or "payment_transactions"."provider_charge_id" collate "C" <= '9223372036854775807')));

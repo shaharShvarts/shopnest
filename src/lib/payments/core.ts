@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { InventoryError } from "../inventory/core.ts";
 import {
   PaymentError,
   type PaymentAttempt,
@@ -122,6 +123,7 @@ export async function startPayment(
       currency: order.currency,
       externalReference: `${store.tenant}:${id}`,
       providerTransactionId: null,
+      providerChargeId: null,
       redirectUrl: null,
       status: "created",
       failureCode: null,
@@ -204,6 +206,7 @@ function verifyBinding(attempt: PaymentAttempt, evidence: VerifiedPayment) {
     evidence.externalReference !== attempt.externalReference ||
     !attempt.providerTransactionId ||
     evidence.providerTransactionId !== attempt.providerTransactionId ||
+    (attempt.providerChargeId != null && evidence.providerChargeId !== attempt.providerChargeId) ||
     evidence.amount !== attempt.amount ||
     evidence.currency !== attempt.currency ||
     !["pending", "paid", "failed", "cancelled", "expired"].includes(
@@ -247,15 +250,24 @@ export async function confirmPayment(
     if (evidence.status === "paid") {
       // Late verified funds are recorded for reconciliation; never oversell or
       // silently claim fulfilment after a released/expired hold.
-      const ready =
+      let ready =
         ["created", "pending"].includes(current.status) &&
         order.payable &&
-        order.paymentStatus === "pending" &&
-        (await tx.reservationValid(order));
+        order.paymentStatus === "pending";
+      if (ready) {
+        try { ready = await tx.reservationValid(order); }
+        catch (error) {
+          // Proven funds with a lost reservation binding need reconciliation.
+          // Infrastructure/database failures must still roll back and be retried.
+          if (!(error instanceof InventoryError) || !["reservation_not_found", "reservation_owner_mismatch", "invalid_attempt", "reservation_expired"].includes(error.code)) throw error;
+          ready = false;
+        }
+      }
       if (!ready) {
         await tx.updateAttempt({
           ...current,
           status: transitionPayment(current.status, "review_required"),
+          providerChargeId: evidence.providerChargeId ?? null,
           confirmedAt: new Date(),
           failureCode: "reservation_review_required",
         });
@@ -266,6 +278,7 @@ export async function confirmPayment(
       await tx.updateAttempt({
         ...current,
         status: transitionPayment(current.status, "paid"),
+        providerChargeId: evidence.providerChargeId ?? null,
         confirmedAt: new Date(),
         failureCode: null,
       });

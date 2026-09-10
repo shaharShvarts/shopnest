@@ -1,15 +1,16 @@
 import { z } from "zod";
-import type { ProviderMetadata } from "../types.ts";
+import { PaymentError, type PaymentEnvironment, type ProviderMetadata } from "../types.ts";
 
-// Only read-only credential validation is available; payments remain disabled.
+// Only the official non-charging test terminal is supported. Production is blocked.
 export const metadata: ProviderMetadata = {
   id: "cardcom",
   displayName: "Cardcom",
   environments: ["test", "production"],
   live: false,
+  testPayments: true,
   capabilities: {
-    hostedPayment: false,
-    verification: false,
+    hostedPayment: true,
+    verification: true,
     testConnection: true,
   },
   fields: [
@@ -37,3 +38,8 @@ export const credentialsSchema = z
     apiPassword: z.string().min(1).max(128).refine((value) => value.trim().length > 0),
   })
   .strict();
+
+export function assertCardcomTestConfiguration(credentials: Record<string, string>, environment: PaymentEnvironment) {
+  if (environment !== "test") throw new PaymentError("not_implemented");
+  if (credentials.terminalNumber !== "1000") throw new PaymentError("cardcom_test_terminal_required");
+}

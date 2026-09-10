@@ -60,6 +60,7 @@ export const paymentTransactions = pgTable(
     // Immutable encrypted credential snapshot: rotation cannot redirect an in-flight payment.
     encryptedCredentials: text("encrypted_credentials").notNull(),
     providerTransactionId: text("provider_transaction_id"),
+    providerChargeId: text("provider_charge_id"),
     externalReference: text("external_reference").notNull(),
     amount: integer("amount").notNull(),
     currency: text("currency").notNull(),
@@ -81,6 +82,8 @@ export const paymentTransactions = pgTable(
       table.providerTransactionId,
     ),
     index("payment_status_created_idx").on(table.status, table.createdAt),
+    uniqueIndex("payment_provider_charge_unique").on(table.provider, table.environment, table.providerChargeId),
+    check("payment_charge_id_valid", sql`${table.providerChargeId} is null or (${table.providerChargeId} ~ '^[1-9][0-9]{0,18}$' and (length(${table.providerChargeId}) < 19 or ${table.providerChargeId} collate "C" <= '9223372036854775807'))`),
     check("payment_amount_positive", sql`${table.amount} > 0`),
     check("payment_currency_valid", sql`${table.currency} ~ '^[A-Z]{3}$'`),
     check(

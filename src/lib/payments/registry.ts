@@ -1,7 +1,7 @@
 import "server-only";
 import { cardcomAdapter } from "./providers/cardcom-connection.ts";
 import { z } from "zod";
-import { metadata as cardcom, credentialsSchema } from "./providers/cardcom.ts";
+import { metadata as cardcom, credentialsSchema, assertCardcomTestConfiguration } from "./providers/cardcom.ts";
 import { unavailableProvider } from "./providers/unavailable.ts";
 import {
   PaymentError,
@@ -11,6 +11,7 @@ import {
 } from "./types.ts";
 
 export type ProviderDefinition = ProviderMetadata & {
+  assertPaymentConfiguration?(credentials: Record<string, string>, environment: PaymentEnvironment): void;
   validateCredentials(input: unknown): Record<string, string>;
   createAdapter(
     credentials: Record<string, string>,
@@ -35,7 +36,7 @@ function definition(
 }
 
 export const providerRegistry: readonly ProviderDefinition[] = [
-  { ...definition(cardcom, credentialsSchema), createAdapter: cardcomAdapter },
+  { ...definition(cardcom, credentialsSchema), createAdapter: cardcomAdapter, assertPaymentConfiguration: assertCardcomTestConfiguration },
   ...(["pelecard", "tranzila"] as const).map((id) =>
     definition(
       {
@@ -65,12 +66,13 @@ export function getProvider(id: unknown): ProviderDefinition {
 // Explicit allowlist, never pass factories, validators or credentials to React.
 export function providerMetadata(): ProviderMetadata[] {
   return providerRegistry.map(
-    ({ id, displayName, environments, fields, live, capabilities }) => ({
+    ({ id, displayName, environments, fields, live, testPayments, capabilities }) => ({
       id,
       displayName,
       environments,
       fields,
       live,
+      testPayments: testPayments === true,
       capabilities,
     }),
   );
