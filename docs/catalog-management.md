@@ -32,6 +32,36 @@ controlled admin messages.
 
 ## Images
 
+Upload validation is authoritative on the server. Sharp 0.34.5 decodes the file
+bytes with strict warning handling; it never selects a decoder from the filename,
+browser MIME type, or Content-Type. Full pixel decoding checks every frame/page,
+with an additional GIF block/trailer check because the decoder can recover a
+truncated GIF without warning. Invalid, corrupt and unsupported data is rejected
+before writing files or updating catalog rows, with an image-field error.
+
+The bundled Sharp/libvips build supports JPEG, PNG, WebP, GIF, TIFF, AVIF and SVG.
+There is no application input-format allowlist: any image buffer the installed
+Sharp codecs can decode is accepted, subject to its built-in safety limits.
+Additional codecs depend on the deployed libvips build; for example HEIC requires
+HEVC support, which is not included in the standard binaries. Raw pixel arrays
+without image headers are not file uploads and are not accepted.
+
+Accepted images are normalized to PNG, with EXIF orientation applied and metadata
+removed. SVG is rasterized, never served as active markup. Multi-page/animated
+uploads are fully validated and their first frame becomes the static catalog
+image. Existing stored JPEG/PNG/WebP/GIF/AVIF images remain readable.
+
+The existing 5 MiB (5,242,880 byte) input limit is enforced both against File.size
+and the actual bytes read. The multipart request envelope allows 6 MiB so a file
+at the limit can be submitted. Client image/* filtering and the size hint are UX
+only. NEXT_PUBLIC_VALID_IMAGE_TYPES and NEXT_PUBLIC_MAX_FILE_SIZE no longer make
+server validation decisions; the shared byte limit lives in upload-limits.mjs.
+
+Run `npm run image:test` for real format fixtures, MIME/extension spoofing,
+corruption, animation truncation and byte-boundary tests. `npm run admin-ui:test`
+checks upload/read/replace/delete lifecycles and cross-tenant path isolation using
+real image fixtures.
+
 Runtime uploads are not application source files and are not written to
 Next.js `public/`. The local media store writes each image beneath a dedicated,
 tenant-scoped directory:
@@ -43,7 +73,7 @@ uploads/<tenant>/products/<uuid>.<extension>
 ```
 
 The database stores only a portable browser path such as
-`/gift-shop/media/categories/<uuid>.jpg`. A dynamic Route Handler reads the
+`/gift-shop/media/categories/<uuid>.png`. A dynamic Route Handler reads the
 file on every media request, so a new upload is available immediately without a
 Next.js rebuild or restart. The handler accepts only configured tenants, the
 three catalog media kinds, safe filenames, and known image extensions. It does

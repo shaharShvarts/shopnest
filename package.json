@@ -23,6 +23,7 @@
     "admin-auth:test": "node --experimental-strip-types --test tests/admin-auth.test.mts",
     "catalog:test": "node --experimental-strip-types --test tests/catalog-flow.test.mts",
     "storefront-ui:test": "node --experimental-strip-types --test tests/storefront-responsive.test.mts",
+    "image:test": "node --test tests/image-validation.test.mjs",
     "admin-ui:test": "node --experimental-strip-types --test tests/admin-images-navigation.test.mts",
     "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts",
     "storefront-catalog:test": "node --experimental-strip-types --test tests/storefront-catalog.test.mts",
@@ -63,6 +64,7 @@
     "react-icons": "^5.5.0",
     "react-toastify": "^11.0.5",
     "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.76"
   },

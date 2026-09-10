@@ -22,6 +22,8 @@ export function resolveSettingsCredentials(
   if (!result.success) throw new PaymentError("invalid_settings");
   const data = result.data;
   const provider = getProvider(data.provider);
+  if ((process.env.APP_ENV === "development" || process.env.APP_ENV === "staging") && data.environment !== "test")
+    throw new PaymentError("invalid_environment");
   if (!provider.environments.includes(data.environment))
     throw new PaymentError("invalid_environment");
   if (data.enabled && !provider.live) throw new PaymentError("not_implemented");

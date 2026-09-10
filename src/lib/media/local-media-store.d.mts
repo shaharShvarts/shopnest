@@ -6,6 +6,7 @@ export class LocalMediaError extends Error {
 
 type MediaFile = {
   type: string;
+  size: number;
   arrayBuffer(): Promise<ArrayBuffer>;
 };
 

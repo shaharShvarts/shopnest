@@ -11,13 +11,7 @@ export const CATALOG_MEDIA_KINDS = Object.freeze([
   "subcategories",
   "products",
 ]);
-export const SUPPORTED_IMAGE_CONTENT_TYPES = Object.freeze([
-  "image/avif",
-  "image/gif",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+
 
 const catalogMediaKinds = new Set(CATALOG_MEDIA_KINDS);
 
