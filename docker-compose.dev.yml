@@ -1,44 +1,54 @@
-version: "3.8"
-
+# Standalone deployment: never combine with docker-compose.yml.
+name: shopnest-dev
 services:
-  web-dev:
+  web:
     build:
-      context: ./app
-    ports:
-      - "3001:3000"
-    env_file:
-      - .env.dev
-    depends_on:
-      - db-dev
-    networks:
-      - shopnest-dev-net
-
-  db-dev:
-    image: postgres:17.0
-    ports:
-      - "5432:5432"
+      context: .
+      dockerfile: Dockerfile.deploy
+    container_name: shopnest-dev-web
+    restart: unless-stopped
+    env_file: .env.dev
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-    volumes:
-      - pgdata-dev:/var/lib/postgresql/data
-    networks:
-      - shopnest-dev-net
-
-  nginx-dev:
-    image: nginx:latest
-    volumes:
-      - ./nginx/dev.conf:/etc/nginx/nginx.conf
+      NODE_ENV: production
+      APP_ENV: development
+      DATABASE_URL: ""
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: shopnest_dev
+      DB_USER: shopnest_dev
+      DB_PASSWORD: ${DEV_DB_PASSWORD:?Set DEV_DB_PASSWORD}
+      PAYMENT_ENCRYPTION_KEY: ${DEV_PAYMENT_ENCRYPTION_KEY:?Set a unique payment encryption key}
+      PAYMENT_PUBLIC_ORIGIN: https://dev.shopnest.co.il
+      SHOPNEST_UPLOADS_DIR: /app/uploads
+      SHOPNEST_PASSWORD_RESET_DEV_CAPTURE: ""
     ports:
-      - "8080:80"
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - uploads_dev:/app/uploads
     depends_on:
-      - web-dev
-    networks:
-      - shopnest-dev-net
-
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:17.0
+    container_name: shopnest-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shopnest_dev
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD:?Set DEV_DB_PASSWORD}
+      POSTGRES_DB: shopnest_dev
+    # No host port: administer through compose exec db psql.
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopnest_dev -d shopnest_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 volumes:
-  pgdata-dev:
-
+  pgdata_dev:
+    name: shopnest_dev_pgdata
+  uploads_dev:
+    name: shopnest_dev_uploads
 networks:
-  shopnest-dev-net:
+  default:
+    name: shopnest_dev_network

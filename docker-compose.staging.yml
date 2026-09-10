@@ -1,0 +1,54 @@
+# Standalone deployment: never combine with docker-compose.yml.
+name: shopnest-staging
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.deploy
+    container_name: shopnest-staging-web
+    restart: unless-stopped
+    env_file: .env.staging
+    environment:
+      NODE_ENV: production
+      APP_ENV: staging
+      DATABASE_URL: ""
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: shopnest_staging
+      DB_USER: shopnest_staging
+      DB_PASSWORD: ${STAGING_DB_PASSWORD:?Set STAGING_DB_PASSWORD}
+      PAYMENT_ENCRYPTION_KEY: ${STAGING_PAYMENT_ENCRYPTION_KEY:?Set a unique payment encryption key}
+      PAYMENT_PUBLIC_ORIGIN: https://staging.shopnest.co.il
+      SHOPNEST_UPLOADS_DIR: /app/uploads
+      SHOPNEST_PASSWORD_RESET_DEV_CAPTURE: ""
+    ports:
+      - "127.0.0.1:3002:3000"
+    volumes:
+      - uploads_staging:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:17.0
+    container_name: shopnest-staging-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shopnest_staging
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:?Set STAGING_DB_PASSWORD}
+      POSTGRES_DB: shopnest_staging
+    # No host port: administer through compose exec db psql.
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopnest_staging -d shopnest_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  pgdata_staging:
+    name: shopnest_staging_pgdata
+  uploads_staging:
+    name: shopnest_staging_uploads
+networks:
+  default:
+    name: shopnest_staging_network

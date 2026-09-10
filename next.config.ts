@@ -3,7 +3,7 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const maxSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE);
-const bodySizeLimit = maxSize > 1 ? (`${maxSize}mb` as const) : "5mb";
+const bodySizeLimit = maxSize > 1 ? (`${Math.ceil(maxSize / (1024 * 1024))}mb` as const) : "5mb";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),

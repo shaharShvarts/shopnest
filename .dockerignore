@@ -9,3 +9,10 @@ pnpm-lock.yaml
 yarn.lock
 local-old-migrations
 backup-vs-master.patch
+.env*
+.next-dev
+uploads
+public/products
+public/categories
+public/subcategories
+*.pem

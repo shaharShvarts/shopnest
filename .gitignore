@@ -52,3 +52,6 @@ next-env.d.ts
 local-old-migrations/
 icountToken.txt
 Software Requirements Specification.docx
+
+!.env.dev.example
+!.env.staging.example

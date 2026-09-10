@@ -156,10 +156,12 @@ function matchesTerminal(xml: string, terminal: string): boolean {
 }
 export function cardcomAdapter(
   credentials: Record<string, string>,
-  _environment: PaymentEnvironment,
+  environment: PaymentEnvironment,
   network: typeof fetch = fetch,
   timeoutMs = 9000,
 ): PaymentProvider {
+  if ((process.env.APP_ENV === "development" || process.env.APP_ENV === "staging") && environment !== "test")
+    throw new PaymentError("invalid_environment");
   const unavailable = async (): Promise<never> => { throw new PaymentError("not_implemented"); };
   return {
     createPayment: unavailable,
