@@ -59,7 +59,9 @@ browser.
 The dashboard reports registered, active, suspended/disabled stores, total order
 count, paid revenue, today's orders, today's paid revenue, and per-store last
 order activity. "Today" uses UTC. Deleted orders are excluded; revenue includes
-only orders whose tenant-local `payment_status` is `paid`.
+only orders whose tenant-local `payment_status` is `paid`. The current commerce
+model uses ILS. If a tenant contains another order currency, that tenant is marked
+unavailable rather than combining unlike currencies into a misleading total.
 
 Each registered store is matched against the static server allowlist and its
 canonical schema before opening the existing schema-scoped Drizzle connection.

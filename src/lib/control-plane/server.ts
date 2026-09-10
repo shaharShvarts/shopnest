@@ -98,11 +98,15 @@ async function loadTenantMetrics(tenant: ValidatedTenant): Promise<StoreMetrics>
       salesVolume: sql<number>`coalesce(sum(case when ${orders.paymentStatus} = 'paid' then ${orders.totalPrice} else 0 end), 0)`,
       ordersToday: sql<number>`count(case when ${orders.createdAt} >= ${dayStart} then 1 end)`,
       revenueToday: sql<number>`coalesce(sum(case when ${orders.paymentStatus} = 'paid' and ${orders.createdAt} >= ${dayStart} then ${orders.totalPrice} else 0 end), 0)`,
+      unsupportedCurrencyCount: sql<number>`count(case when ${orders.currency} <> 'ILS' then 1 end)`,
       lastActivity: max(orders.createdAt),
     })
     .from(orders)
     .where(isNull(orders.deletedAt));
 
+  if (safeMetric(row?.unsupportedCurrencyCount) > 0) {
+    throw new Error("Cannot aggregate mixed currencies");
+  }
   return {
     orderCount: safeMetric(row?.orderCount),
     salesVolume: safeMetric(row?.salesVolume),
