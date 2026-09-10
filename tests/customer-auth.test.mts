@@ -735,7 +735,7 @@ test("customer identity migration is public, journaled, and control-plane idempo
   );
   assert.equal(
     JSON.parse(journal).entries.at(-1).tag,
-    "0003_customer_google_oauth"
+    "0004_faithful_wallflower"
   );
   assert.match(provisioner, /SELECT hash[\s\S]*assertMigrationHash/);
 });

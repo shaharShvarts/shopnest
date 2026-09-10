@@ -125,11 +125,12 @@ Disable the account and revoke all sessions:
 npm run admin:revoke -- manager@example.com
 ```
 
-No production credentials are hard-coded in the repository.
+No production credentials are hard-coded in the repository. The platform-level
+dashboard, store registry metadata, and isolated aggregate metrics are documented
+in [control-plane.md](./control-plane.md).
 
 ## Future work
 
-- Build tenant/status management and analytics under `/shopnest/admin`.
 - Add `tenant_staff` permissions and finer per-assignment capabilities.
 - Add session-management/audit views, rate limiting, password reset, and MFA.
 - Move the static routing allowlist fully into a deployment-safe dynamic
