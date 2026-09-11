@@ -97,8 +97,8 @@ Existing migrations and legacy `public` tables are not modified.
   onboarding a tenant until dynamic middleware discovery is introduced.
 - Uploaded image files still share the application's `public` filesystem,
   although their database references are tenant-isolated.
-- Tenant-management and suspension-management UI are reserved for a future
-  `/shopnest/admin` release.
+- Tenant-management and suspension-management UI is available to active
+  `super_admin` accounts through the platform `/admin` control plane.
 - Payments are intentionally unchanged and are not part of this foundation.
 - Existing top-level application route names are reserved and cannot be used
   as tenant slugs.

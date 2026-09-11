@@ -17,7 +17,7 @@ export default async function StoreDetailPage({ params, searchParams }: { params
   return (
     <div className="space-y-7">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div><Link href="/shopnest/admin/stores" className="text-sm text-indigo-700 hover:underline">← {t("stores")}</Link><h1 className="mt-2 text-3xl font-bold">{store.displayName}</h1><p className="font-mono text-sm text-slate-500">{store.slug}</p></div>
+        <div><Link href="/admin/stores" className="text-sm text-indigo-700 hover:underline">← {t("stores")}</Link><h1 className="mt-2 text-3xl font-bold">{store.displayName}</h1><p className="font-mono text-sm text-slate-500">{store.slug}</p></div>
         <div className="flex items-center gap-3"><StoreStatusBadge status={store.status} label={t(store.status)} /><a href={`/${store.slug}/admin`} className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">{t("openTenantAdmin")}</a></div>
       </header>
       {query.saved === "1" ? <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">{t("storeSaved")}</p> : null}

@@ -1,6 +1,6 @@
 # ShopNest control plane
 
-The first platform administration area is served at `/shopnest/admin`. It is
+The platform administration area is served at `/admin`. It is
 separate from tenant administration routes such as `/gift-shop/admin` and has no
 tenant request context. Its layout, navigation, pages, queries, and mutations all
 use the existing server-side `shopnest_admin_session` authentication boundary.
@@ -41,11 +41,17 @@ tables. Plan pricing and enforcement limits are deliberately undefined.
 
 ## Routes
 
-- `/shopnest/admin` — platform dashboard and aggregate metrics
-- `/shopnest/admin/stores` — registered store list
-- `/shopnest/admin/stores/<slug>` — store detail and settings
-- `/shopnest/admin/plans` — current plan assignments
-- `/shopnest/admin/featured` — ordered featured-store candidates
+- `/admin` — platform dashboard and aggregate metrics
+- `/admin/login` — platform administrator login
+- `/admin/stores` — registered store list
+- `/admin/stores/<slug>` — store detail and settings
+- `/admin/plans` — current plan assignments
+- `/admin/featured` — ordered featured-store candidates
+
+Tenant administration remains at `/<tenant>/admin` and
+`/<tenant>/admin/login`. Middleware validates the tenant segment before those
+routes reach the application and supplies the canonical tenant slug and schema
+through trusted request headers.
 
 The store detail action can update status, plan, featured eligibility/rank, and
 support notes. It re-authenticates the current session as `super_admin`, validates

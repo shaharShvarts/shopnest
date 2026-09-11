@@ -2,7 +2,7 @@ import { TenantLink as Link } from "@/components/TenantLink";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { eq } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "../../components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 import { SubcategoryTable } from "./_components/SubcategoryTable";
 import { categories, products, subcategories } from "@/drizzle/schema";
 import { Suspense } from "react";

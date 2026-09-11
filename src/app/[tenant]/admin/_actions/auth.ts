@@ -90,7 +90,7 @@ export async function loginSuperAdmin(
 
   const session = await createAdminSession(repository, user.id);
   await setAdminSessionCookie(session);
-  redirect("/shopnest/admin");
+  redirect("/admin");
 }
 
 export async function logoutCurrentAdmin() {
@@ -99,7 +99,7 @@ export async function logoutCurrentAdmin() {
   await logoutAdmin(getAdminAuthRepository(), token);
   cookieStore.delete(ADMIN_SESSION_COOKIE);
   const tenant = await getTenant();
-  redirect(tenant ? `${tenant.basePath}/admin/login` : "/shopnest/admin/login");
+  redirect(tenant ? `${tenant.basePath}/admin/login` : "/admin/login");
 }
 
 async function setAdminSessionCookie(session: { token: string; expiresAt: Date }) {

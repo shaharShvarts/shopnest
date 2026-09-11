@@ -3,6 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import type { AdminPrincipal } from "../src/lib/admin-auth/core.ts";
 import {
+  isTenantAdminPath,
+  resolveTenantRoute,
+} from "../src/lib/tenant-routing/core.ts";
+import {
   authorizeStoreMutation,
   buildStoreSummaries,
   findTrustedStore,
@@ -34,6 +38,27 @@ const mutation = {
 
 test("super admin access works without a tenant assignment", () => {
   assert.deepEqual(authorizeStoreMutation(superAdmin, mutation), mutation);
+});
+
+test("platform and tenant admin routes remain isolated", () => {
+  assert.deepEqual(resolveTenantRoute("/admin"), { kind: "legacy" });
+  assert.deepEqual(resolveTenantRoute("/admin/login"), { kind: "legacy" });
+
+  const tenantAdmin = resolveTenantRoute("/gift-shop/admin");
+  assert.equal(tenantAdmin.kind, "tenant");
+  if (tenantAdmin.kind === "tenant") {
+    assert.equal(tenantAdmin.internalPath, "/admin");
+    assert.equal(isTenantAdminPath(tenantAdmin.internalPath), true);
+  }
+
+  const tenantLogin = resolveTenantRoute("/gift-shop/admin/login");
+  assert.equal(tenantLogin.kind, "tenant");
+  if (tenantLogin.kind === "tenant") {
+    assert.equal(isTenantAdminPath(tenantLogin.internalPath), true);
+  }
+
+  assert.equal(isTenantAdminPath("/products"), false);
+  assert.deepEqual(resolveTenantRoute("/unknown-store/admin"), { kind: "not-found" });
 });
 
 test("unauthenticated and tenant admins cannot change status, plan, or featured state", () => {
@@ -109,8 +134,8 @@ test("control-plane migration is additive and preserves existing stores with saf
 
 test("route and mutation boundaries enforce server authorization and trusted schemas", async () => {
   const [layout, action, server, root] = await Promise.all([
-    readFile("src/app/shopnest/admin/layout.tsx", "utf8"),
-    readFile("src/app/shopnest/admin/_actions/stores.ts", "utf8"),
+    readFile("src/app/admin/layout.tsx", "utf8"),
+    readFile("src/app/admin/_actions/stores.ts", "utf8"),
     readFile("src/lib/control-plane/server.ts", "utf8"),
     readFile("src/app/(customer)/page.tsx", "utf8"),
   ]);

@@ -45,7 +45,7 @@ a tenant schema.
 ## Login and sessions
 
 Tenant admins sign in at `/<tenant>/admin/login`; super admins sign in at
-`/shopnest/admin/login`. Passwords are hashed with Node's scrypt using a random
+`/admin/login`. Passwords are hashed with Node's scrypt using a random
 salt. Login failures always return the generic `Invalid email or password`
 message.
 
@@ -79,8 +79,8 @@ cross-tenant or suspended-tenant request returns the controlled 403 response.
 The server does not switch tenants or fall back to public store data.
 
 `super_admin` can access every known tenant, including suspended or disabled
-tenants, and the reserved `/shopnest/admin` foundation. The global page is
-intentionally minimal in this release.
+tenants, and the platform `/admin` control plane. A `tenant_admin` can only use
+the `/<tenant>/admin` routes for tenants assigned to that account.
 
 Customer pages for suspended or disabled tenants use the same controlled 403
 response. Suspension management UI is future work.

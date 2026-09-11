@@ -2,7 +2,7 @@ import { desc } from "drizzle-orm";
 import { orders } from "@/drizzle/schema";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { TenantLink } from "@/components/TenantLink";
-import { PageHeader } from "../../components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 import { formatCurrency } from "@/lib/formatters";
 
 export default async function AdminOrdersPage() {

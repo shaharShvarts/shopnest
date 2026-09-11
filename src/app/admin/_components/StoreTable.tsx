@@ -14,7 +14,7 @@ export async function StoreTable({ stores }: { stores: StoreSummary[] }) {
         <TableBody>
           {stores.map((store) => (
             <TableRow key={store.slug}>
-              <TableCell><Link className="font-semibold text-indigo-700 hover:underline" href={`/shopnest/admin/stores/${store.slug}`}>{store.displayName}</Link><div className="font-mono text-xs text-slate-500">{store.slug}</div></TableCell>
+              <TableCell><Link className="font-semibold text-indigo-700 hover:underline" href={`/admin/stores/${store.slug}`}>{store.displayName}</Link><div className="font-mono text-xs text-slate-500">{store.slug}</div></TableCell>
               <TableCell><StoreStatusBadge status={store.status} label={t(store.status)} /></TableCell>
               <TableCell>{t(store.plan)}</TableCell>
               <TableCell>{store.kind === "available" ? formatNumber(store.metrics.orderCount) : t("unavailable")}</TableCell>

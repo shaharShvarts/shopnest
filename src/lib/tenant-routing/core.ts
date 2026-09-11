@@ -33,6 +33,10 @@ export function buildTenantRewriteUrl(requestUrl: URL, internalPath: string) {
   return rewriteUrl;
 }
 
+export function isTenantAdminPath(internalPath: string) {
+  return internalPath === "/admin" || internalPath.startsWith("/admin/");
+}
+
 export function resolveTenantRoute(pathname: string): TenantRouteResolution {
   const [firstSegment, ...rest] = pathname.split("/").filter(Boolean);
 

@@ -25,7 +25,7 @@ export default async function CategoriesPage() {
   // immediately when the HttpOnly admin cookie is absent.
   const tenant = await getTenant();
   const principal = tenant ? null : await getCurrentAdminSession();
-  if (!tenant && authorizeSuperAdmin(principal)) redirect("/shopnest/admin");
+  if (!tenant && authorizeSuperAdmin(principal)) redirect("/admin");
   // const categories = await fetchActiveCategories();
   // const t = await getTranslations("CategoriesPage");
   return (

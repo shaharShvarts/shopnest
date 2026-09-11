@@ -33,10 +33,10 @@ export async function updateStoreAction(formData: FormData) {
   });
   if (!parsed.success) throw new Error("Invalid store update");
   await updateControlPlaneStore(parsed.data);
-  revalidatePath("/shopnest/admin");
-  revalidatePath("/shopnest/admin/stores");
-  revalidatePath(`/shopnest/admin/stores/${parsed.data.slug}`);
-  revalidatePath("/shopnest/admin/plans");
-  revalidatePath("/shopnest/admin/featured");
-  redirect(`/shopnest/admin/stores/${parsed.data.slug}?saved=1`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/stores");
+  revalidatePath(`/admin/stores/${parsed.data.slug}`);
+  revalidatePath("/admin/plans");
+  revalidatePath("/admin/featured");
+  redirect(`/admin/stores/${parsed.data.slug}?saved=1`);
 }
