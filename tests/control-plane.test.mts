@@ -147,8 +147,8 @@ test("route and mutation boundaries enforce server authorization and trusted sch
   assert.match(server, /unsupportedCurrencyCount/);
   assert.match(server, /Cannot aggregate mixed currencies/);
   assert.doesNotMatch(server, /sql\.raw|schemaName.*formData|tenantSlug.*formData/);
-  assert.match(root, /authorizeSuperAdmin\(principal\)/);
-  assert.match(root, /if \(!tenant && authorizeSuperAdmin/);
+  assert.match(root, /<StorefrontPageHeader>Home Page<\/StorefrontPageHeader>/);
+  assert.doesNotMatch(root, /getCurrentAdminSession|authorizeSuperAdmin|redirect\(["']\/admin/);
 });
 
 function store(slug: string, schemaName: string, displayName: string): ControlPlaneStore {

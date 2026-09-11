@@ -6,9 +6,9 @@ tenant request context. Its layout, navigation, pages, queries, and mutations al
 use the existing server-side `shopnest_admin_session` authentication boundary.
 Only an active `super_admin` is accepted; no tenant assignment is required.
 
-An authenticated super admin who opens `/` is redirected to the control plane.
-Anonymous visitors and tenant admins are not redirected to privileged data. The
-existing root storefront remains visible to them.
+The root route `/` always renders the public ShopNest homepage, including for an
+authenticated super admin. Platform administrators open `/admin` explicitly;
+authentication state never forces the public homepage into the control plane.
 
 ## Data model and migration
 
