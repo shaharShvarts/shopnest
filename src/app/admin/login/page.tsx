@@ -1,21 +1,14 @@
-import { notFound } from "next/navigation";
-import { AdminLoginForm } from "../_components/AdminLoginForm";
-import { getControlTenant } from "@/lib/admin-auth/server";
-import { getTenant } from "@/lib/tenant-context";
+import { AdminLoginForm } from "@/app/[tenant]/admin/_components/AdminLoginForm";
 
-export default async function TenantAdminLoginPage() {
-  const tenant = await getTenant();
-  if (!tenant) notFound();
-  const controlTenant = await getControlTenant(tenant.slug);
-  if (!controlTenant) notFound();
+export default function SuperAdminLoginPage() {
   return (
-    <main className="min-h-[70vh] grid place-items-center p-6">
+    <main className="min-h-screen grid place-items-center p-6">
       <section className="w-full max-w-md rounded border p-6 space-y-5">
         <header className="text-center">
-          <h1 className="text-2xl font-semibold">{controlTenant.displayName}</h1>
-          <p className="text-muted-foreground">Admin Login</p>
+          <h1 className="text-2xl font-semibold">ShopNest</h1>
+          <p className="text-muted-foreground">Administration Login</p>
         </header>
-        <AdminLoginForm mode="tenant" />
+        <AdminLoginForm mode="super" />
       </section>
     </main>
   );

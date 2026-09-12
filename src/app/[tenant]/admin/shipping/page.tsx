@@ -3,7 +3,7 @@ import { shippingMethods } from "@/drizzle/schema";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { TenantLink } from "@/components/TenantLink";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "../../components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 import { ShippingMethodOrderList } from "./_components/ShippingMethodOrderList";
 
 export default async function AdminShippingPage() {

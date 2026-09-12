@@ -142,7 +142,7 @@ test("authenticated tenant admins load assigned tenants and forbidden stays forb
 test("global admin pages redirect missing sessions without weakening role checks", () => {
   assert.deepEqual(resolveGlobalAdminPageAccess(null), {
     kind: "redirect",
-    location: "/shopnest/admin/login",
+    location: "/admin/login",
   });
   assert.deepEqual(resolveGlobalAdminPageAccess(tenantPrincipal()), {
     kind: "forbidden",
@@ -205,13 +205,13 @@ test("admin page, action, and API boundaries use their intended auth behavior", 
     subcategoriesApi,
   ] = await Promise.all([
     readFile("src/lib/admin-auth/server.ts", "utf8"),
+    readFile("src/app/[tenant]/admin/layout.tsx", "utf8"),
     readFile("src/app/admin/layout.tsx", "utf8"),
-    readFile("src/app/shopnest/admin/layout.tsx", "utf8"),
-    readFile("src/app/shopnest/admin/page.tsx", "utf8"),
-    readFile("src/app/admin/shipping/page.tsx", "utf8"),
-    readFile("src/app/admin/categories/page.tsx", "utf8"),
-    readFile("src/app/admin/_actions/shipping.ts", "utf8"),
-    readFile("src/app/admin/_actions/auth.ts", "utf8"),
+    readFile("src/app/admin/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/shipping/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/categories/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/_actions/shipping.ts", "utf8"),
+    readFile("src/app/[tenant]/admin/_actions/auth.ts", "utf8"),
     readFile("src/app/api/subcategories/route.ts", "utf8"),
   ]);
 

@@ -3,6 +3,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 Multi-tenant routing and PostgreSQL schema provisioning are documented in
 [`docs/multi-tenancy.md`](docs/multi-tenancy.md).
 
+The super-admin platform dashboard and its tenant-safe aggregation model are
+documented in [`docs/control-plane.md`](docs/control-plane.md).
+
 ## Getting Started
 
 First, run the development server:

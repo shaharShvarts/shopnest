@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   buildTenantRewriteUrl,
   INTERNAL_PATH_HEADER,
+  isTenantAdminPath,
   resolveTenantRoute,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
@@ -29,7 +30,7 @@ export async function middleware(req: NextRequest) {
     requestHeaders.delete(TENANT_SCHEMA_HEADER);
   }
 
-  const response = tenantRoute
+  const response = tenantRoute && !isTenantAdminPath(internalPath)
     ? NextResponse.rewrite(buildTenantRewriteUrl(req.nextUrl, internalPath), {
         request: { headers: requestHeaders },
       })
