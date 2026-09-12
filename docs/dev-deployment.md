@@ -1,0 +1,49 @@
+# DEV deployment
+
+Run commands from the repository checkout at `/srv/shopnest/dev`. Use Docker
+Compose v2 and `docker-compose.dev.yml`. The services are `web-dev`, `db-dev`,
+and `nginx-dev`.
+
+Keep the existing `.env.dev` on the server. It must provide `DEV_DB_PASSWORD`
+and `DEV_PAYMENT_ENCRYPTION_KEY`, alongside the application's other runtime
+variables. Do not commit it or paste its contents into logs or PRs. Git and
+Docker ignore env files so they are not committed or copied into the image.
+
+Compose reads `.env.dev` for interpolation through `--env-file` and supplies it
+to `web-dev` at runtime through `env_file`. Explicit environment values configure
+the web service with host `db-dev`, user `shopnest`, database `shopnest`, and
+password from `DEV_DB_PASSWORD`. The payment encryption key is mapped from
+`DEV_PAYMENT_ENCRYPTION_KEY` to the application's `PAYMENT_ENCRYPTION_KEY`.
+Postgres uses the same user, database, and password. Separate `DB_USER`,
+`DB_PASSWORD`, or `DB_NAME` interpolation variables are not required.
+
+The web image builds from the repository root using `Dockerfile`. Runtime
+`env_file` values are not Docker build arguments.
+
+Validate the resolved configuration without printing secrets:
+
+```sh
+cd /srv/shopnest/dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml config > /dev/null
+```
+
+This runs `docker compose --env-file .env.dev -f docker-compose.dev.yml config`
+while suppressing its resolved output, which contains secrets. For routine
+validation, `config --quiet` is also available.
+
+Build and start DEV, then inspect the services:
+
+```sh
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --build db-dev web-dev nginx-dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml ps db-dev web-dev nginx-dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml logs --tail=100 web-dev db-dev nginx-dev
+```
+
+Review logs locally before sharing them. To restart the web service after
+rebuilding, use `up -d --build web-dev`; to apply changed runtime variables,
+use `up -d --force-recreate web-dev`, with the same Compose flags above.
+
+The existing `pgdata-dev` volume is retained. Postgres initialization variables
+only initialize an empty data directory; they do not rename an existing database
+or reset its user's password. Existing data must already match these credentials.
+Do not delete the volume to apply this configuration change.
