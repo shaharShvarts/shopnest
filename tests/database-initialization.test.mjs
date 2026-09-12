@@ -24,7 +24,7 @@ function loadModule(path, dependencies, environment = {}) {
   return exports;
 }
 
-function database(environment = {}) {
+function database(environment = {}, withTenant = true) {
   const { env } = loadModule("../src/data/env/server.ts", {
     "@t3-oss/env-nextjs": { createEnv },
     zod: { z },
@@ -45,7 +45,7 @@ function database(environment = {}) {
     "@/drizzle/schema": {},
     "@/drizzle/control-plane-schema": {},
     pg: { Pool: class { constructor(options) { this.options = options; pools.push(this); } } },
-    "@/lib/tenant-context": { getTenant: async () => tenant },
+    "@/lib/tenant-context": { getTenant: async () => withTenant ? tenant : null },
     "@/lib/tenant": { resolveConfiguredTenant: slug => slug === tenant.slug ? tenant : null },
   }, environment);
   return { ...exports, pools, clients, tenant };
@@ -58,6 +58,13 @@ test("route dependency imports need no DB configuration or clients; runtime acce
   assert.throws(() => db.getControlPlaneDb(), /DATABASE_URL is required/);
   assert.throws(() => db.getDbForTenant(null), /DATABASE_URL is required/);
   assert.throws(() => db.getDbForTenant(db.tenant), /DATABASE_URL is required/);
+  assert.equal(db.pools.length, 0);
+  assert.equal(db.clients.length, 0);
+});
+
+test("tenantless request database access never falls back to public", async () => {
+  const db = database({}, false);
+  await assert.rejects(() => db.getDb(), /requires tenant context/);
   assert.equal(db.pools.length, 0);
   assert.equal(db.clients.length, 0);
 });

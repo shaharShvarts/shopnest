@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 import ToastProvider from "./components/ToastProvider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
-import { getTenant } from "@/lib/tenant-context";
-import { TenantProvider } from "@/context/TenantContext";
 
 const montserrat = Montserrat({
   variable: "--font-sans",
@@ -27,7 +25,6 @@ export default async function RootLayout({
 }>) {
   const messages = await getMessages();
   const locale = await getLocale();
-  const tenant = await getTenant();
 
   return (
     <html lang={locale} dir={locale === "he" ? "rtl" : "ltr"}>
@@ -37,14 +34,9 @@ export default async function RootLayout({
           montserrat.variable
         )}
       >
-        <TenantProvider
-          basePath={tenant?.basePath ?? ""}
-          slug={tenant?.slug ?? ""}
-        >
-          <NextIntlClientProvider messages={messages}>
-            {children}
-          </NextIntlClientProvider>
-        </TenantProvider>
+        <NextIntlClientProvider messages={messages}>
+          {children}
+        </NextIntlClientProvider>
         <ToastProvider />
       </body>
     </html>

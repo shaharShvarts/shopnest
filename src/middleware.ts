@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   buildTenantRewriteUrl,
   INTERNAL_PATH_HEADER,
-  isTenantAdminPath,
+  isTenantHandlerPath,
   resolveTenantRoute,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
@@ -30,13 +30,14 @@ export async function middleware(req: NextRequest) {
     requestHeaders.delete(TENANT_SCHEMA_HEADER);
   }
 
-  const response = tenantRoute && !isTenantAdminPath(internalPath)
+  const response = tenantRoute && isTenantHandlerPath(internalPath)
     ? NextResponse.rewrite(buildTenantRewriteUrl(req.nextUrl, internalPath), {
         request: { headers: requestHeaders },
       })
     : NextResponse.next({ request: { headers: requestHeaders } });
 
   if (
+    tenantRoute &&
     internalPath !== "/admin" &&
     !internalPath.startsWith("/admin/") &&
     !req.cookies.has("session_id")
@@ -56,6 +57,6 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/:tenant/media/:path*",
-    "/((?!_next|static|favicon.ico|.*\\..*).*)",
+    "/((?!_next/|static/|favicon.ico$|[^/]+\\.(?:svg|png|jpg|jpeg|webp|gif|ico|woff|woff2)$).*)",
   ],
 };

@@ -68,7 +68,7 @@ test("gift product and category searches return all matching storefront products
   assert.deepEqual(await resultNames(products, "new gift"), ["gift3"]);
 });
 
-test("tenant rewrite preserves search queries through the SearchPage boundary", () => {
+test("physical tenant routes preserve search queries through the SearchPage boundary", () => {
   const cases = [
     ["/gift-shop/search?q=gift", "gift"],
     ["/gift-shop/search?q=new%20gift", "new gift"],
@@ -84,7 +84,7 @@ test("tenant rewrite preserves search queries through the SearchPage boundary", 
     const appRouterUrl = buildTenantRewriteUrl(browserUrl, route.internalPath);
     const pageSearchParams = Object.fromEntries(appRouterUrl.searchParams);
 
-    assert.equal(appRouterUrl.pathname, "/search");
+    assert.equal(appRouterUrl.pathname, "/gift-shop/search");
     assert.equal(readSearchQueryParam(pageSearchParams), expectedQuery);
   }
 });
@@ -208,9 +208,9 @@ test("Drizzle search is parameterized and enforces storefront visibility and lim
 
 test("search page derives tenant database server-side and reuses inventory, media, and ProductCard", async () => {
   const [page, form, layout] = await Promise.all([
-    readFile("src/app/(customer)/search/page.tsx", "utf8"),
-    readFile("src/app/(customer)/search/_components/SearchForm.tsx", "utf8"),
-    readFile("src/app/(customer)/layout.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/search/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/search/_components/SearchForm.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/layout.tsx", "utf8"),
   ]);
   assert.match(page, /const tenant = await getTenant\(\)/);
   assert.match(page, /if \(!tenant\) notFound\(\)/);

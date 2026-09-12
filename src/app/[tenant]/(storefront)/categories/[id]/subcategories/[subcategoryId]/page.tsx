@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
-import { StorefrontPageHeader } from "@/app/(customer)/components/StorefrontPageHeader";
+import DynamicBreadcrumb from "@/app/[tenant]/(storefront)/components/Breadcrumb";
+import { StorefrontPageHeader } from "@/app/[tenant]/(storefront)/components/StorefrontPageHeader";
 import { ProductCard } from "@/app/components/ProductCard";
 import { getDbForTenant } from "@/drizzle/db";
 import { InventoryService } from "@/lib/inventory/core";

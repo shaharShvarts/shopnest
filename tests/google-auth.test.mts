@@ -357,9 +357,9 @@ test("Google login issues a standard ShopNest session, not a Google token", asyn
 test("callback uses trusted transaction tenant and reuses tenant-local cart linking", async () => {
   const [callback, start, oidc, login, english, hebrew] = await Promise.all([
     readFile("src/app/api/customer-auth/google/callback/route.ts", "utf8"),
-    readFile("src/app/(customer)/account/google/start/route.ts", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/account/google/start/route.ts", "utf8"),
     readFile("src/lib/customer-auth/google-oidc.ts", "utf8"),
-    readFile("src/app/(customer)/account/login/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/account/login/page.tsx", "utf8"),
     readFile("src/messages/en.json", "utf8"),
     readFile("src/messages/he.json", "utf8"),
   ]);
@@ -378,7 +378,7 @@ test("callback uses trusted transaction tenant and reuses tenant-local cart link
 });
 
 test("ShopNest logout does not call a Google logout or revoke endpoint", async () => {
-  const actions = await readFile("src/app/(customer)/account/_actions.ts", "utf8");
+  const actions = await readFile("src/app/[tenant]/(storefront)/account/_actions.ts", "utf8");
   assert.match(actions, /logoutCustomerToken/);
   assert.doesNotMatch(actions, /googleapis\.com\/revoke|accounts\.google\.com.*logout/i);
 });

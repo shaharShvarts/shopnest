@@ -137,7 +137,7 @@ test("route and mutation boundaries enforce server authorization and trusted sch
     readFile("src/app/admin/layout.tsx", "utf8"),
     readFile("src/app/admin/_actions/stores.ts", "utf8"),
     readFile("src/lib/control-plane/server.ts", "utf8"),
-    readFile("src/app/(customer)/page.tsx", "utf8"),
+    readFile("src/app/page.tsx", "utf8"),
   ]);
   assert.match(layout, /await requireSuperAdminPage\(\)/);
   assert.match(action, /updateControlPlaneStore/);
@@ -147,7 +147,8 @@ test("route and mutation boundaries enforce server authorization and trusted sch
   assert.match(server, /unsupportedCurrencyCount/);
   assert.match(server, /Cannot aggregate mixed currencies/);
   assert.doesNotMatch(server, /sql\.raw|schemaName.*formData|tenantSlug.*formData/);
-  assert.match(root, /<StorefrontPageHeader>Home Page<\/StorefrontPageHeader>/);
+  assert.match(root, /PlatformHomePage/);
+  assert.doesNotMatch(root, /TenantLink|CartProvider|StorefrontPageHeader/);
   assert.doesNotMatch(root, /getCurrentAdminSession|authorizeSuperAdmin|redirect\(["']\/admin/);
 });
 

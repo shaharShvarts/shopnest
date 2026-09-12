@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  resolveConfiguredTenant,
   resolveTenantRoute,
-} from "../src/lib/tenant.js";
+} from "../src/lib/tenant-routing/core.ts";
+import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 
 test("configured tenant allowlist", () => {
   assert.equal(resolveConfiguredTenant("panda-pop")?.schema, "panda_pop");

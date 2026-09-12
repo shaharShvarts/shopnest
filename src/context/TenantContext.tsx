@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { prefixTenantPath } from "@/lib/tenant";
+import { prefixTenantPath, resolveConfiguredTenant } from "@/lib/tenant";
 
 type TenantContextValue = {
   basePath: string;
@@ -9,11 +9,7 @@ type TenantContextValue = {
   path: (path: string) => string;
 };
 
-const TenantContext = createContext<TenantContextValue>({
-  basePath: "",
-  slug: "",
-  path: (path) => path,
-});
+const TenantContext = createContext<TenantContextValue | null>(null);
 
 export function TenantProvider({
   basePath,
@@ -24,6 +20,9 @@ export function TenantProvider({
   slug: string;
   children: ReactNode;
 }) {
+  if (resolveConfiguredTenant(slug)?.basePath !== basePath) {
+    throw new Error("Invalid tenant navigation context");
+  }
   const value = useMemo(
     () => ({
       basePath,
@@ -39,5 +38,7 @@ export function TenantProvider({
 }
 
 export function useTenant() {
-  return useContext(TenantContext);
+  const tenant = useContext(TenantContext);
+  if (!tenant) throw new Error("Tenant navigation requires TenantProvider");
+  return tenant;
 }

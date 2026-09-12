@@ -158,7 +158,7 @@ test("arbitrary client expiry input cannot override the remembered-session polic
     session.expiresAt.getTime() - now.getTime(),
     CUSTOMER_REMEMBERED_SESSION_TTL_MS
   );
-  const actions = await readFile("src/app/(customer)/account/_actions.ts", "utf8");
+  const actions = await readFile("src/app/[tenant]/(storefront)/account/_actions.ts", "utf8");
   assert.doesNotMatch(actions, /formData[^\n]*(expiry|duration|maxAge)/i);
 });
 
@@ -194,7 +194,7 @@ test("cookie expiry matches DB policy and Secure follows the actual request prot
 
 test("successful authentication rotates any existing customer session token", async () => {
   const actions = await readFile(
-    "src/app/(customer)/account/_actions.ts",
+    "src/app/[tenant]/(storefront)/account/_actions.ts",
     "utf8"
   );
   assert.match(
@@ -308,7 +308,7 @@ test("membership schema contains no tenant commerce data or admin role", async (
 
 test("guest checkout remains allowed without a customer account", async () => {
   const [checkoutAction, checkoutCore] = await Promise.all([
-    readFile("src/app/(customer)/_actions/checkout.ts", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/_actions/checkout.ts", "utf8"),
     readFile("src/lib/checkout/create-order.ts", "utf8"),
   ]);
   assert.match(checkoutAction, /getCommerceIdentity\(\)/);
@@ -343,7 +343,7 @@ test("cart merge sums quantities but caps them at current availability", () => {
 
 test("cart linking is tenant-local and avoids double-counting both existing holds", async () => {
   const [actions, linker] = await Promise.all([
-    readFile("src/app/(customer)/account/_actions.ts", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/account/_actions.ts", "utf8"),
     readFile("src/lib/customer-commerce/drizzle-cart-link.ts", "utf8"),
   ]);
   assert.match(actions, /getTenant\(\)[\s\S]*getDbForTenant\(tenant\)/);
@@ -365,7 +365,7 @@ test("existing reservation ownership is verified before transfer or exclusion", 
 });
 
 test("suspended tenant storefront rules still wrap every customer account route", async () => {
-  const layout = await readFile("src/app/(customer)/layout.tsx", "utf8");
+  const layout = await readFile("src/app/[tenant]/(storefront)/layout.tsx", "utf8");
   assert.match(layout, /requireActiveTenantStorefront\(\)/);
   assert.match(layout, /forbidden\(\)/);
 });
@@ -613,7 +613,7 @@ test("password reset enforces the existing password policy", async () => {
 });
 
 test("reset form rejects a password mismatch before token consumption", async () => {
-  const actions = await readFile("src/app/(customer)/account/_actions.ts", "utf8");
+  const actions = await readFile("src/app/[tenant]/(storefront)/account/_actions.ts", "utf8");
   assert.match(
     actions,
     /resetPasswordSchema[\s\S]*value\.password === value\.passwordConfirmation/
@@ -650,7 +650,7 @@ test("reset requests are cooled down and active tokens stay bounded", async () =
 
 test("customer reset remains global identity only and never selects a tenant database", async () => {
   const [actions, repository, migration] = await Promise.all([
-    readFile("src/app/(customer)/account/_actions.ts", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/account/_actions.ts", "utf8"),
     readFile("src/lib/customer-auth/drizzle-repository.ts", "utf8"),
     readFile(
       "src/drizzle/control-migrations/0002_customer_password_reset.sql",
@@ -668,7 +668,7 @@ test("customer reset remains global identity only and never selects a tenant dat
 
 test("admin identities are never eligible for the customer reset repository", async () => {
   const [actions, repository, migration] = await Promise.all([
-    readFile("src/app/(customer)/account/_actions.ts", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/account/_actions.ts", "utf8"),
     readFile("src/lib/customer-auth/drizzle-repository.ts", "utf8"),
     readFile(
       "src/drizzle/control-migrations/0002_customer_password_reset.sql",
@@ -683,9 +683,9 @@ test("admin identities are never eligible for the customer reset repository", as
 
 test("forgot/reset routes, localized UI, and a production-safe delivery boundary are present", async () => {
   const [login, forgot, reset, delivery, english, hebrew] = await Promise.all([
-    readFile("src/app/(customer)/account/_components/CustomerLoginForm.tsx", "utf8"),
-    readFile("src/app/(customer)/forgot-password/page.tsx", "utf8"),
-    readFile("src/app/(customer)/reset-password/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/account/_components/CustomerLoginForm.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/forgot-password/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/reset-password/page.tsx", "utf8"),
     readFile("src/lib/customer-auth/password-reset-delivery.ts", "utf8"),
     readFile("src/messages/en.json", "utf8"),
     readFile("src/messages/he.json", "utf8"),
@@ -742,8 +742,8 @@ test("customer identity migration is public, journaled, and control-plane idempo
 
 test("registered checkout and order history use only trusted tenant DB access", async () => {
   const [checkout, history] = await Promise.all([
-    readFile("src/app/(customer)/_actions/checkout.ts", "utf8"),
-    readFile("src/app/(customer)/account/orders/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/_actions/checkout.ts", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/account/orders/page.tsx", "utf8"),
   ]);
   assert.match(checkout, /getDbForTenant\(tenant\)/);
   assert.match(history, /getDbForTenant\(tenant\)/);
@@ -764,18 +764,18 @@ test("customer commerce links are nullable opaque IDs without cross-schema forei
 
 test("tenant-prefixed account routes exist without introducing a customer admin route", async () => {
   const routes = await Promise.all([
-    "src/app/(customer)/account/page.tsx",
-    "src/app/(customer)/account/login/page.tsx",
-    "src/app/(customer)/account/register/page.tsx",
-    "src/app/(customer)/account/orders/page.tsx",
-    "src/app/(customer)/forgot-password/page.tsx",
-    "src/app/(customer)/reset-password/page.tsx",
-    "src/app/(customer)/account/google/start/route.ts",
+    "src/app/[tenant]/(storefront)/account/page.tsx",
+    "src/app/[tenant]/(storefront)/account/login/page.tsx",
+    "src/app/[tenant]/(storefront)/account/register/page.tsx",
+    "src/app/[tenant]/(storefront)/account/orders/page.tsx",
+    "src/app/[tenant]/(storefront)/forgot-password/page.tsx",
+    "src/app/[tenant]/(storefront)/reset-password/page.tsx",
+    "src/app/[tenant]/(storefront)/account/google/start/route.ts",
     "src/app/api/customer-auth/google/callback/route.ts",
   ].map((path) => readFile(path, "utf8")));
   assert.equal(routes.length, 8);
   assert.equal(routes.every((source) => source.length > 0), true);
-  const layout = await readFile("src/app/(customer)/layout.tsx", "utf8");
+  const layout = await readFile("src/app/[tenant]/(storefront)/layout.tsx", "utf8");
   assert.match(layout, /account\/login/);
   assert.doesNotMatch(layout, /account\/admin|admin\/account/);
 });

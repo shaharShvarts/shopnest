@@ -42,6 +42,7 @@ if (process.env.NODE_ENV !== "production") {
 
 export async function getDb(): Promise<Database> {
   const tenant = await getTenant();
+  if (!tenant) throw new Error("Tenant database access requires tenant context");
   return getDbForTenant(tenant);
 }
 

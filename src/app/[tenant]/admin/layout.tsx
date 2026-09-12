@@ -31,7 +31,6 @@ export default async function AdminLayout({
         <NavLink href="/admin/products">Products</NavLink>
         <NavLink href="/admin/shipping">Shipping</NavLink>
         <NavLink href="/admin/payments">{paymentT("title")}</NavLink>
-        <NavLink href="/admin/users">Customers</NavLink>
         <NavLink href="/admin/orders">Sales</NavLink>
         <form action={logoutCurrentAdmin} className="flex items-center ml-4">
           <Button type="submit" variant="secondary">Logout</Button>

@@ -2,7 +2,7 @@ import { getDbForTenant } from "@/drizzle/db";
 import { categories, products, subcategories } from "@/drizzle/schema";
 import { and, eq, isNull, or } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
-import DynamicBreadcrumb from "@/app/(customer)/components/Breadcrumb";
+import DynamicBreadcrumb from "@/app/[tenant]/(storefront)/components/Breadcrumb";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { getCustomerStockMessage, InventoryService } from "@/lib/inventory/core";

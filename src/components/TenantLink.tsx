@@ -8,10 +8,15 @@ type TenantLinkProps = LinkProps &
   Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps>;
 
 export const TenantLink = forwardRef<HTMLAnchorElement, TenantLinkProps>(
-  function TenantLink({ href, ...props }, ref) {
+  function TenantLink({ href, as, ...props }, ref) {
     const tenant = useTenant();
-    const tenantHref = typeof href === "string" ? tenant.path(href) : href;
+    const scope = (url: LinkProps["href"]) => {
+      if (typeof url === "string") return tenant.path(url);
+      if (url.host || url.hostname || url.protocol || url.auth) throw new Error("Tenant links must be local");
+      return { ...url, pathname: tenant.path(url.pathname || "/") };
+    };
+    const tenantHref = scope(href);
 
-    return <Link ref={ref} href={tenantHref} {...props} />;
+    return <Link ref={ref} href={tenantHref} as={as === undefined ? undefined : scope(as)} {...props} />;
   }
 );
