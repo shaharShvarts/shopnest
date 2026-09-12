@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
-import { controlPlaneDb } from "@/drizzle/db";
+import { getControlPlaneDb } from "@/drizzle/db";
 import {
   customerAccounts,
   customerAuthIdentities,
@@ -31,7 +31,7 @@ export class DrizzleCustomerAuthRepository
   implements CustomerAuthRepository, GoogleOAuthRepository
 {
   async findCustomerByNormalizedEmail(email: string) {
-    const [customer] = await controlPlaneDb
+    const [customer] = await getControlPlaneDb()
       .select(customerSelection)
       .from(customerAccounts)
       .where(eq(customerAccounts.emailNormalized, email))
@@ -45,7 +45,7 @@ export class DrizzleCustomerAuthRepository
     passwordHash: string;
     displayName: string;
   }): Promise<CustomerRecord> {
-    return controlPlaneDb.transaction(async (tx) => {
+    return getControlPlaneDb().transaction(async (tx) => {
       const [customer] = await tx
         .insert(customerAccounts)
         .values(input)
@@ -65,13 +65,13 @@ export class DrizzleCustomerAuthRepository
     customerId: number;
     expiresAt: Date;
   }) {
-    await controlPlaneDb.insert(customerSessions).values(input);
+    await getControlPlaneDb().insert(customerSessions).values(input);
   }
 
   async findSessionByTokenHash(
     tokenHash: string
   ): Promise<StoredCustomerSession | null> {
-    const [row] = await controlPlaneDb
+    const [row] = await getControlPlaneDb()
       .select({
         tokenHash: customerSessions.tokenHash,
         expiresAt: customerSessions.expiresAt,
@@ -101,7 +101,7 @@ export class DrizzleCustomerAuthRepository
   }
 
   async deleteSessionByTokenHash(tokenHash: string) {
-    await controlPlaneDb
+    await getControlPlaneDb()
       .delete(customerSessions)
       .where(eq(customerSessions.tokenHash, tokenHash));
   }
@@ -116,7 +116,7 @@ export class DrizzleCustomerAuthRepository
     expiresAt: Date;
     createdAt: Date;
   }) {
-    await controlPlaneDb.transaction(async (tx) => {
+    await getControlPlaneDb().transaction(async (tx) => {
       await tx
         .delete(customerOAuthTransactions)
         .where(lt(customerOAuthTransactions.expiresAt, input.createdAt));
@@ -130,7 +130,7 @@ export class DrizzleCustomerAuthRepository
     tenantSlug: string;
     now: Date;
   }): Promise<StoredGoogleOAuthTransaction | null> {
-    const [transaction] = await controlPlaneDb
+    const [transaction] = await getControlPlaneDb()
       .delete(customerOAuthTransactions)
       .where(
         and(
@@ -160,7 +160,7 @@ export class DrizzleCustomerAuthRepository
     displayName: string | null;
     verifiedAt: Date;
   }): Promise<CustomerRecord> {
-    return controlPlaneDb.transaction(async (tx) => {
+    return getControlPlaneDb().transaction(async (tx) => {
       const lockKeys = [
         `customer-email:${input.emailNormalized}`,
         `google-sub:${input.subject}`,
@@ -260,7 +260,7 @@ export class DrizzleCustomerAuthRepository
     now: Date;
     cooldownMs: number;
   }) {
-    return controlPlaneDb.transaction(async (tx) => {
+    return getControlPlaneDb().transaction(async (tx) => {
       const [customer] = await tx
         .select(customerSelection)
         .from(customerAccounts)
@@ -318,7 +318,7 @@ export class DrizzleCustomerAuthRepository
     passwordHash: string;
     now: Date;
   }) {
-    return controlPlaneDb.transaction(async (tx) => {
+    return getControlPlaneDb().transaction(async (tx) => {
       const [tokenOwner] = await tx
         .select({ customerId: customerPasswordResetTokens.customerId })
         .from(customerPasswordResetTokens)
@@ -392,7 +392,7 @@ export class DrizzleCustomerAuthRepository
     tenantSlug: string;
     seenAt: Date;
   }) {
-    await controlPlaneDb
+    await getControlPlaneDb()
       .insert(customerTenants)
       .values({
         customerId: input.customerId,
@@ -407,7 +407,7 @@ export class DrizzleCustomerAuthRepository
   }
 
   async hasTenantMembership(customerId: number, tenantSlug: string) {
-    const [membership] = await controlPlaneDb
+    const [membership] = await getControlPlaneDb()
       .select({ customerId: customerTenants.customerId })
       .from(customerTenants)
       .where(
@@ -422,7 +422,7 @@ export class DrizzleCustomerAuthRepository
 }
 
 type CustomerAuthTransaction = Parameters<
-  Parameters<typeof controlPlaneDb.transaction>[0]
+  Parameters<ReturnType<typeof getControlPlaneDb>["transaction"]>[0]
 >[0];
 
 async function findGoogleIdentity(

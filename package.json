@@ -30,6 +30,7 @@
     "google-auth:test": "node --experimental-strip-types --test tests/google-auth.test.mts",
     "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts",
     "cli-env:test": "node --test tests/cli-env.test.mjs",
+    "database:test": "node --test tests/database-initialization.test.mjs",
     "payment:test": "node --conditions=react-server --experimental-strip-types --test tests/payment.test.mts"
   },
   "dependencies": {

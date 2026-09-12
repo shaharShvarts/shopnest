@@ -11,7 +11,7 @@ Docker ignore env files so they are not committed or copied into the image.
 
 Compose reads `.env.dev` for interpolation through `--env-file` and supplies it
 to `web-dev` at runtime through `env_file`. Explicit environment values configure
-the web service with host `db-dev`, user `shopnest`, database `shopnest`, and
+the web service with host `db-dev`, port `5432`, user `shopnest`, database `shopnest`, and
 password from `DEV_DB_PASSWORD`. The payment encryption key is mapped from
 `DEV_PAYMENT_ENCRYPTION_KEY` to the application's `PAYMENT_ENCRYPTION_KEY`.
 Postgres uses the same user, database, and password. Separate `DB_USER`,
@@ -19,6 +19,20 @@ Postgres uses the same user, database, and password. Separate `DB_USER`,
 
 The web image builds from the repository root using `Dockerfile`. Runtime
 `env_file` values are not Docker build arguments.
+
+The production `npm run build` imports route modules during page data collection,
+including `/api/payments/[id]/callback`. Its payment-store dependency imports the
+database module. Database URL resolution and client creation are deferred until
+runtime database access, so building requires no DB credentials or payment keys.
+Missing runtime DB configuration still throws; tenant schema checks and payment
+verification remain mandatory. Do not pass real secrets as Docker build arguments
+or add them to Dockerfile `ENV` instructions.
+
+To validate the production image independently of runtime secrets:
+
+```sh
+docker build --no-cache -f Dockerfile -t shopnest-dev:build-check .
+```
 
 Validate the resolved configuration without printing secrets:
 
