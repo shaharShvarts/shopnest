@@ -175,10 +175,14 @@ test("36 checkout keeps the persisted active shipping order", async () => {
 
 test("37 reorder preserves method identity and business fields", async () => {
   const methods = orderedMethods();
-  const before = methods.map(({ sortOrder: _sortOrder, ...method }) => ({ ...method }));
+  const withoutSortOrder = ({ sortOrder: _sortOrder, ...method }: typeof methods[number]) => {
+    void _sortOrder;
+    return method;
+  };
+  const before = methods.map(withoutSortOrder);
   await reorderShippingMethods(new FakeShippingOrderStore(methods), [3, 2, 1]);
   assert.deepEqual(
-    methods.map(({ sortOrder: _sortOrder, ...method }) => ({ ...method })),
+    methods.map(withoutSortOrder),
     before
   );
 });

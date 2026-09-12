@@ -2,7 +2,7 @@ import "server-only";
 
 import { asc, count, eq, isNull, max, sql } from "drizzle-orm";
 import { controlPlaneTenants } from "@/drizzle/control-plane-schema";
-import { controlPlaneDb, getDbForTenant } from "@/drizzle/db";
+import { getControlPlaneDb, getDbForTenant } from "@/drizzle/db";
 import { orders } from "@/drizzle/schema";
 import type { ValidatedTenant } from "@/lib/tenant-validation.mjs";
 import { requireSuperAdmin } from "@/lib/admin-auth/server";
@@ -34,7 +34,7 @@ const storeSelection = {
 
 export async function listControlPlaneStores(): Promise<ControlPlaneStore[]> {
   await requireSuperAdmin();
-  return controlPlaneDb
+  return getControlPlaneDb()
     .select(storeSelection)
     .from(controlPlaneTenants)
     .orderBy(asc(controlPlaneTenants.displayName));
@@ -42,7 +42,7 @@ export async function listControlPlaneStores(): Promise<ControlPlaneStore[]> {
 
 export async function getControlPlaneStore(slug: string) {
   await requireSuperAdmin();
-  const [store] = await controlPlaneDb
+  const [store] = await getControlPlaneDb()
     .select(storeSelection)
     .from(controlPlaneTenants)
     .where(eq(controlPlaneTenants.slug, slug))
@@ -60,7 +60,7 @@ export async function getControlPlaneOverview() {
 export async function updateControlPlaneStore(input: unknown) {
   const principal = await requireSuperAdmin();
   const update = authorizeStoreMutation(principal, input);
-  const [existing] = await controlPlaneDb
+  const [existing] = await getControlPlaneDb()
     .select(storeSelection)
     .from(controlPlaneTenants)
     .where(eq(controlPlaneTenants.slug, update.slug))
@@ -68,7 +68,7 @@ export async function updateControlPlaneStore(input: unknown) {
   if (!existing || !resolveTrustedStore(existing)) {
     throw new ControlPlaneError("NOT_FOUND", "Unknown store");
   }
-  const [updated] = await controlPlaneDb
+  const [updated] = await getControlPlaneDb()
     .update(controlPlaneTenants)
     .set({
       status: update.status,

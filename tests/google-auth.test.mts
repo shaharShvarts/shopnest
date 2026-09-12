@@ -11,7 +11,6 @@ import {
 } from "../src/lib/customer-auth/core.ts";
 import {
   GOOGLE_AUTHORIZATION_ENDPOINT,
-  GOOGLE_OAUTH_CALLBACK_PATH,
   GOOGLE_OAUTH_TRANSACTION_TTL_MS,
   beginGoogleOAuth,
   consumeGoogleOAuthState,
@@ -471,6 +470,7 @@ class FakeGoogleRepository implements GoogleOAuthRepository {
     }
     this.transactions.delete(input.stateHash);
     const { browserBindingHash: _binding, ...stored } = transaction;
+    void _binding;
     return stored;
   }
 

@@ -3,7 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { forbidden, notFound, redirect } from "next/navigation";
-import { controlPlaneDb, getDbForTenant } from "@/drizzle/db";
+import { getControlPlaneDb, getDbForTenant } from "@/drizzle/db";
 import { controlPlaneTenants } from "@/drizzle/control-plane-schema";
 import { getTenant } from "@/lib/tenant-context";
 import type { Tenant } from "@/lib/tenant";
@@ -42,7 +42,7 @@ export async function getCurrentAdminSession() {
 export async function getControlTenant(
   slug: string
 ): Promise<TenantControlRecord | null> {
-  const [tenant] = await controlPlaneDb
+  const [tenant] = await getControlPlaneDb()
     .select({
       slug: controlPlaneTenants.slug,
       schemaName: controlPlaneTenants.schemaName,

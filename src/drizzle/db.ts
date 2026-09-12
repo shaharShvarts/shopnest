@@ -6,24 +6,32 @@ import { Pool } from "pg";
 import { getTenant } from "@/lib/tenant-context";
 import { resolveConfiguredTenant, type Tenant } from "@/lib/tenant";
 
-export const db = drizzle(env.DATABASE_URL, { schema });
+type Database = ReturnType<typeof drizzle<typeof schema>>;
+let defaultDb: Database | undefined;
+
+function getDefaultDb(): Database {
+  return defaultDb ??= drizzle(env.DATABASE_URL, { schema });
+}
 const globalForPools = globalThis as typeof globalThis & {
   shopnestControlPlanePool?: Pool;
   shopnestTenantPools?: Map<string, Pool>;
 };
-const controlPlanePool = globalForPools.shopnestControlPlanePool ?? new Pool({
-  connectionString: env.DATABASE_URL,
-  options: "-c search_path=public",
-});
-if (process.env.NODE_ENV !== "production") {
-  globalForPools.shopnestControlPlanePool = controlPlanePool;
+let controlPlaneDb: ReturnType<typeof drizzle<typeof controlPlaneSchema>> | undefined;
+
+// Do not initialize clients while Next.js imports routes during page collection.
+export function getControlPlaneDb() {
+  if (!controlPlaneDb) {
+    const controlPlanePool = globalForPools.shopnestControlPlanePool ?? new Pool({
+      connectionString: env.DATABASE_URL,
+      options: "-c search_path=public",
+    });
+    if (process.env.NODE_ENV !== "production") {
+      globalForPools.shopnestControlPlanePool = controlPlanePool;
+    }
+    controlPlaneDb = drizzle(controlPlanePool, { schema: controlPlaneSchema });
+  }
+  return controlPlaneDb;
 }
-
-export const controlPlaneDb = drizzle(controlPlanePool, {
-  schema: controlPlaneSchema,
-});
-
-type Database = typeof db;
 
 const tenantPools =
   globalForPools.shopnestTenantPools ?? new Map<string, Pool>();
@@ -38,7 +46,7 @@ export async function getDb(): Promise<Database> {
 }
 
 export function getDbForTenant(tenant: Tenant | null): Database {
-  if (!tenant) return db;
+  if (!tenant) return getDefaultDb();
 
   const configuredTenant = resolveConfiguredTenant(tenant.slug);
   if (

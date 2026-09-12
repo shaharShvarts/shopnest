@@ -1,13 +1,19 @@
-version: "3.8"
-
 services:
   web-dev:
     build:
-      context: ./app
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3001:3000"
     env_file:
       - .env.dev
+    environment:
+      DB_HOST: db-dev
+      DB_PORT: "5432"
+      DB_USER: shopnest
+      DB_NAME: shopnest
+      DB_PASSWORD: ${DEV_DB_PASSWORD}
+      PAYMENT_ENCRYPTION_KEY: ${DEV_PAYMENT_ENCRYPTION_KEY}
     depends_on:
       - db-dev
     networks:
@@ -18,9 +24,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
+      POSTGRES_USER: shopnest
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD}
+      POSTGRES_DB: shopnest
     volumes:
       - pgdata-dev:/var/lib/postgresql/data
     networks:
@@ -29,7 +35,12 @@ services:
   nginx-dev:
     image: nginx:latest
     volumes:
-      - ./nginx/dev.conf:/etc/nginx/nginx.conf
+      - type: bind
+        source: ./nginx.dev.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+        bind:
+          create_host_path: false
     ports:
       - "8080:80"
     depends_on:

@@ -660,7 +660,7 @@ test("customer reset remains global identity only and never selects a tenant dat
   const resetAction = actions.slice(actions.indexOf("forgotCustomerPasswordAction"));
   assert.match(resetAction, /getTenant\(\)/);
   assert.doesNotMatch(resetAction, /getDbForTenant|schema|formData\.get\([^)]*tenant/);
-  assert.match(repository, /controlPlaneDb\.transaction/);
+  assert.match(repository, /getControlPlaneDb\(\)\.transaction/);
   assert.doesNotMatch(repository, /adminUsers|DrizzleAdminAuthRepository/);
   assert.match(migration, /customer_password_reset_tokens/);
   assert.doesNotMatch(migration, /CREATE SCHEMA|tenant_slug/);

@@ -1,5 +1,8 @@
 Run Dev:
-docker-compose -f docker-compose.dev.yml up -d
+See docs/dev-deployment.md for prerequisites and validation.
+cd /srv/shopnest/dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml config --quiet
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --build db-dev web-dev nginx-dev
 
 Run Prod:
 docker-compose -f docker-compose.prod.yml up -d
