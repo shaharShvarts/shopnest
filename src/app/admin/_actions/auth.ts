@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { controlPlaneDb } from "@/drizzle/db";
+import { getControlPlaneDb } from "@/drizzle/db";
 import { adminUserTenants } from "@/drizzle/control-plane-schema";
 import { getTenant } from "@/lib/tenant-context";
 import {
@@ -53,7 +53,7 @@ export async function loginTenantAdmin(
   const controlTenant = await getControlTenant(tenant.slug);
   if (!user || !controlTenant) return invalidLogin;
 
-  const assignments = await controlPlaneDb
+  const assignments = await getControlPlaneDb()
     .select({ slug: adminUserTenants.tenantSlug })
     .from(adminUserTenants)
     .where(eq(adminUserTenants.adminUserId, user.id));

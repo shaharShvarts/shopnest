@@ -23,5 +23,9 @@ const validatedEnv = createEnv({
 // only after the individual environment fields have been validated.
 export const env = {
   ...validatedEnv,
-  DATABASE_URL: resolveDatabaseUrl(validatedEnv),
+  // Route modules are imported during next build without runtime DB secrets.
+  // Keep configuration mandatory when a database is actually requested.
+  get DATABASE_URL() {
+    return resolveDatabaseUrl(validatedEnv);
+  },
 };

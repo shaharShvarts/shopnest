@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { controlPlaneDb } from "@/drizzle/db";
+import { getControlPlaneDb } from "@/drizzle/db";
 import {
   adminSessions,
   adminUsers,
@@ -13,7 +13,7 @@ import type {
 
 export class DrizzleAdminAuthRepository implements AdminAuthRepository {
   async findAdminByEmail(email: string): Promise<AdminUserRecord | null> {
-    const [user] = await controlPlaneDb
+    const [user] = await getControlPlaneDb()
       .select({
         id: adminUsers.id,
         email: adminUsers.email,
@@ -32,13 +32,13 @@ export class DrizzleAdminAuthRepository implements AdminAuthRepository {
     adminUserId: number;
     expiresAt: Date;
   }) {
-    await controlPlaneDb.insert(adminSessions).values(input);
+    await getControlPlaneDb().insert(adminSessions).values(input);
   }
 
   async findSessionByTokenHash(
     tokenHash: string
   ): Promise<StoredAdminSession | null> {
-    const [row] = await controlPlaneDb
+    const [row] = await getControlPlaneDb()
       .select({
         tokenHash: adminSessions.tokenHash,
         expiresAt: adminSessions.expiresAt,
@@ -53,7 +53,7 @@ export class DrizzleAdminAuthRepository implements AdminAuthRepository {
       .limit(1);
     if (!row) return null;
 
-    const assignments = await controlPlaneDb
+    const assignments = await getControlPlaneDb()
       .select({ slug: adminUserTenants.tenantSlug })
       .from(adminUserTenants)
       .where(eq(adminUserTenants.adminUserId, row.id));
@@ -72,7 +72,7 @@ export class DrizzleAdminAuthRepository implements AdminAuthRepository {
   }
 
   async deleteSessionByTokenHash(tokenHash: string) {
-    await controlPlaneDb
+    await getControlPlaneDb()
       .delete(adminSessions)
       .where(eq(adminSessions.tokenHash, tokenHash));
   }
