@@ -85,3 +85,49 @@ test("forged tenant contexts are rejected before any client is initialized", () 
   assert.equal(db.pools.length, 0);
   assert.equal(db.clients.length, 0);
 });
+
+test("control-plane operations initialize DB only after runtime authorization", async () => {
+  const db = database();
+  let authorized = false;
+  let databaseRequests = 0;
+  const server = loadModule("../src/lib/control-plane/server.ts", {
+    "server-only": {},
+    "drizzle-orm": {},
+    "@/drizzle/control-plane-schema": { controlPlaneTenants: {} },
+    "@/drizzle/schema": {},
+    "@/drizzle/db": {
+      getControlPlaneDb() {
+        databaseRequests++;
+        return db.getControlPlaneDb();
+      },
+      getDbForTenant: db.getDbForTenant,
+    },
+    "@/lib/admin-auth/server": {
+      async requireSuperAdmin() {
+        if (!authorized) throw new Error("Forbidden");
+        return { role: "super_admin" };
+      },
+    },
+    "./core": { authorizeStoreMutation: () => ({ slug: "gift-shop" }) },
+  });
+  assert.equal(databaseRequests, 0);
+  assert.equal(db.pools.length, 0);
+  assert.equal(db.clients.length, 0);
+
+  const operations = [
+    () => server.listControlPlaneStores(),
+    () => server.getControlPlaneStore("gift-shop"),
+    () => server.getControlPlaneOverview(),
+    () => server.updateControlPlaneStore({ slug: "gift-shop" }),
+  ];
+  for (const operation of operations) await assert.rejects(operation, /Forbidden/);
+  assert.equal(databaseRequests, 0);
+
+  authorized = true;
+  for (const operation of operations) {
+    await assert.rejects(operation, /DATABASE_URL is required/);
+  }
+  assert.equal(databaseRequests, operations.length);
+  assert.equal(db.pools.length, 0);
+  assert.equal(db.clients.length, 0);
+});

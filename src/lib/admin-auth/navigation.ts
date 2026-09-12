@@ -35,7 +35,7 @@ export function resolveGlobalAdminPageAccess(
   principal: AdminPrincipal | null
 ): AdminPageAccess {
   if (!principal) {
-    return { kind: "redirect", location: "/shopnest/admin/login" };
+    return { kind: "redirect", location: "/admin/login" };
   }
   if (principal.role !== "super_admin" || !principal.isActive) {
     return { kind: "forbidden" };

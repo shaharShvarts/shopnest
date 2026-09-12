@@ -93,7 +93,7 @@ test("27 customer order detail is bounded by tenant database and customer ID", a
 test("28 legacy order rendering has null-safe shipping fallbacks", async () => { const source = await readFile(new URL("../src/app/(customer)/account/orders/page.tsx", import.meta.url), "utf8"); assert.match(source, /shippingMethodName \?\? order\.shippingMethod/); assert.match(source, /shippingTotal == null/); });
 test("29 tenant migration contains shipping and fulfillment data", async () => { const sql = await readFile(new URL("../src/drizzle/migrations/0006_famous_boomerang.sql", import.meta.url), "utf8"); assert.match(sql, /CREATE TABLE "shipping_methods"/); assert.match(sql, /"fulfillment_status"/); assert.match(sql, /shipping_method_id/); });
 test("30 shipping calculation does not mutate inventory reservations", async () => { const h = checkoutHarness(delivery); calculateShippingPrice(delivery, 250); assert.equal(h.reservationCalls(), 0); await h.run(); assert.equal(h.reservationCalls(), 1); });
-test("31 cross-tenant fulfillment updates cannot select a schema", async () => { const source = await readFile(new URL("../src/app/admin/_actions/shipping.ts", import.meta.url), "utf8"); assert.match(source, /requireTenantAdminDb\(\)/); assert.doesNotMatch(source, /schema_name|tenantSlug\s*:\s*formData|getDbForTenant/); });
+test("31 cross-tenant fulfillment updates cannot select a schema", async () => { const source = await readFile(new URL("../src/app/[tenant]/admin/_actions/shipping.ts", import.meta.url), "utf8"); assert.match(source, /requireTenantAdminDb\(\)/); assert.doesNotMatch(source, /schema_name|tenantSlug\s*:\s*formData|getDbForTenant/); });
 
 type OrderedMethod = {
   id: number;
@@ -175,10 +175,14 @@ test("36 checkout keeps the persisted active shipping order", async () => {
 
 test("37 reorder preserves method identity and business fields", async () => {
   const methods = orderedMethods();
-  const before = methods.map(({ sortOrder: _sortOrder, ...method }) => ({ ...method }));
+  const withoutSortOrder = ({ sortOrder: _sortOrder, ...method }: typeof methods[number]) => {
+    void _sortOrder;
+    return method;
+  };
+  const before = methods.map(withoutSortOrder);
   await reorderShippingMethods(new FakeShippingOrderStore(methods), [3, 2, 1]);
   assert.deepEqual(
-    methods.map(({ sortOrder: _sortOrder, ...method }) => ({ ...method })),
+    methods.map(withoutSortOrder),
     before
   );
 });

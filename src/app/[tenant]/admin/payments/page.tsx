@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { DrizzlePaymentStore } from "@/lib/payments/drizzle-store";
 import { providerMetadata } from "@/lib/payments/registry";
-import { PageHeader } from "../../components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 import { PaymentSettingsForm } from "./settings-form";
 
 export default async function PaymentsPage() {

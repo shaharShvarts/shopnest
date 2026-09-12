@@ -9,6 +9,7 @@ export {
   LEGACY_ROUTE_SEGMENTS,
   prefixTenantPath,
   resolveTenantRoute,
+  isTenantAdminPath,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
   type Tenant,

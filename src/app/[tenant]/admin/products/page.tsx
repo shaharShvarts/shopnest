@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import AdminLoading from "../loading";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "../../components/PageHeader";
+import { PageHeader } from "@/app/components/PageHeader";
 import { ProductTable } from "./_components/ProductTable";
 import { orderProducts, products } from "@/drizzle/schema";
 import { countOrdersByProduct } from "@/lib/catalog/counts";

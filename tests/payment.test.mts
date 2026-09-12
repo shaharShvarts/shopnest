@@ -540,8 +540,8 @@ test("tenant routes and admin authorization prevent cross-tenant settings access
     "forbidden",
   );
   for (const file of [
-    "../src/app/admin/payments/actions.ts",
-    "../src/app/admin/payments/page.tsx",
+    "../src/app/[tenant]/admin/payments/actions.ts",
+    "../src/app/[tenant]/admin/payments/page.tsx",
   ])
     assert.match(await source(file), /await requireTenantAdminDb\(\)/);
   const store = await source("../src/lib/payments/drizzle-store.ts");
@@ -662,7 +662,7 @@ test("paid checkout retry reports paid instead of claiming the order is unpaid",
 });
 
 test("provider secret fields discourage unrelated saved login autofill", async () => {
-  assert.match(await source("../src/app/admin/payments/settings-form.tsx"), /autoComplete=\{field.type === "password" \? "new-password" : "off"\}/);
+  assert.match(await source("../src/app/[tenant]/admin/payments/settings-form.tsx"), /autoComplete=\{field.type === "password" \? "new-password" : "off"\}/);
 });
 
 // Synthetic credentials only. Never copy Cardcom's published credentials here.
@@ -790,10 +790,10 @@ test("timeout aborts fetch and response-body reading and returns failure", async
 });
 
 test("connection action authorizes first and UI keeps test separate from save", async () => {
-  const actions = (await source("../src/app/admin/payments/actions.ts")).split("export async function testPaymentConnection")[1];
+  const actions = (await source("../src/app/[tenant]/admin/payments/actions.ts")).split("export async function testPaymentConnection")[1];
   assert.ok(actions.indexOf("await requireTenantAdminDb()") < actions.indexOf("new DrizzlePaymentStore"));
   assert.doesNotMatch(actions, /saveSettings|revalidateTenantPath|console\./);
-  const ui = await source("../src/app/admin/payments/settings-form.tsx");
+  const ui = await source("../src/app/[tenant]/admin/payments/settings-form.tsx");
   assert.match(ui, /type="button" onClick=\{testConnection\}/);
   assert.match(ui, /disabled=\{!provider.live\}/);
   assert.doesNotMatch(ui, /secure\.cardcom|fetch\(/);
@@ -922,7 +922,7 @@ test("actual connection action rejects unauthorized users before reading setting
   let reads = 0;
   for (const reason of ["unauthenticated", "forbidden", "unknown_tenant"]) {
     const denial = new Error(reason);
-    const actions = await loadWithMocks<{ testPaymentConnection(input: unknown): Promise<unknown> }>("../src/app/admin/payments/actions.ts", {
+    const actions = await loadWithMocks<{ testPaymentConnection(input: unknown): Promise<unknown> }>("../src/app/[tenant]/admin/payments/actions.ts", {
       "@/lib/admin-auth/server": { requireTenantAdminDb: async () => { throw denial; } },
       "@/lib/tenant-context": { revalidateTenantPath: () => { throw new Error("Unexpected write"); } },
       "@/lib/payments/drizzle-store": { DrizzlePaymentStore: class { constructor() { reads++; } } },
@@ -940,7 +940,7 @@ test("actual action isolates all three tenants and rejects forged selectors safe
     const tenant = resolveConfiguredTenant(slug)!;
     let authorized = false;
     let networkCalls = 0;
-    const actions = await loadWithMocks<{ testPaymentConnection(input: unknown): Promise<{ success: boolean }> }>("../src/app/admin/payments/actions.ts", {
+    const actions = await loadWithMocks<{ testPaymentConnection(input: unknown): Promise<{ success: boolean }> }>("../src/app/[tenant]/admin/payments/actions.ts", {
       "@/lib/admin-auth/server": { requireTenantAdminDb: async () => { authorized = true; return { tenant }; } },
       "@/lib/tenant-context": { revalidateTenantPath: () => { throw new Error("Unexpected write"); } },
       "@/lib/payments/drizzle-store": { DrizzlePaymentStore: class {

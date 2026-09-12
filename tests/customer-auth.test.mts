@@ -271,7 +271,7 @@ test("customer and admin authentication use separate cookies, repositories, and 
   const [customerServer, adminServer, adminLayout] = await Promise.all([
     readFile("src/lib/customer-auth/server.ts", "utf8"),
     readFile("src/lib/admin-auth/server.ts", "utf8"),
-    readFile("src/app/admin/layout.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/layout.tsx", "utf8"),
   ]);
   assert.match(customerServer, /shopnest_customer_session/);
   assert.match(adminServer, /shopnest_admin_session/);
@@ -287,7 +287,7 @@ test("an admin session cookie is never accepted by customer session resolution",
 
 test("a customer session cookie cannot authorize an admin layout", async () => {
   const adminServer = await readFile("src/lib/admin-auth/server.ts", "utf8");
-  const adminLayout = await readFile("src/app/admin/layout.tsx", "utf8");
+  const adminLayout = await readFile("src/app/[tenant]/admin/layout.tsx", "utf8");
   assert.doesNotMatch(adminServer, /shopnest_customer_session|getCurrentCustomer/);
   assert.doesNotMatch(adminLayout, /shopnest_customer_session|getCurrentCustomer/);
 });
@@ -735,7 +735,7 @@ test("customer identity migration is public, journaled, and control-plane idempo
   );
   assert.equal(
     JSON.parse(journal).entries.at(-1).tag,
-    "0003_customer_google_oauth"
+    "0004_faithful_wallflower"
   );
   assert.match(provisioner, /SELECT hash[\s\S]*assertMigrationHash/);
 });

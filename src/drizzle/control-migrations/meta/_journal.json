@@ -29,6 +29,13 @@
       "when": 1788498368188,
       "tag": "0003_customer_google_oauth",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789050035039,
+      "tag": "0004_faithful_wallflower",
+      "breakpoints": true
     }
   ]
 }

@@ -266,7 +266,7 @@ test("admin actions use the tenant media abstraction and replace after DB succes
   ] as const;
 
   for (const [file, entity, table] of entities) {
-    const source = await readFile(`src/app/admin/_actions/${file}.ts`, "utf8");
+    const source = await readFile(`src/app/[tenant]/admin/_actions/${file}.ts`, "utf8");
     assert.match(source, new RegExp(`kind: "${file}"`));
     assert.doesNotMatch(source, /public\/(categories|subcategories|products)/);
     const editStart = source.indexOf(`export async function edit${entity}`);
@@ -293,8 +293,8 @@ test("runtime route serves typed media and middleware includes dotted media URLs
 
 test("admin image preview supports stored, replacement, and missing states", async () => {
   const [upload, preview] = await Promise.all([
-    readFile("src/app/admin/_components/ImageUpload.tsx", "utf8"),
-    readFile("src/app/admin/_components/AdminImagePreview.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/_components/ImageUpload.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/_components/AdminImagePreview.tsx", "utf8"),
   ]);
 
   assert.match(upload, /resolveTenantImageUrl\(initialImage, tenant\.slug\)/);
@@ -317,13 +317,13 @@ test("admin create and edit pages retain deterministic tenant-aware Back links",
   ];
 
   const header = await readFile(
-    "src/app/admin/_components/AdminFormHeader.tsx",
+    "src/app/[tenant]/admin/_components/AdminFormHeader.tsx",
     "utf8"
   );
   assert.match(header, /TenantLink/);
 
   for (const [page, backHref] of expected) {
-    const source = await readFile(`src/app/admin/${page}`, "utf8");
+    const source = await readFile(`src/app/[tenant]/admin/${page}`, "utf8");
     assert.match(source, new RegExp(`backHref=\\"${backHref}\\"`));
     assert.doesNotMatch(
       source,
@@ -334,9 +334,9 @@ test("admin create and edit pages retain deterministic tenant-aware Back links",
 
 test("shipping create and edit share a browser-safe code pattern", async () => {
   const [form, createPage, editPage, english, hebrew] = await Promise.all([
-    readFile("src/app/admin/shipping/_components/ShippingMethodForm.tsx", "utf8"),
-    readFile("src/app/admin/shipping/new/page.tsx", "utf8"),
-    readFile("src/app/admin/shipping/[id]/edit/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/shipping/_components/ShippingMethodForm.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/shipping/new/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/shipping/[id]/edit/page.tsx", "utf8"),
     readFile("src/messages/en.json", "utf8").then(JSON.parse),
     readFile("src/messages/he.json", "utf8").then(JSON.parse),
   ]);
@@ -382,12 +382,12 @@ test("shipping create and edit share a browser-safe code pattern", async () => {
 
 test("shipping admin exposes lightweight persisted drag reordering", async () => {
   const [page, list, actions] = await Promise.all([
-    readFile("src/app/admin/shipping/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/shipping/page.tsx", "utf8"),
     readFile(
-      "src/app/admin/shipping/_components/ShippingMethodOrderList.tsx",
+      "src/app/[tenant]/admin/shipping/_components/ShippingMethodOrderList.tsx",
       "utf8"
     ),
-    readFile("src/app/admin/_actions/shipping.ts", "utf8"),
+    readFile("src/app/[tenant]/admin/_actions/shipping.ts", "utf8"),
   ]);
   assert.match(page, /ShippingMethodOrderList/);
   assert.match(page, /orderBy\(asc\(shippingMethods\.sortOrder\)/);
@@ -413,7 +413,7 @@ test("shipping admin exposes lightweight persisted drag reordering", async () =>
 
 test("shipping Edit remains a first-click link outside drag activation", async () => {
   const list = await readFile(
-    "src/app/admin/shipping/_components/ShippingMethodOrderList.tsx",
+    "src/app/[tenant]/admin/shipping/_components/ShippingMethodOrderList.tsx",
     "utf8"
   );
   assert.match(list, /<DndContext\s+id="shipping-method-order"/);

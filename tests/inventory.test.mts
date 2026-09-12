@@ -578,7 +578,9 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
     return this.getProducts(ids);
   }
 
-  async lockReservationAttempt(_checkoutToken: string) {}
+  async lockReservationAttempt(_checkoutToken: string) {
+    void _checkoutToken;
+  }
 
   async getActiveReservationTotals(
     ids: number[],
@@ -646,6 +648,7 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
     retainedProductIds: number[],
     _now: Date
   ) {
+    void _now;
     for (const item of this.reservations) {
       if (
         item.checkoutToken === attempt.checkoutToken &&
@@ -663,6 +666,7 @@ class MemoryInventoryStore implements InventoryStore, InventoryTransaction {
     state: Exclude<ReservationState, "active">,
     _now: Date
   ) {
+    void _now;
     let count = 0;
     for (const item of this.reservations) {
       if (

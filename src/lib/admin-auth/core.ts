@@ -5,6 +5,7 @@ export const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
 export type AdminRole = "super_admin" | "tenant_admin";
 export type TenantStatus = "active" | "suspended" | "disabled";
+export type TenantPlan = "small" | "medium" | "large";
 
 export type AdminUserRecord = {
   id: number;
@@ -33,6 +34,9 @@ export type TenantControlRecord = {
   schemaName: string;
   displayName: string;
   status: TenantStatus;
+  plan?: TenantPlan;
+  featured?: boolean;
+  featuredRank?: number | null;
 };
 
 export interface AdminAuthRepository {

@@ -166,7 +166,7 @@ test("tenant admin authorization blocks mutation of another tenant catalog", () 
 
 test("all catalog mutation modules require the tenant-authorized database", async () => {
   for (const file of ["categories.ts", "subcategories.ts", "products.ts"]) {
-    const source = await readFile(`src/app/admin/_actions/${file}`, "utf8");
+    const source = await readFile(`src/app/[tenant]/admin/_actions/${file}`, "utf8");
     assert.match(source, /requireTenantAdminDb\(\)/);
     assert.doesNotMatch(source, /\bgetDb\s*\(/);
     assert.doesNotMatch(source, /getDbForTenant\s*\(/);
