@@ -8,17 +8,23 @@ it with `docker-compose.yml`, `docker-compose.dev.yml`, or `docker-compose.prod.
 ## Resources
 
 Use Compose v2 with `!override` support (2.24.4+) for the parallel acceptance
-override below. The project name is deliberately new: `shopnest-staging-v2`.
+override below. The canonical project name is: `shopnest-staging`.
 Always pass the documented `-p`, even if the shell defines `COMPOSE_PROJECT_NAME`.
 Do not set `container_name` or use external/shared volumes or networks.
+
+The STAGING stack has passed real server acceptance, as reported by the operator.
+Changing the Compose project name does not rename existing containers or volumes.
+If the accepted deployment used a different project name, inventory and preserve
+its database and uploads before switching; the canonical project creates separate
+resources. Transfer accepted data only through an explicit, verified migration.
 
 | Resource | Name / mapping |
 | --- | --- |
 | Services | `web-staging`, `db-staging`, `nginx-staging` |
-| Default container names | `shopnest-staging-v2-web-staging-1`, `shopnest-staging-v2-db-staging-1`, `shopnest-staging-v2-nginx-staging-1` |
-| Network | `shopnest-staging-v2_shopnest-staging-net` |
-| PostgreSQL 17 volume | `shopnest-staging-v2_pgdata-staging` |
-| Uploads volume | `shopnest-staging-v2_uploads-staging` at `/app/uploads` |
+| Default container names | `shopnest-staging-web-staging-1`, `shopnest-staging-db-staging-1`, `shopnest-staging-nginx-staging-1` |
+| Network | `shopnest-staging_shopnest-staging-net` |
+| PostgreSQL 17 volume | `shopnest-staging_pgdata-staging` |
+| Uploads volume | `shopnest-staging_uploads-staging` at `/app/uploads` |
 | Database / role | `shopnest_staging` / `shopnest_staging` |
 | Internal DB endpoint | `db-staging:5432`; no host DB port |
 | Web host port | `127.0.0.1:3002` -> `web-staging:3000` |
@@ -48,11 +54,11 @@ sudo ss -ltnp | grep -E ':(80|443|3001|3002|8080|8081|13002|18081)\b'
 docker inspect --format '{{.Name}} project={{index .Config.Labels "com.docker.compose.project"}} service={{index .Config.Labels "com.docker.compose.service"}} mounts={{json .Mounts}}' LEGACY_CONTAINER_ID
 
 # These must return no resources before the FIRST deployment of this new stack.
-docker ps -a --filter label=com.docker.compose.project=shopnest-staging-v2
-docker volume ls --filter label=com.docker.compose.project=shopnest-staging-v2
-docker network ls --filter label=com.docker.compose.project=shopnest-staging-v2
-docker volume ls --format '{{.Name}}' | grep '^shopnest-staging-v2_' || true
-docker network ls --format '{{.Name}}' | grep '^shopnest-staging-v2_' || true
+docker ps -a --filter label=com.docker.compose.project=shopnest-staging
+docker volume ls --filter label=com.docker.compose.project=shopnest-staging
+docker network ls --filter label=com.docker.compose.project=shopnest-staging
+docker volume ls --format '{{.Name}}' | grep '^shopnest-staging_' || true
+docker network ls --format '{{.Name}}' | grep '^shopnest-staging_' || true
 ```
 
 Record the legacy checkout path, exact container IDs, Compose project, DB volume
@@ -72,13 +78,13 @@ the new DB service at the old volume.
 ## 2. Separate checkout and private runtime settings
 
 Do not change `/srv/shopnest/dev` or overwrite the legacy STAGING checkout.
-For the first deployment, verify `/srv/shopnest/staging-v2` does not exist, then:
+For the first deployment, verify `/srv/shopnest/staging` does not exist, then:
 
 ```bash
-test ! -e /srv/shopnest/staging-v2
+test ! -e /srv/shopnest/staging
 git clone --branch fix/staging-compose-alignment --single-branch \
-  https://github.com/shaharShvarts/shopnest.git /srv/shopnest/staging-v2
-cd /srv/shopnest/staging-v2
+  https://github.com/shaharShvarts/shopnest.git /srv/shopnest/staging
+cd /srv/shopnest/staging
 git pull --ff-only origin fix/staging-compose-alignment
 git rev-parse HEAD
 git ls-files --error-unmatch nginx.staging.conf
@@ -88,7 +94,7 @@ chmod 600 .env.staging
 ${EDITOR:-vi} .env.staging
 ```
 
-For an existing v2 checkout, enter it, confirm its identity and clean status,
+For an existing STAGING checkout, enter it, confirm its identity and clean status,
 then fetch/switch/pull this branch. Use a private editor/secret manager to supply
 `STAGING_DB_PASSWORD` (new, unique password) and
 `STAGING_PAYMENT_ENCRYPTION_KEY` (new base64-encoded 32-byte encryption key).
@@ -125,7 +131,7 @@ YAML
 grep -qxF '.staging-acceptance.yml' .git/info/exclude || \
   printf '%s\n' '.staging-acceptance.yml' >> .git/info/exclude
 
-dc() { docker compose -p shopnest-staging-v2 --env-file .env.staging \
+dc() { docker compose -p shopnest-staging --env-file .env.staging \
   -f docker-compose.staging.yml -f .staging-acceptance.yml "$@"; }
 dc config --quiet
 dc up -d --build
@@ -165,7 +171,7 @@ docker stop VERIFIED_LEGACY_STAGING_WEB_CONTAINER_ID
 # Only if required by the recorded topology:
 # docker stop VERIFIED_LEGACY_STAGING_NGINX_CONTAINER_ID
 
-dc() { docker compose -p shopnest-staging-v2 --env-file .env.staging \
+dc() { docker compose -p shopnest-staging --env-file .env.staging \
   -f docker-compose.staging.yml "$@"; }
 dc config --quiet
 dc up -d --build

@@ -26,7 +26,7 @@ test("STAGING Compose isolates resources and overrides legacy runtime DB setting
     const result = config(dummySettings + "DATABASE_URL=postgresql://legacy.invalid/legacy\nDB_HOST=legacy.invalid\nDB_NAME=legacy\nDB_USER=legacy\nDB_PORT=9999\nDB_PASSWORD=legacy\nPAYMENT_ENCRYPTION_KEY=legacy\n");
     assert.equal(result.status, 0, result.error?.message || result.stderr);
     const model = JSON.parse(result.stdout);
-    assert.equal(model.name, "shopnest-staging-v2");
+    assert.equal(model.name, "shopnest-staging");
     assert.deepEqual(Object.keys(model.services).sort(), ["db-staging", "nginx-staging", "web-staging"]);
     const web = model.services["web-staging"];
     const db = model.services["db-staging"];
@@ -62,11 +62,11 @@ test("STAGING Compose isolates resources and overrides legacy runtime DB setting
     assert.equal(web.volumes[0].source, "uploads-staging");
     assert.equal(web.volumes[0].target, web.environment.SHOPNEST_UPLOADS_DIR);
     for (const [key, volume] of Object.entries(model.volumes)) {
-      assert.equal(volume.name, `shopnest-staging-v2_${key}`);
+      assert.equal(volume.name, `shopnest-staging_${key}`);
       assert.ok(!volume.external);
     }
     assert.deepEqual(Object.keys(model.volumes).sort(), ["pgdata-staging", "uploads-staging"]);
-    assert.equal(model.networks["shopnest-staging-net"].name, "shopnest-staging-v2_shopnest-staging-net");
+    assert.equal(model.networks["shopnest-staging-net"].name, "shopnest-staging_shopnest-staging-net");
     assert.ok(!model.networks["shopnest-staging-net"].external);
     for (const service of Object.values(model.services)) {
       assert.deepEqual(Object.keys(service.networks), ["shopnest-staging-net"]);

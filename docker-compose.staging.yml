@@ -1,4 +1,4 @@
-name: shopnest-staging-v2
+name: shopnest-staging
 
 services:
   web-staging:
