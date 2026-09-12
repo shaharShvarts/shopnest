@@ -1,0 +1,69 @@
+name: shopnest-staging-v2
+
+services:
+  web-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:3002:3000"
+    env_file:
+      - .env.staging
+    environment:
+      # Override any legacy URL: it takes precedence over DB_* in the app/CLIs.
+      DATABASE_URL: ""
+      DB_HOST: db-staging
+      DB_PORT: "5432"
+      DB_USER: shopnest_staging
+      DB_NAME: shopnest_staging
+      DB_PASSWORD: ${STAGING_DB_PASSWORD:?Set STAGING_DB_PASSWORD in .env.staging}
+      PAYMENT_ENCRYPTION_KEY: ${STAGING_PAYMENT_ENCRYPTION_KEY:?Set STAGING_PAYMENT_ENCRYPTION_KEY in .env.staging}
+      PAYMENT_PUBLIC_ORIGIN: https://staging.shopnest.co.il
+      SHOPNEST_UPLOADS_DIR: /app/uploads
+      SHOPNEST_PASSWORD_RESET_DEV_CAPTURE: ""
+    volumes:
+      - uploads-staging:/app/uploads
+    depends_on:
+      db-staging:
+        condition: service_healthy
+    networks:
+      - shopnest-staging-net
+
+  db-staging:
+    image: postgres:17.0
+    environment:
+      POSTGRES_USER: shopnest_staging
+      POSTGRES_DB: shopnest_staging
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:?Set STAGING_DB_PASSWORD in .env.staging}
+    volumes:
+      - pgdata-staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopnest_staging -d shopnest_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - shopnest-staging-net
+
+  nginx-staging:
+    image: nginx:stable-alpine
+    volumes:
+      - type: bind
+        source: ./nginx.staging.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      - web-staging
+    networks:
+      - shopnest-staging-net
+
+volumes:
+  pgdata-staging:
+  uploads-staging:
+
+networks:
+  shopnest-staging-net:
