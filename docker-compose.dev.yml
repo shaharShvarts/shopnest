@@ -35,7 +35,12 @@ services:
   nginx-dev:
     image: nginx:latest
     volumes:
-      - ./nginx/dev.conf:/etc/nginx/nginx.conf
+      - type: bind
+        source: ./nginx.dev.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+        bind:
+          create_host_path: false
     ports:
       - "8080:80"
     depends_on:

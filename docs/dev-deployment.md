@@ -4,6 +4,14 @@ Run commands from the repository checkout at `/srv/shopnest/dev`. Use Docker
 Compose v2 and `docker-compose.dev.yml`. The services are `web-dev`, `db-dev`,
 and `nginx-dev`.
 
+`nginx-dev` mounts the tracked root file `nginx.dev.conf` read-only at
+`/etc/nginx/nginx.conf` and proxies to `web-dev:3000` on the DEV network.
+The root `nginx.conf` is for the separate Compose stack whose service is named
+`web`; it is not the DEV configuration. The DEV bind mount disables automatic
+host-path creation, so a missing config fails instead of becoming a directory.
+The old Docker-created directory `/srv/shopnest/dev/nginx/dev.conf` is no longer
+used and does not need to be removed to deploy this fix.
+
 Keep the existing `.env.dev` on the server. It must provide `DEV_DB_PASSWORD`
 and `DEV_PAYMENT_ENCRYPTION_KEY`, alongside the application's other runtime
 variables. Do not commit it or paste its contents into logs or PRs. Git and
@@ -52,6 +60,24 @@ docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --build db-de
 docker compose --env-file .env.dev -f docker-compose.dev.yml ps db-dev web-dev nginx-dev
 docker compose --env-file .env.dev -f docker-compose.dev.yml logs --tail=100 web-dev db-dev nginx-dev
 ```
+
+After pulling the updated branch, verify the file, start the upstream services,
+and test nginx before recreating its container:
+
+```sh
+cd /srv/shopnest/dev
+test -f nginx.dev.conf
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d db-dev web-dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml run --rm --no-deps nginx-dev nginx -t
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --no-deps --force-recreate nginx-dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml exec nginx-dev nginx -t
+docker compose --env-file .env.dev -f docker-compose.dev.yml ps nginx-dev
+curl -I http://127.0.0.1:8080/
+```
+
+The upstream `web-dev` container must be running on the DEV network for nginx
+to resolve its service name. Confirm nginx stays running and HTTP requests
+reach the app (an application redirect is normal; a `502` is not).
 
 Review logs locally before sharing them. To restart the web service after
 rebuilding, use `up -d --build web-dev`; to apply changed runtime variables,
