@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/formatters";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 import { getCustomerStockMessage } from "@/lib/inventory/core";
-import type { ProductPreview } from "../(customer)/types";
+import type { ProductPreview } from "../[tenant]/(storefront)/types";
 import { AddToCartButton } from "./AddToCartButton";
 
 type ProductCardProps = ProductPreview & { tenantSlug?: string };

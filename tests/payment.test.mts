@@ -376,7 +376,7 @@ test("invalid callback and fake browser success cannot mark paid", async () => {
   assert.equal(store.order.paymentStatus, "pending");
   assert.equal(store.physical, 10);
   const page = await source(
-    "../src/app/(customer)/checkout/payment/[id]/page.tsx",
+    "../src/app/[tenant]/(storefront)/checkout/payment/[id]/page.tsx",
   );
   assert.doesNotMatch(
     page,
@@ -580,7 +580,7 @@ test("legacy iCount returns 410 without network or credentials", async () => {
     /fetch\(|process\.env|console\./,
   );
   assert.doesNotMatch(
-    await source("../src/app/(customer)/_actions/shipping.ts"),
+    await source("../src/app/[tenant]/(storefront)/_actions/shipping.ts"),
     /iCountPayment|amount: 1/,
   );
 });
@@ -622,7 +622,7 @@ test("payment ownership never trusts the unsigned legacy user_id cookie", async 
   assert.equal(paymentOwnerKey({customerAccountId:null,userId:1,sessionId:"attacker"}), null);
   assert.equal(paymentOwnerKey({customerAccountId:7,userId:null,sessionId:null}), "customer:7");
   assert.equal(paymentOwnerKey({customerAccountId:null,userId:null,sessionId:"buyer"}), "session:buyer");
-  for (const path of ["../src/app/(customer)/_actions/checkout.ts", "../src/app/(customer)/checkout/payment/[id]/page.tsx"])
+  for (const path of ["../src/app/[tenant]/(storefront)/_actions/checkout.ts", "../src/app/[tenant]/(storefront)/checkout/payment/[id]/page.tsx"])
     assert.match(await source(path), /paymentOwnerKey\(/);
 });
 

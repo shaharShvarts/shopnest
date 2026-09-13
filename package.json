@@ -18,6 +18,7 @@
     "tenant:create": "node scripts/tenant-create.mjs",
     "tenant:list": "node scripts/tenant-list.mjs",
     "tenant:test": "node --test tests/tenant-provisioning.test.mjs",
+    "routing:test": "node --experimental-strip-types --test tests/tenant.test.mts tests/route-navigation.test.mjs",
     "checkout:test": "node --experimental-strip-types --test tests/checkout-order.test.mts",
     "inventory:test": "node --experimental-strip-types --test tests/inventory.test.mts",
     "admin-auth:test": "node --experimental-strip-types --test tests/admin-auth.test.mts",

@@ -195,7 +195,7 @@ test("Drizzle catalog store enforces hierarchy and storefront visibility", async
 
 test("subcategory route is tenant-aware, validates both IDs, and returns 404", async () => {
   const page = await readFile(
-    "src/app/(customer)/categories/[id]/subcategories/[subcategoryId]/page.tsx",
+    "src/app/[tenant]/(storefront)/categories/[id]/subcategories/[subcategoryId]/page.tsx",
     "utf8"
   );
   assert.match(page, /const tenant = await getTenant\(\)/);
@@ -209,10 +209,10 @@ test("subcategory route is tenant-aware, validates both IDs, and returns 404", a
 test("breadcrumbs and navigation use category, subcategory, and product paths", async () => {
   const [subcategoryPage, productPage, subcategoryCard] = await Promise.all([
     readFile(
-      "src/app/(customer)/categories/[id]/subcategories/[subcategoryId]/page.tsx",
+      "src/app/[tenant]/(storefront)/categories/[id]/subcategories/[subcategoryId]/page.tsx",
       "utf8"
     ),
-    readFile("src/app/(customer)/products/[id]/details/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/products/[id]/details/page.tsx", "utf8"),
     readFile("src/app/components/SubcategoryCard.tsx", "utf8"),
   ]);
   assert.match(
@@ -265,7 +265,7 @@ test("redesigned ProductCard preserves stock policy, cart reservations, and sear
   const [card, addButton, searchPage] = await Promise.all([
     readFile("src/app/components/ProductCard.tsx", "utf8"),
     readFile("src/app/components/AddToCartButton.tsx", "utf8"),
-    readFile("src/app/(customer)/search/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/(storefront)/search/page.tsx", "utf8"),
   ]);
   assert.match(card, /getCustomerStockMessage\(quantity\)/);
   assert.match(card, /inventoryStatus === "out_of_stock"/);

@@ -1,7 +1,7 @@
 # Multi-tenant foundation
 
-ShopNest supports schema-per-tenant routing while retaining the original
-single-store routes.
+ShopNest supports schema-per-tenant routing with separate platform and tenant
+route trees. See [the route inventory](./route-audit.md) for every application endpoint.
 
 ## Routing
 
@@ -9,7 +9,14 @@ single-store routes.
 - `/<nest>/admin` serves the tenant-authorized admin UI and redirects an
   unauthenticated user to `/<nest>/admin/login`.
 - Nested storefront, admin, and API paths keep the same tenant prefix.
-- `/` and `/admin` continue to use the database's default schema.
+- `/` is the public platform homepage with no storefront navigation or tenant DB access.
+- `/admin/*` is the global super-admin control plane, backed by the public registry.
+- Tenantless storefront URLs such as `/categories`, `/account`, and `/checkout`
+  return 404. Only the global OAuth callback and retired payment endpoint are
+  admitted as tenantless APIs; commerce APIs require a tenant prefix.
+- Storefront and admin pages have physical `[tenant]` routes. Only tenant API and
+  media handlers use internal rewrites. Middleware replaces browser-supplied tenant
+  headers, and the tenant layout verifies the trusted slug against the route params.
 
 Tenant slugs are lowercase URL slugs containing letters, numbers, and single
 hyphens. They are normalized to PostgreSQL identifiers by replacing hyphens
@@ -95,8 +102,8 @@ Existing migrations and legacy `public` tables are not modified.
 - Tenant discovery/provisioning still uses the static routing allowlist while
   status and authorization use the public registry. Both must be updated when
   onboarding a tenant until dynamic middleware discovery is introduced.
-- Uploaded image files still share the application's `public` filesystem,
-  although their database references are tenant-isolated.
+- Runtime media uses tenant-specific directories under the uploads root and
+  tenant-prefixed media URLs; requests cannot select another tenant's schema.
 - Tenant-management and suspension-management UI is available to active
   `super_admin` accounts through the platform `/admin` control plane.
 - Payments are intentionally unchanged and are not part of this foundation.

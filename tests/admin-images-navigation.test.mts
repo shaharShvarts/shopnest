@@ -445,7 +445,7 @@ test("shipping Edit remains a first-click link outside drag activation", async (
 
 test("checkout visibly defaults to the first persisted shipping method", async () => {
   const checkout = await readFile(
-    "src/app/(customer)/checkout/_components/CheckoutTable.tsx",
+    "src/app/[tenant]/(storefront)/checkout/_components/CheckoutTable.tsx",
     "utf8"
   );
   assert.match(checkout, /getDefaultShippingMethodId\(shippingMethods\)/);

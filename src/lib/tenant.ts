@@ -10,6 +10,7 @@ export {
   prefixTenantPath,
   resolveTenantRoute,
   isTenantAdminPath,
+  isTenantHandlerPath,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
   type Tenant,

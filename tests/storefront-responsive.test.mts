@@ -6,7 +6,7 @@ const read = (path: string) => readFile(path, "utf8");
 
 test("product details use an explicit responsive grid and fluid image", async () => {
   const source = await read(
-    "src/app/(customer)/products/_components/ProductDetails.tsx"
+    "src/app/[tenant]/(storefront)/products/_components/ProductDetails.tsx"
   );
   assert.doesNotMatch(source, /columns-2|xs:columns-1/);
   assert.match(source, /grid-cols-1[^\"]*lg:grid-cols-\[/);
@@ -18,9 +18,9 @@ test("product details use an explicit responsive grid and fluid image", async ()
 
 test("storefront header stays compact while preserving all controls", async () => {
   const [layout, language, cart] = await Promise.all([
-    read("src/app/(customer)/layout.tsx"),
+    read("src/app/[tenant]/(storefront)/layout.tsx"),
     read("src/app/components/LanguageSelector.tsx"),
-    read("src/app/(customer)/components/CartIcon.tsx"),
+    read("src/app/[tenant]/(storefront)/components/CartIcon.tsx"),
   ]);
   assert.match(layout, /size-10[^\"]*sm:size-12/);
   assert.match(layout, /LanguageSelector/);
@@ -36,13 +36,13 @@ test("storefront header stays compact while preserving all controls", async () =
 
 test("storefront navigation targets only implemented customer routes", async () => {
   const sources = await Promise.all([
-    read("src/app/(customer)/layout.tsx"),
-    read("src/app/(customer)/components/Footer.tsx"),
-    read("src/app/(customer)/components/CookieConsent.tsx"),
-    read("src/app/(customer)/components/CartTable.tsx"),
-    read("src/app/(customer)/categories/[id]/products/page.tsx"),
-    read("src/app/(customer)/products/[id]/details/page.tsx"),
-    read("src/app/(customer)/categories/[id]/subcategories/[subcategoryId]/page.tsx"),
+    read("src/app/[tenant]/(storefront)/layout.tsx"),
+    read("src/app/[tenant]/(storefront)/components/Footer.tsx"),
+    read("src/app/[tenant]/(storefront)/components/CookieConsent.tsx"),
+    read("src/app/[tenant]/(storefront)/components/CartTable.tsx"),
+    read("src/app/[tenant]/(storefront)/categories/[id]/products/page.tsx"),
+    read("src/app/[tenant]/(storefront)/products/[id]/details/page.tsx"),
+    read("src/app/[tenant]/(storefront)/categories/[id]/subcategories/[subcategoryId]/page.tsx"),
     read("src/app/components/CategoryCard.tsx"),
     read("src/app/components/SubcategoryCard.tsx"),
     read("src/app/components/ProductCard.tsx"),
@@ -82,8 +82,8 @@ test("storefront navigation targets only implemented customer routes", async () 
 
 test("category and product grids cover mobile through large desktop", async () => {
   const [categories, products] = await Promise.all([
-    read("src/app/(customer)/components/CategoriesGrid.tsx"),
-    read("src/app/(customer)/categories/[id]/products/page.tsx"),
+    read("src/app/[tenant]/(storefront)/components/CategoriesGrid.tsx"),
+    read("src/app/[tenant]/(storefront)/categories/[id]/products/page.tsx"),
   ]);
   for (const source of [categories, products]) {
     assert.match(
@@ -95,9 +95,9 @@ test("category and product grids cover mobile through large desktop", async () =
 
 test("cart switches from cards on mobile to a table on larger screens", async () => {
   const [cart, page, remove] = await Promise.all([
-    read("src/app/(customer)/components/CartTable.tsx"),
-    read("src/app/(customer)/carts/page.tsx"),
-    read("src/app/(customer)/carts/_components/RemoveButton.tsx"),
+    read("src/app/[tenant]/(storefront)/components/CartTable.tsx"),
+    read("src/app/[tenant]/(storefront)/carts/page.tsx"),
+    read("src/app/[tenant]/(storefront)/carts/_components/RemoveButton.tsx"),
   ]);
   assert.match(cart, /hidden md:block/);
   assert.match(cart, /md:hidden/);
@@ -115,8 +115,8 @@ test("responsive storefront images use the shared tenant-aware resolver", async 
   const [category, product, details, productPage] = await Promise.all([
     read("src/app/components/CategoryCard.tsx"),
     read("src/app/components/ProductCard.tsx"),
-    read("src/app/(customer)/products/_components/ProductDetails.tsx"),
-    read("src/app/(customer)/categories/[id]/products/page.tsx"),
+    read("src/app/[tenant]/(storefront)/products/_components/ProductDetails.tsx"),
+    read("src/app/[tenant]/(storefront)/categories/[id]/products/page.tsx"),
   ]);
 
   assert.match(category, /resolveTenantImageUrl\([\s\S]*tenant\.slug/);
@@ -133,9 +133,9 @@ test("responsive storefront images use the shared tenant-aware resolver", async 
 
 test("checkout and shipping fields stack on narrow screens", async () => {
   const [checkout, address, shipping] = await Promise.all([
-    read("src/app/(customer)/checkout/_components/CheckoutTable.tsx"),
-    read("src/app/(customer)/checkout/_components/ShippingAddress.tsx"),
-    read("src/app/(customer)/shipping/_components/ShippingTable.tsx"),
+    read("src/app/[tenant]/(storefront)/checkout/_components/CheckoutTable.tsx"),
+    read("src/app/[tenant]/(storefront)/checkout/_components/ShippingAddress.tsx"),
+    read("src/app/[tenant]/(storefront)/shipping/_components/ShippingTable.tsx"),
   ]);
   assert.match(checkout, /w-full max-w-2xl/);
   assert.match(checkout, /min-h-11 w-full sm:w-auto/);
@@ -146,8 +146,8 @@ test("checkout and shipping fields stack on narrow screens", async () => {
 
 test("breadcrumbs and footer wrap without directional spacing assumptions", async () => {
   const [breadcrumb, footer] = await Promise.all([
-    read("src/app/(customer)/components/Breadcrumb.tsx"),
-    read("src/app/(customer)/components/Footer.tsx"),
+    read("src/app/[tenant]/(storefront)/components/Breadcrumb.tsx"),
+    read("src/app/[tenant]/(storefront)/components/Footer.tsx"),
   ]);
   assert.match(breadcrumb, /flex-wrap/);
   assert.match(breadcrumb, /rtl:rotate-180/);
@@ -159,9 +159,9 @@ test("breadcrumbs and footer wrap without directional spacing assumptions", asyn
 
 test("responsive changes remain CSS-only", async () => {
   const sources = await Promise.all([
-    read("src/app/(customer)/layout.tsx"),
-    read("src/app/(customer)/components/CartTable.tsx"),
-    read("src/app/(customer)/products/_components/ProductDetails.tsx"),
+    read("src/app/[tenant]/(storefront)/layout.tsx"),
+    read("src/app/[tenant]/(storefront)/components/CartTable.tsx"),
+    read("src/app/[tenant]/(storefront)/products/_components/ProductDetails.tsx"),
   ]);
   assert.doesNotMatch(sources.join("\n"), /innerWidth|matchMedia|resizeObserver/i);
 });

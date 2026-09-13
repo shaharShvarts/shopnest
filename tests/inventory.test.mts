@@ -120,7 +120,7 @@ test("soft reservation idle expiry releases stock logically without deleting car
   await service.reserveCartInventory(cartHold(1));
   assert.equal((await service.getAvailability(1, later(61))).available, 1);
   assert.equal(store.reservations.length, 1);
-  const cartPage = await source("../src/app/(customer)/carts/page.tsx");
+  const cartPage = await source("../src/app/[tenant]/(storefront)/carts/page.tsx");
   assert.doesNotMatch(cartPage, /delete\(cartProducts\)/);
 });
 

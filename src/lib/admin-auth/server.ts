@@ -124,7 +124,7 @@ export async function requireSuperAdminPage() {
 
 export async function requireActiveTenantStorefront() {
   const tenant = await getTenant();
-  if (!tenant) return null;
+  if (!tenant) notFound();
   const controlTenant = await getControlTenant(tenant.slug);
   if (!controlTenant || controlTenant.status !== "active") {
     throw new AdminAuthorizationError(403, "Store unavailable");
