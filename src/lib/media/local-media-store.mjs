@@ -9,6 +9,8 @@ import {
 } from "../images/image-url.mjs";
 import { resolveConfiguredTenant } from "../tenant-validation.mjs";
 
+import { validateCatalogImage } from "./validate-image.mjs";
+
 const mediaKinds = new Set(CATALOG_MEDIA_KINDS);
 const contentTypeExtensions = Object.freeze({
   "image/avif": "avif",
@@ -58,12 +60,8 @@ export function tenantMediaFilePath({ tenantSlug, kind, filename, uploadsRoot })
 }
 
 export async function saveCatalogImage({ tenantSlug, kind, file, uploadsRoot }) {
-  const extension = contentTypeExtensions[file?.type];
-  if (!extension || typeof file.arrayBuffer !== "function") {
-    throw new LocalMediaError("UNSUPPORTED_TYPE", "Unsupported image content type");
-  }
-
-  const filename = `${crypto.randomUUID()}.${extension}`;
+  const bytes = await validateCatalogImage(file);
+  const filename = `${crypto.randomUUID()}.png`;
   const filePath = tenantMediaFilePath({
     tenantSlug,
     kind,
@@ -74,7 +72,7 @@ export async function saveCatalogImage({ tenantSlug, kind, file, uploadsRoot }) 
   if (!imageUrl) throw new LocalMediaError("INVALID_TENANT", "Unknown tenant");
 
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+  await fs.writeFile(filePath, bytes);
   return { filename, filePath, imageUrl };
 }
 

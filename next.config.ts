@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { MAX_IMAGE_UPLOAD_BYTES } from "./src/lib/images/upload-limits.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
 
-const maxSize = Number(process.env.NEXT_PUBLIC_MAX_FILE_SIZE);
-const bodySizeLimit = maxSize > 1 ? (`${maxSize}mb` as const) : "5mb";
+// Allow multipart/form fields in addition to the separately enforced file limit.
+const bodySizeLimit = `${Math.ceil(MAX_IMAGE_UPLOAD_BYTES / (1024 * 1024)) + 1}mb` as const;
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
