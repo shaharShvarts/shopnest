@@ -8,6 +8,15 @@ import { getCommerceIdentity } from "@/lib/customer-commerce/identity";
 export async function getCartCount(): Promise<number> {
   const db = await getDb();
   const identity = await getCommerceIdentity();
+
+  if (
+    !identity.customerAccountId &&
+    !identity.userId &&
+    !identity.sessionId
+  ) {
+    return 0;
+  }
+
   const cartBy = identity.customerAccountId
     ? eq(carts.customerAccountId, identity.customerAccountId)
     : identity.userId
