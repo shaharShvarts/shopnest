@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const require = createRequire(import.meta.url);
 const read = (path) => readFileSync(path, "utf8");
-const root = "src/app/(customer)/";
+const root = "src/app/[tenant]/(storefront)/";
 // Execute the real server components, replacing only framework/UI and DB boundaries.
 function load(path, mocks) {
   const output = ts.transpileModule(read(path), {
