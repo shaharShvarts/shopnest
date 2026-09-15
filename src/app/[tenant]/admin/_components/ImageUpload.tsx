@@ -22,13 +22,6 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
     [initialImage, tenant.slug]
   );
   const previewUrl = objectUrl ?? existingImageUrl;
-  const validImageTypes =
-    process.env.NEXT_PUBLIC_VALID_IMAGE_TYPES?.split("|") ?? [];
-
-  const imageTypes = validImageTypes.map(
-    (type) => type.split("/").pop()?.toUpperCase() ?? ""
-  );
-
   const { getRootProps, isDragActive } = useDropzone({
     accept: { "image/*": [] },
     multiple: false,
@@ -94,7 +87,7 @@ export function ImageUpload({ initialImage }: ImageUploadProps) {
           <Upload size={32} color="gray" />
           <p className="text-xl font-bold">Click to Upload or Drag & Drop</p>
           <p className="text-sm font-bold">
-            Supported formats: {imageTypes.join(", ")}
+            Supported images up to 5 MiB. File contents are verified on upload.
           </p>
         </div>
       ) : (

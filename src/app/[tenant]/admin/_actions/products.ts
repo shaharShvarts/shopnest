@@ -79,7 +79,7 @@ const editSchema = z
 export async function addProduct(_: unknown, formData: FormData) {
   const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
-  const result = productSchema.safeParse(Object.fromEntries(formData));
+  const result = await productSchema.safeParseAsync(Object.fromEntries(formData));
 
   if (!result.success) {
     return {
@@ -146,7 +146,7 @@ export async function addProduct(_: unknown, formData: FormData) {
 export async function editProduct(id: number, _: unknown, formData: FormData) {
   const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
-  const result = editSchema.safeParse(Object.fromEntries(formData));
+  const result = await editSchema.safeParseAsync(Object.fromEntries(formData));
 
   if (!result.success) {
     return {

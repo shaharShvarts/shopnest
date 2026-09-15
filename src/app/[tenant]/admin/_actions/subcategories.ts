@@ -35,7 +35,7 @@ const editSchema = zodSchema.extend({
 export async function addSubcategory(_: unknown, formData: FormData) {
   const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
-  const result = zodSchema.safeParse(Object.fromEntries(formData));
+  const result = await zodSchema.safeParseAsync(Object.fromEntries(formData));
 
   if (!result.success) {
     return {
@@ -88,7 +88,7 @@ export async function editSubcategory(
 ) {
   const { db, tenant } = await requireTenantAdminDb();
   const store = new DrizzleCatalogStore(db);
-  const result = editSchema.safeParse(Object.fromEntries(formData));
+  const result = await editSchema.safeParseAsync(Object.fromEntries(formData));
 
   if (!result.success) {
     return {

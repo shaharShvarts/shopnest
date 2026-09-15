@@ -4,7 +4,6 @@ export const CATALOG_MEDIA_KINDS: readonly [
   "products",
 ];
 export type CatalogMediaKind = (typeof CATALOG_MEDIA_KINDS)[number];
-export const SUPPORTED_IMAGE_CONTENT_TYPES: readonly string[];
 
 export function normalizeImageUrl(value: unknown): string | null;
 export function resolveTenantImageUrl(
