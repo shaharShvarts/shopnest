@@ -48,6 +48,12 @@ Registered checkout stores the global customer identifier on the tenant-local or
 
 Email verification delivery, production password-reset email-provider selection/configuration, post-purchase guest-order claiming, saved address books, profile/preferences management, account deletion/export workflow, and Apple OAuth are not implemented. Their security, consent, retention, identity-linking, reauthentication and tenant-visibility rules require explicit decisions before implementation.
 
+## Cart price presentation — CURRENT / AGREED
+
+Desktop and mobile cart lines display the current tenant DB product unit price multiplied by cart quantity. The summary sums these line totals using the existing integer monetary representation and rejects totals outside the safe integer range. A successful quantity mutation refreshes the server-rendered cart; a page refresh reloads current product prices. Browser-supplied prices/totals and cart price snapshots are never used. Checkout pricing and order `priceAtPurchase` snapshots are unchanged.
+
+Regression verification: `npm run cart:test` renders both cart layouts and exercises the server loader with a mocked tenant database, including quantity changes, refreshes, changed product prices, tenant separation, and integer boundaries. Run the checkout, inventory, and tenant suites alongside it for their existing commerce/isolation coverage.
+
 ## Storefront catalog hierarchy — CURRENT / AGREED
 
 The customer catalog follows the stored category hierarchy instead of flattening every product into its parent category. A category page displays its active, non-deleted subcategories and only its **direct products**, defined as products whose `category_id` matches the category and whose `subcategory_id` is `NULL`. Products assigned to a subcategory intentionally do not appear in the parent category's direct-product grid.

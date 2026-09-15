@@ -17,6 +17,7 @@ import { getTranslations } from "next-intl/server";
 import { getCurrentCustomer } from "@/lib/customer-auth/server";
 import { logoutCustomerAction } from "./account/_actions";
 import { Button } from "@/components/ui/button";
+import { getCartCount } from "./_actions/getCartCount";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,10 @@ export default async function HomeLayout({
   const catalogT = await getTranslations("CatalogUX");
   const accountT = await getTranslations("CustomerAccount");
   const customer = await getCurrentCustomer();
+  const initialCartCount = await getCartCount();
 
   return (
-    <CartProvider>
+    <CartProvider initialCount={initialCartCount}>
       <header className="sticky top-0 z-50 border-b bg-white/95 shadow-sm backdrop-blur">
         <nav className="container mx-auto flex min-w-0 flex-wrap items-center justify-between gap-2 px-3 py-2 sm:flex-nowrap sm:gap-4 sm:px-4">
           <div className="flex shrink-0 items-center gap-2">

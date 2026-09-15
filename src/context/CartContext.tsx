@@ -17,17 +17,18 @@ type CartContextType = {
 
 const CartContext = createContext<CartContextType | null>(null);
 
-export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [cartCount, setCartCount] = useState<number>(0);
+export const CartProvider = ({
+  children,
+  initialCount,
+}: {
+  children: ReactNode;
+  initialCount: number;
+}) => {
+  const [cartCount, setCartCount] = useState<number>(initialCount);
 
   useEffect(() => {
-    const stored = localStorage.getItem("cartCount");
-    if (stored) setCartCount(Number(stored));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("cartCount", String(cartCount));
-  }, [cartCount]);
+    setCartCount(initialCount);
+  }, [initialCount]);
 
   return (
     <CartContext.Provider value={{ cartCount, setCartCount }}>

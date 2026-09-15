@@ -29,7 +29,13 @@ export default async function CartTable({
   const locale = await getLocale();
   const t = await getTranslations("CartPage");
   const totalQuantity = cartData.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = cartData.reduce((sum, item) => sum + item.price, 0);
+  const totalPrice = cartData.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+  if (!Number.isSafeInteger(totalPrice)) {
+    throw new Error("The cart total is outside the supported range.");
+  }
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("he-IL", {
       style: "currency",
@@ -87,7 +93,7 @@ export default async function CartTable({
                 <TableCell>
                   <QuantityControl productId={item.id} quantity={item.quantity} available={item.available} />
                 </TableCell>
-                <TableCell>{formatPrice(item.price)}</TableCell>
+                <TableCell>{formatPrice(item.price * item.quantity)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -129,7 +135,7 @@ export default async function CartTable({
                 </div>
                 <div>
                   <dt className="text-muted-foreground">{t("th_price")}</dt>
-                  <dd className="font-medium">{formatPrice(item.price)}</dd>
+                  <dd className="font-medium">{formatPrice(item.price * item.quantity)}</dd>
                 </div>
               </dl>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,32 +18,41 @@ export function QuantityControl({
   available: number;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const router = useRouter();
   const { setCartCount } = useCart();
   const t = useTranslations("CartPage");
 
-  const change = (next: number) => startTransition(async () => {
+  const change = async (next: number) => {
+    if (pending) return;
+
+    setPending(true);
     setError(null);
-    const result = await updateProductQuantity(productId, next);
-    if (!result.success) {
-      setError(result.error);
-      return;
+
+    try {
+      const result = await updateProductQuantity(productId, next);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      setCartCount((count) => Number(count) + result.quantityDelta);
+      router.refresh();
+    } finally {
+      setPending(false);
     }
-    setCartCount((count) => Number(count) + result.quantityDelta);
-    router.refresh();
-  });
+  };
 
   return (
     <div>
       <div className="flex items-center gap-2">
         <Button type="button" variant="outline" size="icon" disabled={pending || quantity <= 1}
-          aria-label="Decrease quantity" onClick={() => change(quantity - 1)}>
+          aria-label="Decrease quantity" onClick={() => void change(quantity - 1)}>
           <Minus aria-hidden="true" />
         </Button>
         <span className="min-w-8 text-center font-medium">{quantity}</span>
         <Button type="button" variant="outline" size="icon" disabled={pending || quantity >= available}
-          aria-label="Increase quantity" onClick={() => change(quantity + 1)}>
+          aria-label="Increase quantity" onClick={() => void change(quantity + 1)}>
           <Plus aria-hidden="true" />
         </Button>
       </div>
