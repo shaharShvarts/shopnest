@@ -59,11 +59,13 @@ Verify the Nginx configuration:
 docker compose --env-file .env.dev -f docker-compose.dev.yml exec nginx-dev nginx -t
 ```
 
-An unauthenticated request through Nginx should return `401`:
+An unauthenticated request through Docker Nginx should return `401`:
 
 ```bash
 curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/
 ```
+
+For public browser protection, the host Nginx site for `dev.shopnest.co.il` must proxy to Docker Nginx on `127.0.0.1:8080`, not directly to the Next.js web port `127.0.0.1:3001`. Preserve the existing TLS and proxy headers. After changing the upstream, run `sudo nginx -t` and reload host Nginx.
 
 After entering the configured username/password in a browser, DEV should load normally.
 
@@ -86,7 +88,7 @@ docker compose -p shopnest-staging --env-file .env.staging -f docker-compose.sta
 curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8081/
 ```
 
-The unauthenticated request should return `401`. Public HTTPS requests routed by the host Nginx to `127.0.0.1:8081` will receive the same browser Basic Auth challenge.
+The unauthenticated request should return `401`. The host Nginx site for `staging.shopnest.co.il` must proxy to `127.0.0.1:8081` so the public HTTPS path receives the same Basic Auth challenge.
 
 ## Safety notes
 
