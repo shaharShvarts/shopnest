@@ -18,7 +18,7 @@ Create credentials interactively so the password is not written in shell history
 ```bash
 cd /srv/shopnest/dev
 htpasswd -c .htpasswd.dev shopnest
-chmod 600 .htpasswd.dev
+chmod 644 .htpasswd.dev
 ```
 
 For STAGING:
@@ -26,8 +26,10 @@ For STAGING:
 ```bash
 cd /srv/shopnest/staging
 htpasswd -c .htpasswd.staging shopnest
-chmod 600 .htpasswd.staging
+chmod 644 .htpasswd.staging
 ```
+
+The Docker Nginx worker must be able to read the bind-mounted file. Mode `600` on a host-owned file can cause `open() /etc/nginx/.htpasswd failed (13: Permission denied)` and return HTTP 500 after valid credentials. The file contains a password hash, not the plaintext password, and remains ignored by Git.
 
 The two passwords should be different. The `.htpasswd*` files are ignored by Git.
 
