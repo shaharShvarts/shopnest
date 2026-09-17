@@ -4,6 +4,7 @@ import { linkGuestCartToCustomer } from "@/lib/customer-commerce/cart-link";
 import { DrizzleCustomerCartLinkStore } from "@/lib/customer-commerce/drizzle-cart-link";
 import {
   getCustomerSessionCookieOptions,
+  resolveCustomerRequestOrigin,
   shouldUseSecureCustomerCookie,
 } from "@/lib/customer-auth/cookie";
 import {
@@ -28,6 +29,7 @@ import { resolveConfiguredTenant } from "@/lib/tenant";
 
 export async function GET(request: NextRequest) {
   const repository = getCustomerAuthRepository();
+  const redirectOrigin = resolveRedirectOrigin(request);
   const browserBinding = request.cookies.get(GOOGLE_OAUTH_BINDING_COOKIE)?.value ?? null;
   let transaction: Awaited<ReturnType<typeof consumeGoogleOAuthState>>;
   try {
@@ -37,13 +39,13 @@ export async function GET(request: NextRequest) {
     });
   } catch {
     return clearBindingCookie(
-      NextResponse.redirect(new URL("/", request.url)),
+      NextResponse.redirect(new URL("/", redirectOrigin)),
       request
     );
   }
   if (!transaction) {
     return clearBindingCookie(
-      NextResponse.redirect(new URL("/", request.url)),
+      NextResponse.redirect(new URL("/", redirectOrigin)),
       request
     );
   }
@@ -51,14 +53,14 @@ export async function GET(request: NextRequest) {
   const tenant = resolveConfiguredTenant(transaction.tenantSlug);
   if (!tenant) {
     return clearBindingCookie(
-      NextResponse.redirect(new URL("/", request.url)),
+      NextResponse.redirect(new URL("/", redirectOrigin)),
       request
     );
   }
   const fail = (reason: "cancelled" | "failed" | "invalid") =>
     clearBindingCookie(
       NextResponse.redirect(
-        new URL(`${tenant.basePath}/account/login?oauth=${reason}`, request.url)
+        new URL(`${tenant.basePath}/account/login?oauth=${reason}`, redirectOrigin)
       ),
       request
     );
@@ -117,7 +119,7 @@ export async function GET(request: NextRequest) {
       linkResult.adjustments.length > 0
         ? `${tenant.basePath}/carts?merge=adjusted`
         : resolveSafeTenantCallback(transaction.callbackPath, tenant.basePath);
-    const response = NextResponse.redirect(new URL(destination, request.url));
+    const response = NextResponse.redirect(new URL(destination, redirectOrigin));
     response.cookies.set(
       CUSTOMER_SESSION_COOKIE,
       session.token,
@@ -146,6 +148,22 @@ function clearBindingCookie(response: NextResponse, request: NextRequest) {
     maxAge: 0,
   });
   return response;
+}
+
+function resolveRedirectOrigin(request: NextRequest) {
+  try {
+    return resolveCustomerRequestOrigin({
+      origin:
+        request.headers.get("origin") ??
+        (request.headers.get("x-forwarded-proto") ? null : request.nextUrl.origin),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      host: request.headers.get("host"),
+      nodeEnv: process.env.NODE_ENV,
+    });
+  } catch {
+    return request.nextUrl.origin;
+  }
 }
 
 function directRequestOrigin(request: NextRequest) {
