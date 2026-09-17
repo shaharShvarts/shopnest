@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     env_file:
       - .env.dev
     environment:
@@ -51,7 +51,7 @@ services:
         bind:
           create_host_path: false
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     depends_on:
       - web-dev
     networks:
