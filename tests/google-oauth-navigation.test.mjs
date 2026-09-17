@@ -14,3 +14,15 @@ test("Google login uses tenant-scoped native navigation instead of Next Link", a
   assert.doesNotMatch(source, /TenantLink/);
   assert.doesNotMatch(source, /from\s+["']next\/link["']/);
 });
+
+test("Google callback redirects use the external request origin behind reverse proxies", async () => {
+  const source = await readFile(
+    "src/app/api/customer-auth/google/callback/route.ts",
+    "utf8"
+  );
+
+  assert.match(source, /resolveCustomerRequestOrigin/);
+  assert.match(source, /const redirectOrigin = resolveRedirectOrigin\(request\)/);
+  assert.match(source, /new URL\(destination, redirectOrigin\)/);
+  assert.doesNotMatch(source, /new URL\(destination, request\.url\)/);
+});
