@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { TenantLink } from "@/components/TenantLink";
+import { useTenant } from "@/context/TenantContext";
 import { Button } from "@/components/ui/button";
 
 export function GoogleLoginButton({
@@ -12,13 +12,16 @@ export function GoogleLoginButton({
   enabled: boolean;
 }) {
   const t = useTranslations("CustomerAccount");
-  const href = `/account/google/start?callback=${encodeURIComponent(callback)}`;
+  const tenant = useTenant();
+  const href = tenant.path(
+    `/account/google/start?callback=${encodeURIComponent(callback)}`
+  );
 
   return (
     <div className="space-y-3">
       {enabled ? (
         <Button asChild variant="outline" className="min-h-11 w-full">
-          <TenantLink href={href}>{t("continueWithGoogle")}</TenantLink>
+          <a href={href}>{t("continueWithGoogle")}</a>
         </Button>
       ) : (
         <Button
