@@ -30,7 +30,7 @@
     "search:test": "node --experimental-strip-types --test tests/storefront-search.test.mts",
     "storefront-catalog:test": "node --experimental-strip-types --test tests/storefront-catalog.test.mts",
     "customer-auth:test": "node --experimental-strip-types --test tests/customer-auth.test.mts",
-    "google-auth:test": "node --experimental-strip-types --test tests/google-auth.test.mts",
+    "google-auth:test": "node --experimental-strip-types --test tests/google-auth.test.mts tests/google-oauth-navigation.test.mjs",
     "shipping:test": "node --experimental-strip-types --test tests/shipping.test.mts",
     "cli-env:test": "node --test tests/cli-env.test.mjs",
     "database:test": "node --test tests/database-initialization.test.mjs",
