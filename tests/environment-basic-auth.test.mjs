@@ -14,7 +14,7 @@ test("DEV and STAGING nginx require environment-specific basic auth", () => {
   assert.match(staging, /auth_basic_user_file\s+\/etc\/nginx\/\.htpasswd;/);
 });
 
-test("Compose mounts private password files read-only and DEV uploads persist on the host", () => {
+test("Compose mounts private password files read-only, keeps DEV entry points on loopback, and persists DEV uploads", () => {
   const dev = read("docker-compose.dev.yml");
   const staging = read("docker-compose.staging.yml");
 
@@ -22,6 +22,9 @@ test("Compose mounts private password files read-only and DEV uploads persist on
   assert.match(dev, /target:\s+\/etc\/nginx\/\.htpasswd/);
   assert.match(staging, /source:\s+\.\/\.htpasswd\.staging/);
   assert.match(staging, /target:\s+\/etc\/nginx\/\.htpasswd/);
+
+  assert.match(dev, /- "127\.0\.0\.1:3001:3000"/);
+  assert.match(dev, /- "127\.0\.0\.1:8080:80"/);
 
   assert.match(dev, /SHOPNEST_UPLOADS_DIR:\s+\/app\/uploads/);
   assert.match(dev, /- \.\/uploads:\/app\/uploads/);
