@@ -17,8 +17,8 @@ test("merchant migration is additive and keeps phone non-unique", async () => {
   assert.match(sql, /CREATE TABLE "merchant_accounts"/);
   assert.match(sql, /CREATE TABLE "merchant_sessions"/);
   assert.match(sql, /CREATE TABLE "merchant_password_reset_tokens"/);
-  assert.match(sql, /email_normalized[\s\S]*UNIQUE/);
-  assert.doesNotMatch(sql, /UNIQUE[\s\S]*phone_e164|phone_e164[\s\S]*UNIQUE/);
+  assert.match(sql, /CONSTRAINT "merchant_accounts_email_normalized_unique" UNIQUE\("email_normalized"\)/);
+  assert.doesNotMatch(sql, /UNIQUE\s*\(\s*"phone_e164"\s*\)|UNIQUE INDEX[^\n]*phone_e164/i);
   assert.doesNotMatch(sql, /DROP TABLE|TRUNCATE|DELETE FROM/);
   assert.match(sql, /merchant_sessions[\s\S]*REFERENCES "public"\."merchant_accounts"\("id"\) ON DELETE cascade/);
   assert.match(sql, /merchant_password_reset_tokens[\s\S]*REFERENCES "public"\."merchant_accounts"\("id"\) ON DELETE cascade/);
@@ -29,7 +29,7 @@ test("merchant schema keeps phone nullable and email normalized unique", async (
   const account = await readFile("src/drizzle/control-schema/merchantAccount.ts", "utf8");
   assert.match(account, /emailNormalized:[\s\S]*\.notNull\(\)[\s\S]*\.unique\(\)/);
   assert.match(account, /phoneE164: varchar\("phone_e164"/);
-  assert.doesNotMatch(account, /phoneE164:[\s\S]{0,120}\.unique\(\)/);
+  assert.doesNotMatch(account, /phoneE164:[^;]*\.unique\(\)/);
 });
 
 import {
