@@ -43,6 +43,13 @@
       "when": 1789693200000,
       "tag": "0005_customer_avatar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790270400000,
+      "tag": "0006_merchant_identity",
+      "breakpoints": true
     }
   ]
 }
