@@ -9,6 +9,7 @@ export const customerAccounts = pgTable("customer_accounts", {
     .unique(),
   passwordHash: varchar("password_hash", { length: 255 }),
   displayName: varchar("display_name", { length: 160 }),
+  avatarUrl: varchar("avatar_url", { length: 2048 }),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   status: customerStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true })
