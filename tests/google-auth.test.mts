@@ -378,6 +378,20 @@ test("Google login issues a standard ShopNest session, not a Google token", asyn
   assert.equal(repository.sessions.has(hashCustomerSessionToken(session.token)), true);
 });
 
+test("storefront account button renders the verified Google avatar with an icon fallback", async () => {
+  const [layout, migration] = await Promise.all([
+    readFile("src/app/[tenant]/(storefront)/layout.tsx", "utf8"),
+    readFile(
+      "src/drizzle/control-migrations/0005_customer_avatar.sql",
+      "utf8"
+    ),
+  ]);
+  assert.match(layout, /customer\?\.avatarUrl[\s\S]*<img[\s\S]*src=\{customer\.avatarUrl\}/);
+  assert.match(layout, /referrerPolicy="no-referrer"/);
+  assert.match(layout, /<UserRound aria-hidden="true" \/>/);
+  assert.match(migration, /customer_accounts[\s\S]*avatar_url/);
+});
+
 test("callback uses trusted transaction tenant and reuses tenant-local cart linking", async () => {
   const [callback, start, oidc, login, english, hebrew] = await Promise.all([
     readFile("src/app/api/customer-auth/google/callback/route.ts", "utf8"),
