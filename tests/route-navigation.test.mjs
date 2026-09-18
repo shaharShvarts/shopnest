@@ -33,7 +33,10 @@ test("every storefront/admin route retains its tenant; tenantless storefronts an
     assert.equal(routing.prefixTenantPath(path || "/", "/panda-pop"), `/panda-pop${path}`);
     assert.equal(routing.resolveTenantRoute(`/unknown${path}`).kind, "not-found");
   }
-  for (const path of storefront.filter(Boolean)) assert.equal(routing.resolveTenantRoute(path).kind, "not-found");
+  for (const path of storefront.filter(Boolean)) {
+    const expected = platform.includes(path) ? "legacy" : "not-found";
+    assert.equal(routing.resolveTenantRoute(path).kind, expected);
+  }
   for (const path of ["/products", "/shopnest/admin", "/api/cart/add", "/api/subcategories", "/api/reservations", "/media/products/a.png"]) {
     assert.equal(routing.resolveTenantRoute(path).kind, "not-found");
   }
