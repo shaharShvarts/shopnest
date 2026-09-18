@@ -22,3 +22,7 @@ export const customerAuthProviderEnum = pgEnum(
   "customer_auth_provider",
   customerAuthProviders
 );
+
+export const merchantStatuses = ["active", "disabled"] as const;
+export type MerchantStatus = (typeof merchantStatuses)[number];
+export const merchantStatusEnum = pgEnum("merchant_status", merchantStatuses);

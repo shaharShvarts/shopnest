@@ -152,6 +152,28 @@ test("route and mutation boundaries enforce server authorization and trusted sch
   assert.doesNotMatch(root, /getCurrentAdminSession|authorizeSuperAdmin|redirect\(["']\/admin/);
 });
 
+test("merchant auth migration is additive and control-plane only", async () => {
+  const sql = await readFile("src/drizzle/control-migrations/0006_merchant_identity.sql", "utf8");
+  assert.match(sql, /CREATE TYPE "public"\."merchant_status" AS ENUM\('active', 'disabled'\)/);
+  assert.match(sql, /CREATE TABLE "merchant_accounts"/);
+  assert.match(sql, /CREATE TABLE "merchant_sessions"/);
+  assert.match(sql, /CREATE TABLE "merchant_password_reset_tokens"/);
+  assert.doesNotMatch(sql, /DROP TABLE|DELETE FROM|TRUNCATE|search_path|tenant_/);
+});
+
+test("merchant migration is registered in the Drizzle journal", async () => {
+  const journal = JSON.parse(
+    await readFile("src/drizzle/control-migrations/meta/_journal.json", "utf8")
+  );
+  const entry = journal.entries.find(
+    (candidate: { tag?: string }) => candidate.tag === "0006_merchant_identity"
+  );
+  assert.ok(entry);
+  assert.equal(entry.idx, 6);
+  assert.equal(entry.version, "7");
+  assert.equal(entry.breakpoints, true);
+});
+
 function store(slug: string, schemaName: string, displayName: string): ControlPlaneStore {
   return {
     id: 1,

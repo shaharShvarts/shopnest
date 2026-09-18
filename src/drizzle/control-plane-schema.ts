@@ -9,3 +9,6 @@ export * from "@/drizzle/control-schema/customerAuthIdentity";
 export * from "@/drizzle/control-schema/customerSession";
 export * from "@/drizzle/control-schema/customerPasswordReset";
 export * from "@/drizzle/control-schema/customerOAuthTransaction";
+export * from "@/drizzle/control-schema/merchantAccount";
+export * from "@/drizzle/control-schema/merchantSession";
+export * from "@/drizzle/control-schema/merchantPasswordReset";

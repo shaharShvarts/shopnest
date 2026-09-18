@@ -43,8 +43,11 @@ permission to perform every mutation reachable from it.
 | `/pricing` | Platform | None | 200 public plan overview; no billing implementation |
 | `/examples` | Platform | None | 200 public sample-store directory |
 | `/faq` | Platform | None | 200 public merchant acquisition FAQ |
-| `/login` | Platform | None | 200 merchant-login placeholder; no merchant auth yet |
-| `/signup` | Platform | None | 200 merchant-signup placeholder; no account creation yet |
+| `/login` | Platform | None | 200 merchant sign-in; authenticated merchants redirect to `/dashboard` |
+| `/signup` | Platform | None | 200 merchant registration; successful signup creates only a merchant account/session and redirects to `/dashboard` |
+| `/forgot-password` | Platform | None | 200 merchant password-reset request; submission is non-enumerating |
+| `/reset-password` | Platform | Valid one-use reset token required to change password | 200 reset form or invalid-link state; successful reset invalidates merchant sessions |
+| `/dashboard` | Platform | Active merchant session | 200 merchant workspace; anonymous/expired/disabled sessions redirect to `/login` |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |
@@ -97,8 +100,9 @@ permission to perform every mutation reachable from it.
 
 Framework `/_next/*`, favicon and root public assets are not application pages.
 Root commerce aliases (`/categories`, `/carts`, `/checkout`, `/products`, `/account`,
-`/search`, `/shipping`, `/privacy-policy`, password routes and nested variants)
-return 404 before a storefront shell renders. Root commerce APIs and root media
+`/search`, `/shipping`, `/privacy-policy` and nested variants) return 404 before a
+storefront shell renders. Root `/forgot-password` and `/reset-password` are now
+global merchant-auth routes; tenant-prefixed password routes remain customer-auth routes. Root commerce APIs and root media
 also return 404. `/shopnest/admin/*` remains absent. The nonexistent tenant
 `/admin/users` navigation item was removed. Tenant-prefixed global OAuth callback
 and retired-payment aliases are rejected; use their canonical global URLs.

@@ -11,6 +11,9 @@ export const LEGACY_ROUTE_SEGMENTS = new Set([
   "faq",
   "login",
   "signup",
+  "forgot-password",
+  "reset-password",
+  "dashboard",
 ]);
 
 const GLOBAL_API_PATHS = new Set([
