@@ -100,8 +100,9 @@ permission to perform every mutation reachable from it.
 
 Framework `/_next/*`, favicon and root public assets are not application pages.
 Root commerce aliases (`/categories`, `/carts`, `/checkout`, `/products`, `/account`,
-`/search`, `/shipping`, `/privacy-policy`, password routes and nested variants)
-return 404 before a storefront shell renders. Root commerce APIs and root media
+`/search`, `/shipping`, `/privacy-policy` and nested variants) return 404 before a
+storefront shell renders. Root `/forgot-password` and `/reset-password` are now
+global merchant-auth routes; tenant-prefixed password routes remain customer-auth routes. Root commerce APIs and root media
 also return 404. `/shopnest/admin/*` remains absent. The nonexistent tenant
 `/admin/users` navigation item was removed. Tenant-prefixed global OAuth callback
 and retired-payment aliases are rejected; use their canonical global URLs.
