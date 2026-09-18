@@ -256,6 +256,7 @@ test("verified Google token claims are accepted", () => {
       email: "customer@example.com",
       emailNormalized: "customer@example.com",
       displayName: "Google Customer",
+      avatarUrl: "https://lh3.googleusercontent.com/a/test-avatar",
     }
   );
 });
@@ -284,6 +285,29 @@ for (const [name, change] of [
     );
   });
 }
+
+test("Google profile picture is accepted only as a safe HTTPS URL", () => {
+  const nonce = "expected-nonce";
+  const accepted = validateGoogleIdTokenClaims(validClaims(nonce), {
+    clientId: configuration.clientId,
+    nonceHash: hashGoogleOAuthSecret(nonce),
+    now,
+  });
+  assert.equal(
+    accepted.avatarUrl,
+    "https://lh3.googleusercontent.com/a/test-avatar"
+  );
+
+  const unsafe = validateGoogleIdTokenClaims(
+    { ...validClaims(nonce), picture: "javascript:alert(1)" },
+    {
+      clientId: configuration.clientId,
+      nonceHash: hashGoogleOAuthSecret(nonce),
+      now,
+    }
+  );
+  assert.equal(unsafe.avatarUrl, null);
+});
 
 test("new Google identity creates one global customer and links provider once", async () => {
   const repository = new FakeGoogleRepository();
@@ -354,6 +378,20 @@ test("Google login issues a standard ShopNest session, not a Google token", asyn
   assert.equal(repository.sessions.has(hashCustomerSessionToken(session.token)), true);
 });
 
+test("storefront account button renders the verified Google avatar with an icon fallback", async () => {
+  const [layout, migration] = await Promise.all([
+    readFile("src/app/[tenant]/(storefront)/layout.tsx", "utf8"),
+    readFile(
+      "src/drizzle/control-migrations/0005_customer_avatar.sql",
+      "utf8"
+    ),
+  ]);
+  assert.match(layout, /customer\?\.avatarUrl[\s\S]*<img[\s\S]*src=\{customer\.avatarUrl\}/);
+  assert.match(layout, /referrerPolicy="no-referrer"/);
+  assert.match(layout, /<UserRound aria-hidden="true" \/>/);
+  assert.match(migration, /customer_accounts[\s\S]*avatar_url/);
+});
+
 test("callback uses trusted transaction tenant and reuses tenant-local cart linking", async () => {
   const [callback, start, oidc, login, english, hebrew] = await Promise.all([
     readFile("src/app/api/customer-auth/google/callback/route.ts", "utf8"),
@@ -407,6 +445,7 @@ function validClaims(nonce: string) {
     email: " Customer@Example.COM ",
     email_verified: true,
     name: " Google Customer ",
+    picture: "https://lh3.googleusercontent.com/a/test-avatar",
   };
 }
 
@@ -416,6 +455,7 @@ function googleIdentity() {
     email: "customer@example.com",
     emailNormalized: "customer@example.com",
     displayName: "Google Customer",
+    avatarUrl: "https://lh3.googleusercontent.com/a/test-avatar",
     verifiedAt: now,
   };
 }
@@ -498,12 +538,15 @@ class FakeGoogleRepository implements GoogleOAuthRepository {
           customer = this.addCustomer({
             email: input.email,
             displayName: input.displayName,
+            avatarUrl: input.avatarUrl,
           });
         }
         const conflictingId = this.identities.get(input.subject);
         if (conflictingId && conflictingId !== customer.id) {
           throw new Error("google_identity_conflict");
         }
+        customer.displayName = input.displayName ?? customer.displayName;
+        customer.avatarUrl = input.avatarUrl;
         this.identities.set(input.subject, customer.id);
         return customer;
       } finally {
@@ -516,6 +559,7 @@ class FakeGoogleRepository implements GoogleOAuthRepository {
     email: string;
     passwordHash?: string | null;
     displayName?: string | null;
+    avatarUrl?: string | null;
     status?: "active" | "disabled";
   }) {
     const customer: CustomerRecord = {
@@ -524,6 +568,7 @@ class FakeGoogleRepository implements GoogleOAuthRepository {
       emailNormalized: input.email.toLowerCase(),
       passwordHash: input.passwordHash ?? null,
       displayName: input.displayName ?? null,
+      avatarUrl: input.avatarUrl ?? null,
       status: input.status ?? "active",
     };
     this.customers.set(customer.id, customer);

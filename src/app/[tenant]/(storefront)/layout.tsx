@@ -86,7 +86,17 @@ export default async function HomeLayout({
               title={customer ? accountT("myAccount") : accountT("signIn")}
               className="flex size-11 shrink-0 items-center justify-center rounded-xl text-gray-700 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <UserRound aria-hidden="true" />
+              {customer?.avatarUrl ? (
+                <img
+                  src={customer.avatarUrl}
+                  alt=""
+                  aria-hidden="true"
+                  referrerPolicy="no-referrer"
+                  className="size-9 rounded-full object-cover"
+                />
+              ) : (
+                <UserRound aria-hidden="true" />
+              )}
             </Link>
             {customer && (
               <form action={logoutCustomerAction} className="hidden lg:block">

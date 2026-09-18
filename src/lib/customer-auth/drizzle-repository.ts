@@ -24,6 +24,7 @@ const customerSelection = {
   emailNormalized: customerAccounts.emailNormalized,
   passwordHash: customerAccounts.passwordHash,
   displayName: customerAccounts.displayName,
+  avatarUrl: customerAccounts.avatarUrl,
   status: customerAccounts.status,
 };
 
@@ -78,6 +79,7 @@ export class DrizzleCustomerAuthRepository
         id: customerAccounts.id,
         email: customerAccounts.email,
         displayName: customerAccounts.displayName,
+        avatarUrl: customerAccounts.avatarUrl,
         status: customerAccounts.status,
       })
       .from(customerSessions)
@@ -95,6 +97,7 @@ export class DrizzleCustomerAuthRepository
         id: row.id,
         email: row.email,
         displayName: row.displayName,
+        avatarUrl: row.avatarUrl,
         status: row.status,
       },
     };
@@ -158,6 +161,7 @@ export class DrizzleCustomerAuthRepository
     email: string;
     emailNormalized: string;
     displayName: string | null;
+    avatarUrl: string | null;
     verifiedAt: Date;
   }): Promise<CustomerRecord> {
     return getControlPlaneDb().transaction(async (tx) => {
@@ -180,7 +184,20 @@ export class DrizzleCustomerAuthRepository
           .update(customerAuthIdentities)
           .set({ providerEmail: input.emailNormalized, updatedAt: input.verifiedAt })
           .where(eq(customerAuthIdentities.id, existingIdentity.identityId));
-        return existingIdentity.customer;
+        const displayName = input.displayName ?? existingIdentity.customer.displayName;
+        await tx
+          .update(customerAccounts)
+          .set({
+            displayName,
+            avatarUrl: input.avatarUrl,
+            updatedAt: input.verifiedAt,
+          })
+          .where(eq(customerAccounts.id, existingIdentity.customer.id));
+        return {
+          ...existingIdentity.customer,
+          displayName,
+          avatarUrl: input.avatarUrl,
+        };
       }
 
       let [customer] = await tx
@@ -200,6 +217,7 @@ export class DrizzleCustomerAuthRepository
             email: input.email,
             emailNormalized: input.emailNormalized,
             displayName: input.displayName,
+            avatarUrl: input.avatarUrl,
             emailVerifiedAt: input.verifiedAt,
           })
           .onConflictDoNothing({ target: customerAccounts.emailNormalized })
@@ -243,13 +261,21 @@ export class DrizzleCustomerAuthRepository
       if (!linkedIdentity || linkedIdentity.customer.id !== customer.id) {
         throw new Error("google_identity_conflict");
       }
-      if (!customer.emailVerifiedAt) {
-        await tx
-          .update(customerAccounts)
-          .set({ emailVerifiedAt: input.verifiedAt, updatedAt: input.verifiedAt })
-          .where(eq(customerAccounts.id, customer.id));
-      }
-      return linkedIdentity.customer;
+      const displayName = input.displayName ?? linkedIdentity.customer.displayName;
+      await tx
+        .update(customerAccounts)
+        .set({
+          displayName,
+          avatarUrl: input.avatarUrl,
+          emailVerifiedAt: customer.emailVerifiedAt ?? input.verifiedAt,
+          updatedAt: input.verifiedAt,
+        })
+        .where(eq(customerAccounts.id, customer.id));
+      return {
+        ...linkedIdentity.customer,
+        displayName,
+        avatarUrl: input.avatarUrl,
+      };
     });
   }
 
@@ -456,6 +482,7 @@ async function findGoogleIdentity(
       emailNormalized: row.emailNormalized,
       passwordHash: row.passwordHash,
       displayName: row.displayName,
+      avatarUrl: row.avatarUrl,
       status: row.status,
     },
   };

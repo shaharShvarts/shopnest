@@ -41,6 +41,7 @@ export type VerifiedGoogleIdentity = {
   email: string;
   emailNormalized: string;
   displayName: string | null;
+  avatarUrl: string | null;
 };
 
 export interface GoogleOAuthRepository {
@@ -65,6 +66,7 @@ export interface GoogleOAuthRepository {
     email: string;
     emailNormalized: string;
     displayName: string | null;
+    avatarUrl: string | null;
     verifiedAt: Date;
   }): Promise<CustomerRecord>;
 }
@@ -224,11 +226,13 @@ export function validateGoogleIdTokenClaims(
     typeof claims.name === "string" && claims.name.trim()
       ? claims.name.trim().slice(0, 160)
       : null;
+  const avatarUrl = resolveGoogleAvatarUrl(claims.picture);
   return {
     subject: claims.sub,
     email: emailNormalized,
     emailNormalized,
     displayName,
+    avatarUrl,
   };
 }
 
@@ -273,4 +277,15 @@ function randomSecret(bytes: number) {
 function safeHashEquals(left: string, right: string) {
   if (left.length !== right.length) return false;
   return timingSafeEqual(Buffer.from(left), Buffer.from(right));
+}
+
+function resolveGoogleAvatarUrl(value: unknown) {
+  if (typeof value !== "string" || !value || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
