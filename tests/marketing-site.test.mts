@@ -35,3 +35,37 @@ test("marketing CTAs target public acquisition routes", async () => {
   assert.match(source, /href="\/examples"/);
   assert.match(source, /min-h-11/);
 });
+
+test("homepage composes every acquisition section", async () => {
+  const source = await read("src/app/page.tsx");
+  for (const name of [
+    "MarketingHeader",
+    "HeroSection",
+    "WhyShopNestSection",
+    "CapabilitiesSection",
+    "HowItWorksSection",
+    "PricingPreview",
+    "DemoStoresSection",
+    "FaqSection",
+    "FinalCtaSection",
+    "MarketingFooter",
+  ]) {
+    assert.match(source, new RegExp(name));
+  }
+});
+
+test("public informational routes are present and placeholders stay non-functional", async () => {
+  const paths = [
+    "src/app/(marketing)/features/page.tsx",
+    "src/app/(marketing)/pricing/page.tsx",
+    "src/app/(marketing)/examples/page.tsx",
+    "src/app/(marketing)/faq/page.tsx",
+    "src/app/(marketing)/login/page.tsx",
+    "src/app/(marketing)/signup/page.tsx",
+  ];
+  const sources = await Promise.all(paths.map(read));
+  for (const source of sources) assert.match(source, /href="\/"/);
+  for (const source of sources.slice(-2)) {
+    assert.doesNotMatch(source, /<form|action=|use server|password|@\/drizzle\/db|OAuth/i);
+  }
+});
