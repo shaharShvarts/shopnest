@@ -256,6 +256,7 @@ test("verified Google token claims are accepted", () => {
       email: "customer@example.com",
       emailNormalized: "customer@example.com",
       displayName: "Google Customer",
+      avatarUrl: "https://lh3.googleusercontent.com/a/test-avatar",
     }
   );
 });
@@ -284,6 +285,29 @@ for (const [name, change] of [
     );
   });
 }
+
+test("Google profile picture is accepted only as a safe HTTPS URL", () => {
+  const nonce = "expected-nonce";
+  const accepted = validateGoogleIdTokenClaims(validClaims(nonce), {
+    clientId: configuration.clientId,
+    nonceHash: hashGoogleOAuthSecret(nonce),
+    now,
+  });
+  assert.equal(
+    accepted.avatarUrl,
+    "https://lh3.googleusercontent.com/a/test-avatar"
+  );
+
+  const unsafe = validateGoogleIdTokenClaims(
+    { ...validClaims(nonce), picture: "javascript:alert(1)" },
+    {
+      clientId: configuration.clientId,
+      nonceHash: hashGoogleOAuthSecret(nonce),
+      now,
+    }
+  );
+  assert.equal(unsafe.avatarUrl, null);
+});
 
 test("new Google identity creates one global customer and links provider once", async () => {
   const repository = new FakeGoogleRepository();
@@ -407,6 +431,7 @@ function validClaims(nonce: string) {
     email: " Customer@Example.COM ",
     email_verified: true,
     name: " Google Customer ",
+    picture: "https://lh3.googleusercontent.com/a/test-avatar",
   };
 }
 
@@ -416,6 +441,7 @@ function googleIdentity() {
     email: "customer@example.com",
     emailNormalized: "customer@example.com",
     displayName: "Google Customer",
+    avatarUrl: "https://lh3.googleusercontent.com/a/test-avatar",
     verifiedAt: now,
   };
 }
@@ -498,12 +524,15 @@ class FakeGoogleRepository implements GoogleOAuthRepository {
           customer = this.addCustomer({
             email: input.email,
             displayName: input.displayName,
+            avatarUrl: input.avatarUrl,
           });
         }
         const conflictingId = this.identities.get(input.subject);
         if (conflictingId && conflictingId !== customer.id) {
           throw new Error("google_identity_conflict");
         }
+        customer.displayName = input.displayName ?? customer.displayName;
+        customer.avatarUrl = input.avatarUrl;
         this.identities.set(input.subject, customer.id);
         return customer;
       } finally {
@@ -516,6 +545,7 @@ class FakeGoogleRepository implements GoogleOAuthRepository {
     email: string;
     passwordHash?: string | null;
     displayName?: string | null;
+    avatarUrl?: string | null;
     status?: "active" | "disabled";
   }) {
     const customer: CustomerRecord = {
@@ -524,6 +554,7 @@ class FakeGoogleRepository implements GoogleOAuthRepository {
       emailNormalized: input.email.toLowerCase(),
       passwordHash: input.passwordHash ?? null,
       displayName: input.displayName ?? null,
+      avatarUrl: input.avatarUrl ?? null,
       status: input.status ?? "active",
     };
     this.customers.set(customer.id, customer);
