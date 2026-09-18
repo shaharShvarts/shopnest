@@ -8,7 +8,7 @@ import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 
 const storefront = ["", "/categories", "/categories/1/products", "/categories/1/subcategories/2", "/products/1/details", "/carts", "/checkout", "/checkout/payment/123", "/account", "/account/login", "/account/register", "/account/orders", "/account/orders/1", "/forgot-password", "/reset-password", "/search", "/shipping", "/privacy-policy"];
 const tenantAdmin = ["", "/login", "/categories", "/categories/new", "/categories/1/edit", "/subcategories", "/subcategories/new", "/subcategories/1/edit", "/products", "/products/new", "/products/1/edit", "/orders", "/orders/1", "/payments", "/shipping", "/shipping/new", "/shipping/1/edit"].map(path => `/admin${path}`);
-const platform = ["/", "/features", "/pricing", "/examples", "/faq", "/login", "/signup", "/admin", "/admin/login", "/admin/stores", "/admin/stores/panda-pop", "/admin/plans", "/admin/featured"];
+const platform = ["/", "/features", "/pricing", "/examples", "/faq", "/login", "/signup", "/forgot-password", "/reset-password", "/dashboard", "/admin", "/admin/login", "/admin/stores", "/admin/stores/panda-pop", "/admin/plans", "/admin/featured"];
 const jsx = { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
 function load(file, dependencies) {
   const { outputText } = ts.transpileModule(readFileSync(new URL(file, import.meta.url), "utf8"), {
