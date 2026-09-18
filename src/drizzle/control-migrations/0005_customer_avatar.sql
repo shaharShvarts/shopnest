@@ -1,0 +1,1 @@
+ALTER TABLE "customer_accounts" ADD COLUMN "avatar_url" varchar(2048);
