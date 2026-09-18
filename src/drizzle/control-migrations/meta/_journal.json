@@ -47,7 +47,7 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1790270400000,
+      "when": 1789762200000,
       "tag": "0006_merchant_identity",
       "breakpoints": true
     }
