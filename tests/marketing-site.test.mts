@@ -54,20 +54,25 @@ test("homepage composes every acquisition section", async () => {
   }
 });
 
-test("public informational routes are present and placeholders stay non-functional", async () => {
-  const paths = [
-    "src/app/(marketing)/features/page.tsx",
-    "src/app/(marketing)/pricing/page.tsx",
-    "src/app/(marketing)/examples/page.tsx",
-    "src/app/(marketing)/faq/page.tsx",
-    "src/app/(marketing)/login/page.tsx",
-    "src/app/(marketing)/signup/page.tsx",
-  ];
-  const sources = await Promise.all(paths.map(read));
-  for (const source of sources) assert.match(source, /href="\/"/);
-  for (const source of sources.slice(-2)) {
-    assert.doesNotMatch(source, /<form|action=|use server|password|@\/drizzle\/db|OAuth/i);
-  }
+test("public informational routes remain tenantless while merchant auth routes are functional", async () => {
+  const informational = await Promise.all([
+    read("src/app/(marketing)/features/page.tsx"),
+    read("src/app/(marketing)/pricing/page.tsx"),
+    read("src/app/(marketing)/examples/page.tsx"),
+    read("src/app/(marketing)/faq/page.tsx"),
+  ]);
+  for (const source of informational) assert.match(source, /href="\/"/);
+
+  const [login, signup] = await Promise.all([
+    read("src/app/(marketing)/login/page.tsx"),
+    read("src/app/(marketing)/signup/page.tsx"),
+  ]);
+  assert.match(login, /MerchantLoginForm/);
+  assert.match(signup, /MerchantSignupForm/);
+  assert.doesNotMatch(
+    login + signup,
+    /@\/drizzle\/db|@\/lib\/tenant-context|TenantLink|getDbForTenant|getTenant\(/
+  );
 });
 
 test("marketing surface is RTL-safe, responsive and CSS-driven", async () => {
