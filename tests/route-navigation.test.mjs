@@ -113,7 +113,20 @@ test("provider has no tenantless fallback and tenant layout validates context ag
 });
 
 test("platform page needs no tenant or database and global links never use TenantLink", () => {
-  const { default: home } = load("../src/app/page.tsx", { "react/jsx-runtime": jsx, "next/link": { default: "Link" } });
+  const { default: home } = load("../src/app/page.tsx", {
+    "react/jsx-runtime": jsx,
+    "next/link": { default: "Link" },
+    "./(marketing)/_components/CapabilitiesSection": { CapabilitiesSection: "CapabilitiesSection" },
+    "./(marketing)/_components/DemoStoresSection": { DemoStoresSection: "DemoStoresSection" },
+    "./(marketing)/_components/FaqSection": { FaqSection: "FaqSection" },
+    "./(marketing)/_components/FinalCtaSection": { FinalCtaSection: "FinalCtaSection" },
+    "./(marketing)/_components/HeroSection": { HeroSection: "HeroSection" },
+    "./(marketing)/_components/HowItWorksSection": { HowItWorksSection: "HowItWorksSection" },
+    "./(marketing)/_components/MarketingFooter": { MarketingFooter: "MarketingFooter" },
+    "./(marketing)/_components/MarketingHeader": { MarketingHeader: "MarketingHeader" },
+    "./(marketing)/_components/PricingPreview": { PricingPreview: "PricingPreview" },
+    "./(marketing)/_components/WhyShopNestSection": { WhyShopNestSection: "WhyShopNestSection" },
+  });
   assert.ok(home());
   const rootLayout = readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(rootLayout, /TenantProvider|getTenant/);
