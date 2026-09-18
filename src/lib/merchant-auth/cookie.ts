@@ -36,6 +36,40 @@ export function getMerchantSessionCookieOptions(
   };
 }
 
+export function resolveMerchantRequestOrigin(input: {
+  origin: string | null;
+  forwardedProto: string | null;
+  forwardedHost: string | null;
+  host: string | null;
+  nodeEnv: string | undefined;
+}) {
+  if (input.origin) {
+    try {
+      const parsed = new URL(input.origin);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.origin;
+      }
+    } catch {
+      // Fall through to proxy headers.
+    }
+  }
+
+  const host = firstForwardedValue(input.forwardedHost) || input.host;
+  if (!host || /[\s/\\]/.test(host)) {
+    throw new Error("Unable to determine a safe merchant-auth origin");
+  }
+
+  const forwardedProtocol = firstForwardedValue(input.forwardedProto);
+  const protocol =
+    forwardedProtocol === "http" || forwardedProtocol === "https"
+      ? forwardedProtocol
+      : input.nodeEnv === "production"
+        ? "https"
+        : "http";
+
+  return new URL(`${protocol}://${host}`).origin;
+}
+
 function firstForwardedValue(value: string | null) {
   return value?.split(",", 1)[0]?.trim().toLowerCase() ?? null;
 }
