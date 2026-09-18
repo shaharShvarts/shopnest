@@ -1,17 +1,23 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { getCurrentMerchant } from "@/lib/merchant-auth/server";
 import { MarketingFooter } from "../_components/MarketingFooter";
 import { MarketingHeader } from "../_components/MarketingHeader";
+import { MerchantSignupForm } from "../_components/MerchantAuthForms";
 
 export default async function Page() {
-  const t = await getTranslations("Marketing");
+  if (await getCurrentMerchant()) redirect("/dashboard");
+  const t = await getTranslations("MerchantAuth");
+
   return (
     <>
       <MarketingHeader />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-16 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold tracking-tight">{t("placeholders.signupTitle")}</h1>
-        <p className="mt-4 max-w-2xl text-muted-foreground">{t("placeholders.signupText")}</p>
-        <Link href="/" className="mt-8 inline-flex min-h-11 items-center font-semibold">{t("placeholders.backHome")}</Link>
+      <main className="mx-auto w-full max-w-md flex-1 px-4 py-12 sm:px-6 sm:py-16">
+        <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
+          <h1 className="text-3xl font-bold tracking-tight">{t("createAccount")}</h1>
+          <p className="mb-6 mt-2 text-sm text-muted-foreground">{t("signupDetail")}</p>
+          <MerchantSignupForm />
+        </section>
       </main>
       <MarketingFooter />
     </>
