@@ -18,12 +18,13 @@ export type CustomerRecord = {
   emailNormalized: string;
   passwordHash: string | null;
   displayName: string | null;
+  avatarUrl?: string | null;
   status: CustomerStatus;
 };
 
 export type CustomerPrincipal = Pick<
   CustomerRecord,
-  "id" | "email" | "displayName" | "status"
+  "id" | "email" | "displayName" | "avatarUrl" | "status"
 >;
 
 export type StoredCustomerSession = {
