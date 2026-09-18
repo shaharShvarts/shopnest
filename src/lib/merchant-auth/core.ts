@@ -38,6 +38,13 @@ export type MerchantPasswordResetRecipient = {
   email: string;
 };
 
+export interface MerchantPasswordResetDelivery {
+  deliverPasswordReset(input: {
+    email: string;
+    resetUrl: string;
+  }): Promise<void>;
+}
+
 export interface MerchantAuthRepository {
   findMerchantByNormalizedEmail(email: string): Promise<MerchantRecord | null>;
   createMerchantWithPassword(input: {
@@ -166,5 +173,59 @@ export async function logoutMerchant(
 }
 
 export function hashMerchantSessionToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export async function requestMerchantPasswordReset(
+  repository: MerchantAuthRepository,
+  delivery: MerchantPasswordResetDelivery,
+  input: {
+    email: string;
+    buildResetUrl: (token: string) => string;
+    now?: Date;
+  }
+) {
+  const now = input.now ?? new Date();
+  const token = generateMerchantPasswordResetToken();
+  const tokenHash = hashMerchantPasswordResetToken(token);
+  const recipient = await repository.issuePasswordResetToken({
+    emailNormalized: normalizeMerchantEmail(input.email),
+    tokenHash,
+    expiresAt: new Date(now.getTime() + MERCHANT_PASSWORD_RESET_TTL_MS),
+    now,
+  });
+
+  if (recipient) {
+    try {
+      await delivery.deliverPasswordReset({
+        email: recipient.email,
+        resetUrl: input.buildResetUrl(token),
+      });
+    } catch {
+      // Delivery failures must not disclose whether the account exists.
+    }
+  }
+
+  return { accepted: true as const };
+}
+
+export async function resetMerchantPassword(
+  repository: MerchantAuthRepository,
+  input: { token: string; password: string; now?: Date }
+) {
+  if (input.password.length < MERCHANT_PASSWORD_MIN_LENGTH) return false;
+  const passwordHash = await hashMerchantPassword(input.password);
+  return repository.consumePasswordResetToken({
+    tokenHash: hashMerchantPasswordResetToken(input.token),
+    passwordHash,
+    now: input.now ?? new Date(),
+  });
+}
+
+export function generateMerchantPasswordResetToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashMerchantPasswordResetToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
