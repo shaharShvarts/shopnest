@@ -72,3 +72,14 @@ test("merchant dashboard is protected by merchant auth only", async () => {
     /getTenant\(|getDbForTenant|TenantLink|getCurrentCustomer|getCurrentAdminSession/
   );
 });
+
+test("merchant auth translations stay aligned", async () => {
+  const [en, he] = await Promise.all([
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+  assert.deepEqual(
+    Object.keys(en.MerchantAuth).sort(),
+    Object.keys(he.MerchantAuth).sort()
+  );
+});
