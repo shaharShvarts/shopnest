@@ -8,7 +8,7 @@ import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 
 const storefront = ["", "/categories", "/categories/1/products", "/categories/1/subcategories/2", "/products/1/details", "/carts", "/checkout", "/checkout/payment/123", "/account", "/account/login", "/account/register", "/account/orders", "/account/orders/1", "/forgot-password", "/reset-password", "/search", "/shipping", "/privacy-policy"];
 const tenantAdmin = ["", "/login", "/categories", "/categories/new", "/categories/1/edit", "/subcategories", "/subcategories/new", "/subcategories/1/edit", "/products", "/products/new", "/products/1/edit", "/orders", "/orders/1", "/payments", "/shipping", "/shipping/new", "/shipping/1/edit"].map(path => `/admin${path}`);
-const platform = ["/", "/admin", "/admin/login", "/admin/stores", "/admin/stores/panda-pop", "/admin/plans", "/admin/featured"];
+const platform = ["/", "/features", "/pricing", "/examples", "/faq", "/login", "/signup", "/admin", "/admin/login", "/admin/stores", "/admin/stores/panda-pop", "/admin/plans", "/admin/featured"];
 const jsx = { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
 function load(file, dependencies) {
   const { outputText } = ts.transpileModule(readFileSync(new URL(file, import.meta.url), "utf8"), {
@@ -113,7 +113,20 @@ test("provider has no tenantless fallback and tenant layout validates context ag
 });
 
 test("platform page needs no tenant or database and global links never use TenantLink", () => {
-  const { default: home } = load("../src/app/page.tsx", { "react/jsx-runtime": jsx, "next/link": { default: "Link" } });
+  const { default: home } = load("../src/app/page.tsx", {
+    "react/jsx-runtime": jsx,
+    "next/link": { default: "Link" },
+    "./(marketing)/_components/CapabilitiesSection": { CapabilitiesSection: "CapabilitiesSection" },
+    "./(marketing)/_components/DemoStoresSection": { DemoStoresSection: "DemoStoresSection" },
+    "./(marketing)/_components/FaqSection": { FaqSection: "FaqSection" },
+    "./(marketing)/_components/FinalCtaSection": { FinalCtaSection: "FinalCtaSection" },
+    "./(marketing)/_components/HeroSection": { HeroSection: "HeroSection" },
+    "./(marketing)/_components/HowItWorksSection": { HowItWorksSection: "HowItWorksSection" },
+    "./(marketing)/_components/MarketingFooter": { MarketingFooter: "MarketingFooter" },
+    "./(marketing)/_components/MarketingHeader": { MarketingHeader: "MarketingHeader" },
+    "./(marketing)/_components/PricingPreview": { PricingPreview: "PricingPreview" },
+    "./(marketing)/_components/WhyShopNestSection": { WhyShopNestSection: "WhyShopNestSection" },
+  });
   assert.ok(home());
   const rootLayout = readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(rootLayout, /TenantProvider|getTenant/);

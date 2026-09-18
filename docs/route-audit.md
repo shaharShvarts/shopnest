@@ -38,7 +38,13 @@ permission to perform every mutation reachable from it.
 
 | Route pattern | Scope | Authentication requirement | Expected HTTP behavior |
 | --- | --- | --- | --- |
-| `/` | Platform | None | 200 public platform page; no cart/catalog/account shell or tenant DB access |
+| `/` | Platform | None | 200 public marketing page; no cart/catalog/account shell or tenant DB access |
+| `/features` | Platform | None | 200 public ShopNest feature overview |
+| `/pricing` | Platform | None | 200 public plan overview; no billing implementation |
+| `/examples` | Platform | None | 200 public sample-store directory |
+| `/faq` | Platform | None | 200 public merchant acquisition FAQ |
+| `/login` | Platform | None | 200 merchant-login placeholder; no merchant auth yet |
+| `/signup` | Platform | None | 200 merchant-signup placeholder; no account creation yet |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |

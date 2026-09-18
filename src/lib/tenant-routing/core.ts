@@ -5,6 +5,12 @@ import {
 
 export const LEGACY_ROUTE_SEGMENTS = new Set([
   "admin",
+  "features",
+  "pricing",
+  "examples",
+  "faq",
+  "login",
+  "signup",
 ]);
 
 const GLOBAL_API_PATHS = new Set([

@@ -304,5 +304,113 @@
     "noPlanLimits": "This foundation records tier assignments only. Pricing and enforcement limits are deferred.",
     "unranked": "Unranked",
     "noFeaturedStores": "No stores are featured yet. Update a store to add it here."
+  },
+  "Marketing": {
+    "nav": {
+      "whyShopNest": "Why ShopNest",
+      "features": "Features",
+      "pricing": "Pricing",
+      "examples": "Examples",
+      "faq": "FAQ",
+      "login": "Log in",
+      "startFree": "Start free"
+    },
+    "hero": {
+      "eyebrow": "Build your store your way",
+      "title": "Launch an online store without giving up control",
+      "description": "Set up your catalog, shipping, payments and storefront in one place. Publish only when your store is ready.",
+      "primaryCta": "Start free",
+      "secondaryCta": "See example stores"
+    },
+    "why": {
+      "title": "Why ShopNest",
+      "subtitle": "A practical foundation for independent online stores.",
+      "setupTitle": "Structured setup",
+      "setupText": "Work through the pieces your store needs before launch.",
+      "localTitle": "Built for local businesses",
+      "localText": "Hebrew and English storefronts, local workflows and flexible store identities.",
+      "secureTitle": "Security by design",
+      "secureText": "Tenant isolation and server-side trust boundaries are part of the platform architecture."
+    },
+    "capabilities": {
+      "title": "Everything needed to prepare your store",
+      "storefrontTitle": "Storefront",
+      "storefrontText": "A responsive shopping experience for every store.",
+      "catalogTitle": "Catalog",
+      "catalogText": "Organize categories, products and inventory.",
+      "checkoutTitle": "Checkout",
+      "checkoutText": "Guide customers from cart to order.",
+      "paymentsTitle": "Payments",
+      "paymentsText": "Configure supported providers through server-controlled settings.",
+      "inventoryTitle": "Inventory",
+      "inventoryText": "Keep stock and reservations tied to orders.",
+      "ordersTitle": "Orders",
+      "ordersText": "Manage the customer order lifecycle.",
+      "shippingTitle": "Shipping",
+      "shippingText": "Configure delivery and pickup methods.",
+      "accountsTitle": "Customer accounts",
+      "accountsText": "Support customer sign-in while keeping guest checkout available."
+    },
+    "how": {
+      "title": "How it works",
+      "step1Title": "Create your account",
+      "step1Text": "Start with a merchant workspace before any store is published.",
+      "step2Title": "Configure your store",
+      "step2Text": "Add business details, branding, catalog, shipping and payment settings.",
+      "step3Title": "Complete readiness",
+      "step3Text": "ShopNest checks required setup on the server before activation.",
+      "step4Title": "Publish when ready",
+      "step4Text": "Activation provisions the store only after the requirements are satisfied."
+    },
+    "pricing": {
+      "title": "Plans that grow with your store",
+      "subtitle": "Choose a direction now; final pricing and limits will be published separately.",
+      "free": "Free",
+      "freeText": "A starting point for evaluating ShopNest.",
+      "small": "Small",
+      "smallText": "For smaller stores preparing to sell online.",
+      "medium": "Medium",
+      "mediumText": "For growing stores with broader operational needs.",
+      "large": "Large",
+      "largeText": "For larger stores that need more capacity.",
+      "pricingNote": "Final pricing, limits, billing periods and trial terms are not published yet."
+    },
+    "examples": {
+      "title": "See ShopNest stores",
+      "subtitle": "Browse sample storefronts already running on the platform.",
+      "pandaPop": "Panda Pop",
+      "giftShop": "Gift Shop",
+      "dvorikCollection": "Dvorik Collection",
+      "viewStore": "View store"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "q1": "Does signing up publish a store immediately?",
+      "a1": "No. Registration and store publication are separate. A store is activated only after its setup is ready.",
+      "q2": "Can one business manage more than one store?",
+      "a2": "The ShopNest architecture is designed to support multiple stores per organization.",
+      "q3": "Can I use my own domain?",
+      "a3": "Custom domains are planned as an optional capability after secure domain verification and routing are completed.",
+      "q4": "Are payments live in production?",
+      "a4": "Payment-provider work is still being validated. ShopNest does not treat a browser return as proof of payment.",
+      "q5": "Which languages are supported?",
+      "a5": "ShopNest is being built with Hebrew and English support, including RTL layout for Hebrew."
+    },
+    "finalCta": {
+      "title": "Prepare your next store with ShopNest",
+      "description": "Create the workspace first, complete setup, and publish only when everything is ready.",
+      "button": "Start free"
+    },
+    "footer": {
+      "tagline": "Independent stores, one secure platform foundation.",
+      "admin": "Platform administration"
+    },
+    "placeholders": {
+      "loginTitle": "Merchant login is coming",
+      "loginText": "Merchant authentication will be added in a dedicated implementation phase. This page does not use the platform-admin login.",
+      "signupTitle": "Merchant signup is coming",
+      "signupText": "Account creation and store provisioning are intentionally not active in this marketing foundation.",
+      "backHome": "Back to ShopNest"
+    }
   }
 }

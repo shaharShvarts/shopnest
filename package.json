@@ -36,7 +36,8 @@
     "database:test": "node --test tests/database-initialization.test.mjs",
     "payment:test": "node --conditions=react-server --experimental-strip-types --test tests/payment.test.mts",
     "image:test": "node --test tests/image-validation.test.mjs",
-    "environment-auth:test": "node --test tests/environment-basic-auth.test.mjs tests/environment-nginx-hardening.test.mjs"
+    "environment-auth:test": "node --test tests/environment-basic-auth.test.mjs tests/environment-nginx-hardening.test.mjs",
+    "marketing:test": "node --experimental-strip-types --test tests/marketing-site.test.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
