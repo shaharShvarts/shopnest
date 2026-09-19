@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   canMutateOrganization,
@@ -70,4 +71,38 @@ test("only owner can mutate organizations in PR 36", () => {
   assert.equal(canMutateOrganization("owner"), true);
   assert.equal(canMutateOrganization("admin"), false);
   assert.equal(canMutateOrganization(""), false);
+});
+
+
+test("organization persistence stays control-plane only and first creation is serialized", async () => {
+  const source = await readFile(
+    "src/lib/merchant-organizations/drizzle-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /getControlPlaneDb/);
+  assert.match(source, /\.transaction\(/);
+  assert.match(source, /merchantAccounts/);
+  assert.match(source, /\.for\("update"\)/);
+  assert.match(source, /organizationMemberships/);
+  assert.match(source, /role:\s*"owner"/);
+  assert.doesNotMatch(
+    source,
+    /getDbForTenant|getTenant\(|TENANT_SCHEMA_HEADER|sql\.raw|search_path/
+  );
+});
+
+test("repository update requires owner membership in addition to organization id", async () => {
+  const source = await readFile(
+    "src/lib/merchant-organizations/drizzle-repository.ts",
+    "utf8"
+  );
+
+  const updateStart = source.indexOf("async updateOwned");
+  assert.ok(updateStart >= 0);
+  const updateSource = source.slice(updateStart);
+  assert.match(updateSource, /merchantAccountId/);
+  assert.match(updateSource, /organizationId/);
+  assert.match(updateSource, /role/);
+  assert.match(updateSource, /owner/);
 });
