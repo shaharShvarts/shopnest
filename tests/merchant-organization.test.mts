@@ -98,7 +98,7 @@ test("repository update requires owner membership in addition to organization id
     "utf8"
   );
 
-  const updateStart = source.indexOf("async updateOwned");
+  const updateStart = source.indexOf("updateOwned(");
   assert.ok(updateStart >= 0);
   const updateSource = source.slice(updateStart);
   assert.match(updateSource, /merchantAccountId/);
