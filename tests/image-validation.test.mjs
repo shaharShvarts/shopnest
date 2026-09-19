@@ -145,13 +145,16 @@ function loadActionModule(name, dependencies) {
 }
 const schemas = loadActionModule("zod", { "@/lib/media/validate-image.mjs": validation });
 
-test("async image schemas distinguish omitted replacements from empty or corrupt uploads", async () => {
-  assert.equal((await schemas.optionalImageSchema.safeParseAsync(new File([], ""))).success, true);
-  assert.equal((await schemas.optionalImageSchema.safeParseAsync(undefined)).success, true);
-  for (const invalid of [new File([], "empty.png"), file(Buffer.from("fake pixels"))]) {
-    assert.equal((await schemas.imageSchema.safeParseAsync(invalid)).success, false);
-    assert.equal((await schemas.optionalImageSchema.safeParseAsync(invalid)).success, false);
+test("async image schemas treat any zero-byte edit upload as omitted while create still rejects it", async () => {
+  for (const omitted of [new File([], ""), new File([], "empty.png"), undefined]) {
+    assert.equal((await schemas.optionalImageSchema.safeParseAsync(omitted)).success, true);
   }
+  for (const empty of [new File([], ""), new File([], "empty.png")]) {
+    assert.equal((await schemas.imageSchema.safeParseAsync(empty)).success, false);
+  }
+  const corrupt = file(Buffer.from("fake pixels"));
+  assert.equal((await schemas.imageSchema.safeParseAsync(corrupt)).success, false);
+  assert.equal((await schemas.optionalImageSchema.safeParseAsync(corrupt)).success, false);
   assert.equal((await schemas.imageSchema.safeParseAsync(file(await image().png().toBuffer(), "file.txt", "text/plain"))).success, true);
 });
 
