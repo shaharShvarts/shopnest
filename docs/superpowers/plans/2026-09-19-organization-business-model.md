@@ -34,6 +34,32 @@
 - A merchant with no owner membership for an organization must not be able to update it, even if they know its numeric id.
 - Blank optional fields must normalize to `null`, while malformed nonblank email and malformed country codes must fail validation rather than being silently stored.
 
+## File Map
+
+**Create**
+- `src/drizzle/control-schema/organization.ts` — Organization profile persistence.
+- `src/drizzle/control-schema/organizationMembership.ts` — merchant-to-organization membership relation.
+- `src/drizzle/control-migrations/0007_organization_business.sql` — additive public control-plane migration.
+- `src/lib/merchant-organizations/core.ts` — types, validation, repository contract, owner-role policy.
+- `src/lib/merchant-organizations/drizzle-repository.ts` — transactional control-plane persistence and membership authorization.
+- `src/lib/merchant-organizations/server.ts` — server-only repository accessor.
+- `src/app/(merchant)/dashboard/business/_actions.ts` — create/edit server actions.
+- `src/app/(merchant)/dashboard/business/_components/OrganizationForm.tsx` — shared create/edit form.
+- `src/app/(merchant)/dashboard/business/page.tsx` — business view.
+- `src/app/(merchant)/dashboard/business/new/page.tsx` — first-business creation page.
+- `src/app/(merchant)/dashboard/business/edit/page.tsx` — owner edit page.
+- `tests/merchant-organization.test.mts` — domain, repository-boundary, and isolation tests.
+- `tests/merchant-organization-routes.test.mts` — action/UI authorization and routing tests.
+
+**Modify**
+- `src/drizzle/control-plane-schema.ts` — export Organization schemas.
+- `src/drizzle/control-migrations/meta/_journal.json` — register migration 0007.
+- `src/app/(merchant)/dashboard/page.tsx` — first-business dashboard state.
+- `src/messages/en.json` and `src/messages/he.json` — aligned business workspace copy.
+- `tests/control-plane.test.mts` — migration/additivity assertions.
+- `tests/merchant-auth-routes.test.mts` — preserve merchant-only dashboard boundary.
+- `package.json` — add organization test script.
+
 ---
 
 ### Task 1: Add Organization control-plane schema and migration
@@ -42,9 +68,8 @@
 - Create: `src/drizzle/control-schema/organization.ts`
 - Create: `src/drizzle/control-schema/organizationMembership.ts`
 - Modify: `src/drizzle/control-plane-schema.ts`
-- Create via Drizzle generation: `src/drizzle/control-migrations/0007_organization_business.sql`
-- Modify via Drizzle generation: `src/drizzle/control-migrations/meta/_journal.json`
-- Modify via Drizzle generation if produced: `src/drizzle/control-migrations/meta/0005_snapshot.json` or the next generated snapshot file
+- Create: `src/drizzle/control-migrations/0007_organization_business.sql`
+- Modify: `src/drizzle/control-migrations/meta/_journal.json`
 - Modify: `tests/control-plane.test.mts`
 
 **Interfaces:**
@@ -170,15 +195,56 @@ export * from "@/drizzle/control-schema/organizationMembership";
 
 Do not add a PostgreSQL enum for membership roles in this PR. A `varchar(32)` keeps the relationship schema extensible for future roles without coupling the database shape to the initial `owner`-only behavior.
 
-- [ ] **Step 4: Generate the journaled control-plane migration**
+- [ ] **Step 4: Add the journaled additive migration**
 
-Run:
+Create `src/drizzle/control-migrations/0007_organization_business.sql`:
 
-```bash
-npm run control-plane:generate -- --name organization_business
+```sql
+CREATE TABLE "organizations" (
+  "id" serial PRIMARY KEY NOT NULL,
+  "display_name" varchar(160) NOT NULL,
+  "legal_name" varchar(200),
+  "business_number" varchar(64),
+  "vat_number" varchar(64),
+  "email" varchar(320),
+  "phone" varchar(64),
+  "country" varchar(2) DEFAULT 'IL' NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);--> statement-breakpoint
+CREATE TABLE "organization_memberships" (
+  "organization_id" integer NOT NULL,
+  "merchant_account_id" integer NOT NULL,
+  "role" varchar(32) DEFAULT 'owner' NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT "organization_memberships_organization_id_merchant_account_id_pk"
+    PRIMARY KEY("organization_id","merchant_account_id")
+);--> statement-breakpoint
+ALTER TABLE "organization_memberships"
+  ADD CONSTRAINT "organization_memberships_organization_id_organizations_id_fk"
+  FOREIGN KEY ("organization_id")
+  REFERENCES "public"."organizations"("id")
+  ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "organization_memberships"
+  ADD CONSTRAINT "organization_memberships_merchant_account_id_merchant_accounts_id_fk"
+  FOREIGN KEY ("merchant_account_id")
+  REFERENCES "public"."merchant_accounts"("id")
+  ON DELETE cascade ON UPDATE no action;
 ```
 
-Verify the generated migration is `0007_organization_business.sql`, is additive, creates only the two new public control-plane tables/FKs/primary key, and does not alter tenant schemas.
+Append this exact entry to `src/drizzle/control-migrations/meta/_journal.json` after `0006_merchant_identity`:
+
+```json
+{
+  "idx": 7,
+  "version": "7",
+  "when": 1789819200000,
+  "tag": "0007_organization_business",
+  "breakpoints": true
+}
+```
+
+The current control-migration history intentionally has hand-maintained additive migrations after snapshot `0004`; do not run Drizzle generation in this task because it could synthesize unrelated diffs from the stale snapshot chain.
 
 - [ ] **Step 5: Run the control-plane test and verify GREEN**
 
@@ -268,6 +334,26 @@ test("organization profile rejects malformed email, country, and overlong names"
       /invalid_organization_profile/
     );
   }
+});
+
+test("organization profile strips browser supplied authority fields", () => {
+  const parsed = parseOrganizationProfile({
+    displayName: "Business",
+    country: "IL",
+    merchantAccountId: 999,
+    organizationId: 999,
+    role: "owner",
+  });
+
+  assert.deepEqual(parsed, {
+    displayName: "Business",
+    legalName: null,
+    businessNumber: null,
+    vatNumber: null,
+    email: null,
+    phone: null,
+    country: "IL",
+  });
 });
 
 test("only owner can mutate organizations in PR 36", () => {
@@ -756,7 +842,7 @@ export async function createOrganizationAction(
     };
   }
 
-  const result = await getMerchantOrganizationRepository().createFirstWithOwner(
+  await getMerchantOrganizationRepository().createFirstWithOwner(
     merchant.id,
     parsed.data
   );
@@ -1158,16 +1244,9 @@ git status --short
 
 Expected: no whitespace errors and no unexpected uncommitted files.
 
-- [ ] **Step 7: Commit any verification-only scoped correction**
+- [ ] **Step 7: Route failures back through TDD instead of patching during verification**
 
-Only if verification required a real code/test correction:
-
-```bash
-git add <the exact files changed for that correction>
-git commit -m "fix: address organization verification"
-```
-
-If no correction was needed, do not create an empty commit.
+If any verification command fails, stop Task 6, return to the task that owns the failing behavior, add or reuse a failing regression test, make the smallest fix, commit it in that owning task's scope, then restart Task 6 from Step 1. Do not make an untested verification-only patch and do not create an empty commit.
 
 ---
 
