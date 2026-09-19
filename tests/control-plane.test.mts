@@ -174,6 +174,43 @@ test("merchant migration is registered in the Drizzle journal", async () => {
   assert.equal(entry.breakpoints, true);
 });
 
+test("organization migration is additive, control-plane only, and future-ready", async () => {
+  const sql = await readFile(
+    "src/drizzle/control-migrations/0007_organization_business.sql",
+    "utf8"
+  );
+
+  assert.match(sql, /CREATE TABLE "organizations"/);
+  assert.match(sql, /"display_name" varchar\(160\) NOT NULL/);
+  assert.match(sql, /"country" varchar\(2\) DEFAULT 'IL' NOT NULL/);
+  assert.match(sql, /CREATE TABLE "organization_memberships"/);
+  assert.match(sql, /"merchant_account_id" integer NOT NULL/);
+  assert.match(sql, /"organization_id" integer NOT NULL/);
+  assert.match(sql, /"role" varchar\(32\) DEFAULT 'owner' NOT NULL/);
+  assert.match(
+    sql,
+    /PRIMARY KEY\("organization_id","merchant_account_id"\)|PRIMARY KEY\("merchant_account_id","organization_id"\)/
+  );
+  assert.doesNotMatch(
+    sql,
+    /UNIQUE[^\n]*display_name|DROP TABLE|DELETE FROM|TRUNCATE|search_path/
+  );
+});
+
+test("organization migration is registered after merchant identity", async () => {
+  const journal = JSON.parse(
+    await readFile("src/drizzle/control-migrations/meta/_journal.json", "utf8")
+  );
+  const entry = journal.entries.find(
+    (candidate: { tag?: string }) =>
+      candidate.tag === "0007_organization_business"
+  );
+  assert.ok(entry);
+  assert.equal(entry.idx, 7);
+  assert.equal(entry.version, "7");
+  assert.equal(entry.breakpoints, true);
+});
+
 function store(slug: string, schemaName: string, displayName: string): ControlPlaneStore {
   return {
     id: 1,
