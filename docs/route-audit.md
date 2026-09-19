@@ -48,6 +48,9 @@ permission to perform every mutation reachable from it.
 | `/forgot-password` | Platform | None | 200 merchant password-reset request; submission is non-enumerating |
 | `/reset-password` | Platform | Valid one-use reset token required to change password | 200 reset form or invalid-link state; successful reset invalidates merchant sessions |
 | `/dashboard` | Platform | Active merchant session | 200 merchant workspace; anonymous/expired/disabled sessions redirect to `/login` |
+| `/dashboard/business` | Platform | Active merchant session with an organization membership | 200 business details for the merchant organization; merchants without an organization redirect to `/dashboard/business/new` |
+| `/dashboard/business/new` | Platform | Active merchant session | 200 first-business form when no organization exists; merchants with an organization redirect to `/dashboard/business` |
+| `/dashboard/business/edit` | Platform | Active merchant session with owner membership | 200 business edit form for the current organization; merchants without an organization redirect to `/dashboard/business/new` |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |
