@@ -48,3 +48,54 @@ test("slug availability is authenticated and advisory", async () => {
   assert.match(availability, /isSlugAvailable/);
   assert.match(availability, /validateStoreSlug/);
 });
+
+
+test("merchant Store pages are global protected and tenant-independent", async () => {
+  const paths = [
+    "src/app/(merchant)/dashboard/stores/new/page.tsx",
+    "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
+    "src/app/(merchant)/dashboard/stores/[id]/edit/page.tsx",
+  ];
+  const sources = await Promise.all(paths.map((path) => readFile(path, "utf8")));
+
+  for (const source of sources) {
+    assert.match(source, /requireMerchantPage\(\)/);
+    assert.doesNotMatch(
+      source,
+      /getDbForTenant|getTenant\(|TenantLink|TENANT_SCHEMA_HEADER|search_path/
+    );
+  }
+});
+
+test("Store form exposes only merchant-editable fields and slug UX", async () => {
+  const form = await readFile(
+    "src/app/(merchant)/dashboard/stores/_components/StoreForm.tsx",
+    "utf8"
+  );
+
+  assert.match(form, /name=["']displayName["']/);
+  assert.match(form, /name=["']slug["']/);
+  assert.match(form, /suggestStoreSlug/);
+  assert.match(form, /validateStoreSlug/);
+  assert.match(form, /checkStoreSlugAvailabilityAction/);
+  assert.match(form, /shopnest\.co\.il/);
+  assert.match(form, /readOnly/);
+  assert.doesNotMatch(
+    form,
+    /name=["'](?:merchantAccountId|organizationId|tenantId|schemaName|role|status)["']/
+  );
+});
+
+test("MerchantStore translations stay aligned", async () => {
+  const [en, he] = await Promise.all([
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+
+  assert.ok(en.MerchantStore);
+  assert.ok(he.MerchantStore);
+  assert.deepEqual(
+    Object.keys(en.MerchantStore).sort(),
+    Object.keys(he.MerchantStore).sort()
+  );
+});
