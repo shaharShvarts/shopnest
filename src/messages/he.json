@@ -515,6 +515,7 @@
     "notLiveYet": "החנות עדיין אינה פעילה לציבור. עדיין לא נוצרו עבורה tenant או סכמת מסד נתונים.",
     "tenant": "Tenant",
     "notProvisioned": "טרם בוצע provisioning",
+    "viewStore": "צפייה בחנות",
     "editStore": "עריכת החנות",
     "backToStores": "חזרה לחנויות",
     "deleteStore": "מחיקת חנות",
