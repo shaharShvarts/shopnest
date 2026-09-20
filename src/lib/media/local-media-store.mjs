@@ -40,8 +40,14 @@ export function getUploadsRoot(override) {
   return path.resolve(configured?.trim() || path.join(process.cwd(), "uploads"));
 }
 
-export function tenantMediaFilePath({ tenantSlug, kind, filename, uploadsRoot }) {
-  const tenant = resolveConfiguredTenant(tenantSlug);
+export function tenantMediaFilePath({
+  tenantSlug,
+  kind,
+  filename,
+  uploadsRoot,
+  resolveTenant = resolveConfiguredTenant,
+}) {
+  const tenant = resolveTenant(tenantSlug);
   if (!tenant) throw new LocalMediaError("INVALID_TENANT", "Unknown tenant");
   if (!mediaKinds.has(kind)) {
     throw new LocalMediaError("INVALID_KIND", "Unsupported media kind");
@@ -59,7 +65,13 @@ export function tenantMediaFilePath({ tenantSlug, kind, filename, uploadsRoot })
   return filePath;
 }
 
-export async function saveCatalogImage({ tenantSlug, kind, file, uploadsRoot }) {
+export async function saveCatalogImage({
+  tenantSlug,
+  kind,
+  file,
+  uploadsRoot,
+  resolveTenant = resolveConfiguredTenant,
+}) {
   const bytes = await validateCatalogImage(file);
   const filename = `${crypto.randomUUID()}.png`;
   const filePath = tenantMediaFilePath({
@@ -67,8 +79,14 @@ export async function saveCatalogImage({ tenantSlug, kind, file, uploadsRoot }) 
     kind,
     filename,
     uploadsRoot,
+    resolveTenant,
   });
-  const imageUrl = createTenantMediaUrl(tenantSlug, kind, filename);
+  const imageUrl = createTenantMediaUrl(
+    tenantSlug,
+    kind,
+    filename,
+    resolveTenant
+  );
   if (!imageUrl) throw new LocalMediaError("INVALID_TENANT", "Unknown tenant");
 
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -81,12 +99,14 @@ export async function readCatalogImage({
   kind,
   filename,
   uploadsRoot,
+  resolveTenant = resolveConfiguredTenant,
 }) {
   const filePath = tenantMediaFilePath({
     tenantSlug,
     kind,
     filename,
     uploadsRoot,
+    resolveTenant,
   });
   const extension = path.extname(filename).slice(1).toLowerCase();
   const contentType = extensionContentTypes.get(extension);
@@ -108,10 +128,19 @@ export async function deleteCatalogImage({
   tenantSlug,
   imageUrl,
   uploadsRoot,
+  resolveTenant = resolveConfiguredTenant,
 }) {
-  const media = parseTenantMediaUrl(imageUrl, tenantSlug);
+  const media = parseTenantMediaUrl(
+    imageUrl,
+    tenantSlug,
+    resolveTenant
+  );
   if (!media) return false;
-  const filePath = tenantMediaFilePath({ ...media, uploadsRoot });
+  const filePath = tenantMediaFilePath({
+    ...media,
+    uploadsRoot,
+    resolveTenant,
+  });
 
   try {
     await fs.unlink(filePath);

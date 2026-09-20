@@ -1,7 +1,4 @@
-import {
-  CONFIGURED_TENANT_SLUGS,
-  resolveConfiguredTenant,
-} from "../tenant-validation.mjs";
+import { resolveConfiguredTenant } from "../tenant-validation.mjs";
 
 const BROWSER_IMAGE_URL_PATTERN = /^(?:https?:|data:|blob:)/i;
 const URL_SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
@@ -15,7 +12,10 @@ export const CATALOG_MEDIA_KINDS = Object.freeze([
 
 const catalogMediaKinds = new Set(CATALOG_MEDIA_KINDS);
 
-export function normalizeImageUrl(value) {
+export function normalizeImageUrl(
+  value,
+  resolveTenant = resolveConfiguredTenant
+) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed || /^[a-z]:[\\/]/i.test(trimmed)) return null;
@@ -33,21 +33,22 @@ export function normalizeImageUrl(value) {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0 || segments.some(isUnsafePathSegment)) return null;
 
-  if (
-    CONFIGURED_TENANT_SLUGS.includes(segments[0]) &&
-    catalogMediaKinds.has(segments[1])
-  ) {
+  if (resolveTenant(segments[0]) && catalogMediaKinds.has(segments[1])) {
     segments.splice(1, 0, "media");
   }
 
   return `/${segments.join("/")}${suffix}`;
 }
 
-export function resolveTenantImageUrl(value, tenantSlug) {
-  const normalized = normalizeImageUrl(value);
+export function resolveTenantImageUrl(
+  value,
+  tenantSlug,
+  resolveTenant = resolveConfiguredTenant
+) {
+  const normalized = normalizeImageUrl(value, resolveTenant);
   if (!normalized || isExternalImageUrl(normalized)) return normalized;
 
-  const tenant = resolveConfiguredTenant(tenantSlug);
+  const tenant = resolveTenant(tenantSlug);
   if (!tenant) return tenantSlug ? null : normalized;
 
   const suffixIndex = normalized.search(/[?#]/);
@@ -55,8 +56,9 @@ export function resolveTenantImageUrl(value, tenantSlug) {
   const pathname = suffixIndex === -1 ? normalized : normalized.slice(0, suffixIndex);
   const segments = pathname.split("/").filter(Boolean);
 
-  if (CONFIGURED_TENANT_SLUGS.includes(segments[0])) {
-    if (segments[0] !== tenant.slug) return null;
+  const pathTenant = resolveTenant(segments[0]);
+  if (pathTenant) {
+    if (pathTenant.slug !== tenant.slug) return null;
     if (
       segments.length === 4 &&
       segments[1] === "media" &&
@@ -82,17 +84,30 @@ export function resolveTenantImageUrl(value, tenantSlug) {
   return normalized;
 }
 
-export function createTenantMediaUrl(tenantSlug, kind, filename) {
-  const tenant = resolveConfiguredTenant(tenantSlug);
+export function createTenantMediaUrl(
+  tenantSlug,
+  kind,
+  filename,
+  resolveTenant = resolveConfiguredTenant
+) {
+  const tenant = resolveTenant(tenantSlug);
   if (!tenant || !catalogMediaKinds.has(kind) || !isSafeMediaFilename(filename)) {
     return null;
   }
   return `${tenant.basePath}/media/${kind}/${filename}`;
 }
 
-export function parseTenantMediaUrl(value, expectedTenantSlug) {
-  const resolved = resolveTenantImageUrl(value, expectedTenantSlug);
-  const tenant = resolveConfiguredTenant(expectedTenantSlug);
+export function parseTenantMediaUrl(
+  value,
+  expectedTenantSlug,
+  resolveTenant = resolveConfiguredTenant
+) {
+  const resolved = resolveTenantImageUrl(
+    value,
+    expectedTenantSlug,
+    resolveTenant
+  );
+  const tenant = resolveTenant(expectedTenantSlug);
   if (!resolved || !tenant || isExternalImageUrl(resolved)) return null;
 
   const pathname = resolved.split(/[?#]/, 1)[0];
