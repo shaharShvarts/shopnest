@@ -101,6 +101,24 @@ test("MerchantStore translations stay aligned", async () => {
 });
 
 
+test("Store list translation keys exist in both locales", async () => {
+  const [source, en, he] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/_components/StoreList.tsx",
+      "utf8"
+    ),
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+
+  for (const key of ["viewStore"]) {
+    assert.match(source, new RegExp(`t\\(["']${key}["']\\)`));
+    assert.equal(typeof en.MerchantStore[key], "string");
+    assert.equal(typeof he.MerchantStore[key], "string");
+  }
+});
+
+
 test("dashboard replaces store-setup placeholder with Store onboarding", async () => {
   const dashboard = await readFile(
     "src/app/(merchant)/dashboard/page.tsx",
