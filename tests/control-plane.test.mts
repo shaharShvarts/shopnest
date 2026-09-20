@@ -227,3 +227,15 @@ function store(slug: string, schemaName: string, displayName: string): ControlPl
     updatedAt: new Date("2026-01-01T00:00:00Z"),
   };
 }
+
+
+test("Store migration remains control-plane only and preserves Organization migration history", async () => {
+  const [storeSql, organizationSql] = await Promise.all([
+    readFile("src/drizzle/control-migrations/0008_store_onboarding.sql", "utf8"),
+    readFile("src/drizzle/control-migrations/0007_organization_business.sql", "utf8"),
+  ]);
+
+  assert.doesNotMatch(storeSql, /search_path|DROP SCHEMA|TRUNCATE/);
+  assert.match(organizationSql, /CREATE TABLE "organizations"/);
+  assert.doesNotMatch(organizationSql, /DROP TABLE|DELETE FROM|TRUNCATE|search_path/);
+});
