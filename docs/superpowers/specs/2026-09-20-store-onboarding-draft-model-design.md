@@ -1,7 +1,7 @@
 # ShopNest Store Onboarding / Draft Model Design
 
 Date: 2026-09-20
-Status: Approved design for PR #37
+Status: Written spec awaiting user review for PR #37
 Repository: shaharShvarts/shopnest
 Target branch: feature/store-onboarding-draft-model
 
@@ -161,6 +161,7 @@ Database/application invariants:
 - draft requires tenant_id IS NULL
 - ready_for_provisioning requires tenant_id IS NULL in PR #37
 - provisioned requires tenant_id IS NOT NULL
+- deleted_at and delete_finalizes_at are either both NULL or both non-NULL
 - slug_released_at may be set only for a deleted Store
 - normal merchant delete is allowed only when tenant_id IS NULL
 - a Store with tenant_id IS NOT NULL cannot be deleted through the PR #37 merchant flow
@@ -190,7 +191,7 @@ Canonical shape:
 
 ^[a-z0-9]+(?:-[a-z0-9]+)*$
 
-Store creation should suggest a slug automatically from display_name, but the merchant may edit the slug before provisioning.
+Store creation should suggest a slug automatically from display_name, but the merchant may edit the slug before provisioning. The automatic suggestion is ASCII-only and deterministic. If a display name cannot produce a valid ASCII slug (for example, a Hebrew-only name), the slug field remains empty and the merchant must enter a valid slug manually; PR #37 does not introduce transliteration rules.
 
 ### 6.2 Global uniqueness
 
@@ -262,7 +263,7 @@ Undo clears:
 
 slug_released_at remains NULL.
 
-Undo must use an optimistic concurrency precondition based on the mutation's observed updated_at value or an equivalent server-issued mutation token. A stale Undo must not overwrite a newer mutation.
+Undo uses updated_at as the optimistic concurrency token. The delete response returns the Store's post-delete updated_at value, and Undo succeeds only if the current row still has that same updated_at value. A stale Undo must not overwrite a newer mutation.
 
 ### 7.3 Finalization
 
@@ -362,7 +363,7 @@ After tenant linkage:
 - display_name may remain editable
 - slug is locked
 
-Edit must re-run slug normalization, reserved-name validation, uniqueness rules, authorization, and concurrency checks.
+Edit must re-run slug normalization, reserved-name validation, uniqueness rules, authorization, and concurrency checks. Mutations that can race use an expected updated_at precondition from the last server-observed Store state; that value is a concurrency check only and never an authorization signal.
 
 ### 9.4 Delete
 
