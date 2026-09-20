@@ -110,3 +110,67 @@ export function parseStoreVersion(value: unknown) {
 export function nextStoreVersion(current: Date, now = new Date()) {
   return new Date(Math.max(now.getTime(), current.getTime() + 1));
 }
+
+
+export type StoreErrorCode =
+  | "ORGANIZATION_REQUIRED"
+  | "NOT_FOUND"
+  | "SLUG_UNAVAILABLE"
+  | "SLUG_LOCKED"
+  | "CONFLICT"
+  | "TENANT_LINKED"
+  | "UNDO_EXPIRED";
+
+export class MerchantStoreError extends Error {
+  constructor(
+    readonly code: StoreErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "MerchantStoreError";
+  }
+}
+
+export type DeleteStoreResult = {
+  store: MerchantStore;
+  undoVersion: string;
+  undoExpiresAt: string;
+};
+
+export interface MerchantStoreRepository {
+  listForMerchant(merchantId: number): Promise<MerchantStore[]>;
+  findOwnedById(
+    merchantId: number,
+    storeId: number
+  ): Promise<MerchantStore | null>;
+  createDraftForMerchant(
+    merchantId: number,
+    profile: StoreProfile,
+    now?: Date
+  ): Promise<MerchantStore>;
+  updateOwned(
+    merchantId: number,
+    storeId: number,
+    profile: StoreProfile,
+    expectedUpdatedAt: Date,
+    now?: Date
+  ): Promise<MerchantStore>;
+  isSlugAvailable(
+    merchantId: number,
+    slug: string,
+    currentStoreId?: number,
+    now?: Date
+  ): Promise<boolean>;
+  softDeleteOwned(
+    merchantId: number,
+    storeId: number,
+    expectedUpdatedAt: Date,
+    now?: Date
+  ): Promise<DeleteStoreResult>;
+  undoDeleteOwned(
+    merchantId: number,
+    storeId: number,
+    expectedUpdatedAt: Date,
+    now?: Date
+  ): Promise<MerchantStore>;
+}
