@@ -99,3 +99,35 @@ test("MerchantStore translations stay aligned", async () => {
     Object.keys(he.MerchantStore).sort()
   );
 });
+
+
+test("dashboard replaces store-setup placeholder with Store onboarding", async () => {
+  const dashboard = await readFile(
+    "src/app/(merchant)/dashboard/page.tsx",
+    "utf8"
+  );
+
+  assert.match(dashboard, /getMerchantStoreRepository/);
+  assert.match(dashboard, /listForMerchant/);
+  assert.match(dashboard, /\/dashboard\/stores\/new/);
+  assert.match(dashboard, /\/dashboard\/stores/);
+  assert.doesNotMatch(dashboard, /storeSetupLater/);
+});
+
+test("Store list optimistically deletes and offers ten-second Undo", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/_components/StoreList.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /deleteStoreAction/);
+  assert.match(source, /undoStoreDeleteAction/);
+  assert.match(source, /setHiddenStoreIds/);
+  assert.match(source, /setStoreVersions/);
+  assert.match(source, /result\.updatedAt/);
+  assert.match(source, /autoClose:\s*10_000/);
+  assert.match(source, /closeOnClick:\s*false/);
+  assert.match(source, /undoVersion/);
+  assert.match(source, /router\.refresh\(\)/);
+  assert.match(source, /deleteBlocked/);
+});
