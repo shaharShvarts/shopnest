@@ -76,6 +76,11 @@
 - `tests/tenant.test.mts`
 - `tests/route-navigation.test.mjs`
 - `tests/control-plane.test.mts`
+- `tests/admin-auth.test.mts`
+- `tests/payment.test.mts`
+- `tests/marketing-site.test.mts`
+- `src/app/(marketing)/_components/DemoStoresSection.tsx`
+- `src/app/(marketing)/examples/page.tsx`
 - `src/app/(merchant)/dashboard/page.tsx`
 - `src/messages/en.json`
 - `src/messages/he.json`
@@ -95,6 +100,11 @@
 - Modify: `src/drizzle/control-migrations/meta/_journal.json`
 - Create: `tests/merchant-store.test.mts`
 - Modify: `tests/control-plane.test.mts`
+- Modify: `tests/admin-auth.test.mts`
+- Modify: `tests/payment.test.mts`
+- Modify: `tests/marketing-site.test.mts`
+- Modify: `src/app/(marketing)/_components/DemoStoresSection.tsx`
+- Modify: `src/app/(marketing)/examples/page.tsx`
 
 **Interfaces:**
 - Consumes: `organizations.id`, `controlPlaneTenants.id`.
@@ -537,6 +547,26 @@ test("Store version must be valid ISO time", () => {
 
 Change tenant tests so all three old slugs resolve to null and default routing returns not-found.
 
+Add to `tests/marketing-site.test.mts`:
+
+~~~ts
+test("marketing does not link to removed legacy storefront routes", async () => {
+  const source = (
+    await Promise.all([
+      read("src/app/(marketing)/_components/DemoStoresSection.tsx"),
+      read("src/app/(marketing)/examples/page.tsx"),
+    ])
+  ).join("\n");
+
+  assert.doesNotMatch(
+    source,
+    /href=["']\/(?:panda-pop|gift-shop|dvorik-collection)["']/
+  );
+});
+~~~
+
+The current admin/payment route fixtures also become RED when the static registry is emptied; Step 5 replaces those runtime-registry dependencies with explicit test-only validated Tenant fixtures.
+
 - [ ] **Step 2: Run and verify RED**
 
 ~~~bash
@@ -750,35 +780,182 @@ export function nextStoreVersion(current: Date, now = new Date()) {
 }
 ~~~
 
-- [ ] **Step 5: Remove old static slugs and adapt regression tests**
+- [ ] **Step 5: Remove old static slugs and adapt every test/UI reference that depended on them**
 
-In `tenant-validation.mjs`:
+In `src/lib/tenant-validation.mjs`:
 
 ~~~js
 export const CONFIGURED_TENANT_SLUGS = Object.freeze([]);
 ~~~
 
-In routing tests define:
+Keep `normalizeTenantSlug` and the fail-closed configured-tenant map unchanged.
+
+In `tests/route-navigation.test.mjs`, define a test-only resolver:
 
 ~~~js
+import {
+  normalizeTenantSlug,
+  resolveConfiguredTenant,
+} from "../src/lib/tenant-validation.mjs";
+
+const fixtureTenantSlugs = new Set([
+  "fixture-store",
+  "gift-shop",
+  "panda-pop",
+  "dvorik-collection",
+]);
+
 function resolveFixtureTenant(value) {
   const tenant = normalizeTenantSlug(value);
-  return tenant?.slug === "fixture-store" ? tenant : null;
+  return tenant && fixtureTenantSlugs.has(tenant.slug) ? tenant : null;
 }
 ~~~
 
-Use injected resolver only for pure positive route/path-builder tests. Actual middleware/default routing must 404 the old slugs. Update control-plane tests so old Tenant rows are untrusted, and test `summarizePlatform` with explicit summaries instead of pretending a runtime Tenant is configured.
+Use `resolveFixtureTenant` only for positive pure-routing fixtures:
+- `resolveTenantRoute(path, resolveFixtureTenant)`
+- `prefixTenantPath(path, basePath, resolveFixtureTenant)`.
+
+For the `TenantLink` VM mock, inject:
+
+~~~js
+"@/context/TenantContext": {
+  useTenant: () => ({
+    path: path =>
+      routing.prefixTenantPath(
+        path,
+        "/fixture-store",
+        resolveFixtureTenant
+      ),
+  }),
+},
+~~~
+
+and update expected links to `/fixture-store/... `.
+
+For the `TenantProvider` VM mock, inject the fixture resolver rather than the production empty registry:
+
+~~~js
+"@/lib/tenant": {
+  ...routing,
+  resolveConfiguredTenant: resolveFixtureTenant,
+  prefixTenantPath: (path, basePath) =>
+    routing.prefixTenantPath(path, basePath, resolveFixtureTenant),
+},
+~~~
+
+Use `normalizeTenantSlug("fixture-store")` as the mocked tenant for the positive layout case. Add separate assertions that the real `resolveConfiguredTenant` returns null for all three removed slugs and that actual/default middleware returns 404 for them.
+
+In `tests/admin-auth.test.mts`, remove the import of `resolveConfiguredTenant` and make route-tenant fixtures explicit pure values:
+
+~~~ts
+const pandaRouteTenant = {
+  slug: "panda-pop",
+  schema: "panda_pop",
+  basePath: "/panda-pop",
+};
+
+const giftRouteTenant = {
+  slug: "gift-shop",
+  schema: "gift_shop",
+  basePath: "/gift-shop",
+};
+~~~
+
+These tests exercise admin authorization/navigation logic, not the production registry.
+
+In `tests/payment.test.mts`, replace direct `resolveConfiguredTenant(slug)!` fixture creation with `normalizeTenantSlug(slug)!`, and define:
+
+~~~ts
+const paymentFixtureSlugs = new Set([
+  "gift-shop",
+  "panda-pop",
+  "dvorik-collection",
+]);
+
+function resolvePaymentFixtureTenant(value: unknown) {
+  const tenant = normalizeTenantSlug(value);
+  return tenant && paymentFixtureSlugs.has(tenant.slug) ? tenant : null;
+}
+~~~
+
+Use:
+
+~~~ts
+assert.equal(
+  resolveTenantRoute(
+    "/gift-shop/admin/payments",
+    resolvePaymentFixtureTenant
+  ).kind,
+  "tenant"
+);
+~~~
+
+For middleware tests that intentionally verify trusted-header overwrite with a positive tenant route, pass a test-only routing module:
+
+~~~ts
+const fixtureRouting = {
+  ...tenantRouting,
+  resolveTenantRoute: (pathname: string) =>
+    tenantRouting.resolveTenantRoute(
+      pathname,
+      resolvePaymentFixtureTenant
+    ),
+};
+
+const { middleware } = await loadWithMocks(
+  "../src/middleware.ts",
+  {
+    nanoid: { nanoid: () => "synthetic-session" },
+    "next/server": { NextResponse: /* existing test response mock */ },
+    "./lib/tenant-routing/core": fixtureRouting,
+  }
+);
+~~~
+
+Keep a separate default-runtime test in `route-navigation.test.mjs` that proves the removed legacy slugs now 404. This keeps payment isolation tests independent from production registry contents.
+
+Because the marketing homepage and `/examples` currently link directly to the removed Store routes, remove those dead links in the same cleanup. In `DemoStoresSection.tsx`, change the data to translation keys only and render static cards:
+
+~~~tsx
+const stores = [
+  "examples.pandaPop",
+  "examples.giftShop",
+  "examples.dvorikCollection",
+] as const;
+
+<div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+  {stores.map((name) => (
+    <article key={name} className="rounded-2xl border p-6">
+      <h3 className="text-xl font-semibold">{t(name)}</h3>
+    </article>
+  ))}
+</div>
+~~~
+
+Apply the same non-clickable card pattern to `src/app/(marketing)/examples/page.tsx`; retain its Back home link.
+
+Update the existing Marketing copy in both locale files:
+- English `Marketing.examples.subtitle`: `New sample storefronts are coming soon.`
+- Hebrew `Marketing.examples.subtitle`: `חנויות הדוגמה החדשות יעלו בקרוב.`
+
+Do not delete the sample names; only stop advertising the removed routes as live storefronts.
+
+Update `tests/control-plane.test.mts` so old Tenant rows are untrusted, and test `summarizePlatform` with explicit `StoreSummary` fixtures instead of pretending a runtime Tenant is configured.
 
 - [ ] **Step 6: Verify GREEN and commit**
 
 ~~~bash
 npx --yes tsx --test tests/merchant-store.test.mts tests/tenant.test.mts \
-  tests/route-navigation.test.mjs tests/control-plane.test.mts
+  tests/route-navigation.test.mjs tests/control-plane.test.mts \
+  tests/admin-auth.test.mts tests/payment.test.mts tests/marketing-site.test.mts
 node --test tests/tenant-provisioning.test.mjs
 git add src/lib/merchant-stores/core.ts src/lib/tenant-routing/core.ts \
   src/lib/tenant-validation.mjs tests/merchant-store.test.mts \
   tests/tenant-provisioning.test.mjs tests/tenant.test.mts \
-  tests/route-navigation.test.mjs tests/control-plane.test.mts
+  tests/route-navigation.test.mjs tests/control-plane.test.mts \
+  tests/admin-auth.test.mts tests/payment.test.mts tests/marketing-site.test.mts \
+  src/app/'(marketing)'/_components/DemoStoresSection.tsx \
+  src/app/'(marketing)'/examples/page.tsx src/messages/en.json src/messages/he.json
 git commit -m "refactor: separate store slugs from tenant routing"
 ~~~
 
