@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import {
+  STORE_DELETE_UNDO_MS,
+  nextStoreVersion,
+  parseStoreProfile,
+  parseStoreVersion,
+  suggestStoreSlug,
+  validateStoreSlug,
+} from "../src/lib/merchant-stores/core.ts";
 
 test("Store migration creates lifecycle and Store/Tenant boundary", async () => {
   const sql = await readFile(
@@ -58,4 +66,86 @@ test("Store migration is journaled after Organization migration", async () => {
   assert.equal(entry.idx, 8);
   assert.equal(entry.version, "7");
   assert.equal(entry.breakpoints, true);
+});
+
+
+test("slug normalization happens before reserved checking", () => {
+  assert.deepEqual(
+    parseStoreProfile({ displayName: "Panda Pop", slug: " PANDA-POP " }),
+    { displayName: "Panda Pop", slug: "panda-pop" }
+  );
+  for (const slug of [" ADMIN ", "login", "api", "media", "_next", "static"]) {
+    assert.throws(
+      () => parseStoreProfile({ displayName: "Store", slug }),
+      /invalid_store_profile/
+    );
+  }
+});
+
+test("slug suggestion is deterministic ASCII-only", () => {
+  assert.equal(suggestStoreSlug("Panda Pop"), "panda-pop");
+  assert.equal(suggestStoreSlug("  Panda   Pop!  "), "panda-pop");
+  assert.equal(suggestStoreSlug("פנדה פופ"), "");
+  assert.equal(suggestStoreSlug("פנדה Panda פופ Pop"), "panda-pop");
+  assert.match(suggestStoreSlug("A".repeat(100)), /^[a-z0-9-]{1,63}$/);
+});
+
+test("slug validation distinguishes reserved from malformed input", () => {
+  assert.deepEqual(validateStoreSlug(" PANDA-POP "), {
+    ok: true,
+    slug: "panda-pop",
+  });
+  assert.deepEqual(validateStoreSlug(" ADMIN "), {
+    ok: false,
+    reason: "reserved",
+  });
+  assert.deepEqual(validateStoreSlug("panda pop"), {
+    ok: false,
+    reason: "invalid",
+  });
+});
+
+test("Store versions always advance even inside the same millisecond", () => {
+  const current = new Date("2026-09-20T10:00:00.100Z");
+  assert.equal(
+    nextStoreVersion(current, new Date("2026-09-20T10:00:00.100Z")).toISOString(),
+    "2026-09-20T10:00:00.101Z"
+  );
+  assert.equal(
+    nextStoreVersion(current, new Date("2026-09-20T10:00:01.000Z")).toISOString(),
+    "2026-09-20T10:00:01.000Z"
+  );
+});
+
+test("profile strips authority fields and rejects malformed slugs", () => {
+  for (const slug of ["", "-panda", "panda-", "panda--pop", "panda pop", "פנדה"]) {
+    assert.throws(
+      () => parseStoreProfile({ displayName: "Store", slug }),
+      /invalid_store_profile/
+    );
+  }
+  assert.deepEqual(
+    parseStoreProfile({
+      displayName: "Store",
+      slug: "safe-store",
+      merchantAccountId: 9,
+      organizationId: 9,
+      tenantId: 9,
+      schemaName: "public",
+      status: "provisioned",
+      role: "owner",
+    }),
+    { displayName: "Store", slug: "safe-store" }
+  );
+});
+
+test("Store version must be valid ISO time", () => {
+  assert.equal(
+    parseStoreVersion("2026-09-20T10:00:00.000Z").toISOString(),
+    "2026-09-20T10:00:00.000Z"
+  );
+  for (const value of ["", "yesterday", "2026-99-99", null, 123]) {
+    assert.throws(() => parseStoreVersion(value), /invalid_store_version/);
+  }
+  assert.equal(STORE_DELETE_UNDO_MS, 10_000);
 });
