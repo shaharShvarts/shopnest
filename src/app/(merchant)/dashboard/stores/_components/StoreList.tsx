@@ -62,9 +62,7 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
   }
 
   function showUndoToast(storeId: number, undoVersion: string) {
-    let toastId: Id;
-
-    toastId = toast.info(
+    const toastId: Id = toast.info(
       <span className="flex items-center gap-3">
         <span>{t("storeDeleted")}</span>
         <button
