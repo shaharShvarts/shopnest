@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
 import test from "node:test";
+import ts from "typescript";
 import {
   CUSTOMER_NORMAL_SESSION_TTL_MS,
   createCustomerSession,
   hashCustomerSessionToken,
+  normalizeCustomerEmail,
+  resolveSafeTenantCallback,
   type CustomerAuthRepository,
   type CustomerRecord,
   type StoredCustomerSession,
@@ -12,8 +18,6 @@ import {
 import {
   GOOGLE_AUTHORIZATION_ENDPOINT,
   GOOGLE_OAUTH_TRANSACTION_TTL_MS,
-  beginGoogleOAuth,
-  consumeGoogleOAuthState,
   exchangeGoogleAuthorizationCode,
   hashGoogleOAuthSecret,
   resolveGoogleOAuthConfiguration,
@@ -21,6 +25,55 @@ import {
   type GoogleOAuthRepository,
   type StoredGoogleOAuthTransaction,
 } from "../src/lib/customer-auth/google-oauth.ts";
+
+const require = createRequire(import.meta.url);
+
+function resolveGoogleFixtureTenant(value: unknown) {
+  if (typeof value !== "string") return null;
+  const slug = value.trim().toLowerCase();
+  if (!["gift-shop", "panda-pop"].includes(slug)) return null;
+  return {
+    slug,
+    schema: slug.replaceAll("-", "_"),
+    basePath: `/${slug}`,
+  };
+}
+
+function loadGoogleOAuthFixture() {
+  const source = readFileSync(
+    new URL("../src/lib/customer-auth/google-oauth.ts", import.meta.url),
+    "utf8"
+  );
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  });
+  const exports: Record<string, unknown> = {};
+  runInNewContext(outputText, {
+    exports,
+    require(name: string) {
+      if (name === "node:crypto") return require(name);
+      if (name === "./core.ts") {
+        return { normalizeCustomerEmail, resolveSafeTenantCallback };
+      }
+      if (name === "../tenant-validation.mjs") {
+        return { resolveConfiguredTenant: resolveGoogleFixtureTenant };
+      }
+      throw new Error(`Unexpected dependency: ${name}`);
+    },
+  });
+  return exports as {
+    beginGoogleOAuth: typeof import("../src/lib/customer-auth/google-oauth.ts").beginGoogleOAuth;
+    consumeGoogleOAuthState: typeof import("../src/lib/customer-auth/google-oauth.ts").consumeGoogleOAuthState;
+  };
+}
+
+const {
+  beginGoogleOAuth,
+  consumeGoogleOAuthState,
+} = loadGoogleOAuthFixture();
 
 const configuration = {
   clientId: "shopnest-test.apps.googleusercontent.com",
