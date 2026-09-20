@@ -83,7 +83,11 @@ test("a runtime image is readable immediately after upload without a rebuild", a
       resolveMediaFixtureTenant
     );
     assert.ok(media);
-    const response = await readCatalogImage({ ...media, uploadsRoot });
+    const response = await readCatalogImage({
+      ...media,
+      uploadsRoot,
+      resolveTenant: resolveMediaFixtureTenant,
+    });
     assert.equal(response.contentType, "image/png");
     assert.deepEqual(response.bytes, await imageBytes("category-image"));
   });
@@ -130,6 +134,7 @@ test("gift-shop and panda-pop use separate physical namespaces", async () => {
         tenantSlug: "panda-pop",
         imageUrl: gift.imageUrl,
         uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
       }),
       false
     );
@@ -242,6 +247,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
         kind,
         file: await imageFile(`${kind}-old`, "image/png"),
         uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
       });
       assert.deepEqual(
         (await readCatalogImage({
@@ -249,6 +255,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           kind,
           filename: original.filename,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         })).bytes,
         await imageBytes(`${kind}-old`)
       );
@@ -258,12 +265,14 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
         kind,
         file: await imageFile(`${kind}-new`, "image/webp"),
         uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
       });
       assert.equal(
         await deleteCatalogImage({
           tenantSlug: "gift-shop",
           imageUrl: original.imageUrl,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         true
       );
@@ -273,6 +282,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           kind,
           filename: original.filename,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         (error: unknown) =>
           error instanceof LocalMediaError && error.code === "NOT_FOUND"
@@ -283,6 +293,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           kind,
           filename: replacement.filename,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         })).bytes,
         await imageBytes(`${kind}-new`)
       );
@@ -291,6 +302,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           tenantSlug: "gift-shop",
           imageUrl: replacement.imageUrl,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         true
       );
@@ -299,6 +311,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           tenantSlug: "gift-shop",
           imageUrl: "https://cdn.example.com/image.jpg",
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         false
       );
