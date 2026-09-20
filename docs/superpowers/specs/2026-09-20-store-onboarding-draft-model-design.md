@@ -1,7 +1,7 @@
 # ShopNest Store Onboarding / Draft Model Design
 
 Date: 2026-09-20
-Status: Written spec awaiting user review for PR #37
+Status: Approved written spec for PR #37
 Repository: shaharShvarts/shopnest
 Target branch: feature/store-onboarding-draft-model
 
