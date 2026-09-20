@@ -911,17 +911,23 @@ test("in-flight testing retains a coherent snapshot while settings are replaced"
 // reimplementation of their guards. No Next server, database or live network is used.
 import ts from "typescript";
 import * as tenantRouting from "../src/lib/tenant-routing/core.ts";
-import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
 
-const paymentFixtureSlugs = new Set([
-  "gift-shop",
-  "panda-pop",
-  "dvorik-collection",
-]);
+const paymentFixtureTenants = new Map([
+  ["gift-shop", { slug: "gift-shop", schema: "gift_shop", basePath: "/gift-shop" }],
+  ["panda-pop", { slug: "panda-pop", schema: "panda_pop", basePath: "/panda-pop" }],
+  [
+    "dvorik-collection",
+    {
+      slug: "dvorik-collection",
+      schema: "dvorik_collection",
+      basePath: "/dvorik-collection",
+    },
+  ],
+] as const);
 
 function resolvePaymentFixtureTenant(value: unknown) {
-  const tenant = normalizeTenantSlug(value);
-  return tenant && paymentFixtureSlugs.has(tenant.slug) ? tenant : null;
+  if (typeof value !== "string") return null;
+  return paymentFixtureTenants.get(value.trim().toLowerCase()) ?? null;
 }
 async function loadWithMocks<T>(path: string, mocks: Record<string, unknown>): Promise<T> {
   const compiled = ts.transpileModule(await source(path), { compilerOptions: {
