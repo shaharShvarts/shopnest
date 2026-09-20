@@ -12,3 +12,5 @@ export * from "@/drizzle/control-schema/customerOAuthTransaction";
 export * from "@/drizzle/control-schema/merchantAccount";
 export * from "@/drizzle/control-schema/merchantSession";
 export * from "@/drizzle/control-schema/merchantPasswordReset";
+export * from "@/drizzle/control-schema/organization";
+export * from "@/drizzle/control-schema/organizationMembership";

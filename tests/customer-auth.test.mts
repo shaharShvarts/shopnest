@@ -734,8 +734,10 @@ test("customer identity migration is public, journaled, and control-plane idempo
     true
   );
   assert.equal(
-    JSON.parse(journal).entries.at(-1).tag,
-    "0005_customer_avatar"
+    JSON.parse(journal).entries.some(
+      (entry: { tag: string }) => entry.tag === "0005_customer_avatar"
+    ),
+    true
   );
   assert.match(provisioner, /SELECT hash[\s\S]*assertMigrationHash/);
 });
