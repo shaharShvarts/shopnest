@@ -78,6 +78,7 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
       {
         autoClose: 10_000,
         closeOnClick: false,
+        closeButton: false,
       }
     );
   }
