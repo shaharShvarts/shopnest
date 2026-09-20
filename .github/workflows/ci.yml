@@ -42,6 +42,7 @@ jobs:
           npm run admin-auth:test
           npm run control-plane:test
           npx --yes tsx --test tests/merchant-store.test.mts
+          npx --yes tsx --test tests/merchant-store-routes.test.mts
           npm run catalog:test
           npm run storefront-ui:test
           npm run admin-ui:test
