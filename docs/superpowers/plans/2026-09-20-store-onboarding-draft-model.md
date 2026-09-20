@@ -45,6 +45,8 @@
 - Same-slug races must never create two reserved Stores; partial unique index is final authority.
 - Malformed/stale `updated_at` tokens must never mutate or revive Store state.
 - Legacy tenant with its schema or any known dependent control-plane row must survive cleanup.
+- A Store slug that still exists in `public.tenants.slug` must remain unavailable even if that Tenant was removed from the static registry; PR #37 must not create two platform identities for the same future URL.
+- Every successful mutation must advance `updated_at` even when two writes receive the same millisecond clock value, so stale Undo/edit tokens cannot accidentally remain valid.
 
 ## File Map
 
@@ -147,6 +149,7 @@ test("legacy cleanup is exact and guarded against live data", async () => {
   assert.match(sql, /admin_user_tenants/);
   assert.match(sql, /customer_tenants/);
   assert.match(sql, /customer_oauth_transactions/);
+  assert.match(sql, /public\.stores/);
   assert.match(sql, /RAISE NOTICE/);
   assert.doesNotMatch(sql, /DROP SCHEMA/);
 });
@@ -189,57 +192,162 @@ export type StoreStatus = (typeof storeStatuses)[number];
 export const storeStatusEnum = pgEnum("store_status", storeStatuses);
 ~~~
 
-Create `store.ts` with fields:
-`id`, `organizationId`, `displayName`, `slug`, `status`, `tenantId`,
-`deletedAt`, `deleteFinalizesAt`, `slugReleasedAt`, `createdAt`, `updatedAt`.
-
-Use these exact table constraints:
+Create `src/drizzle/control-schema/store.ts`:
 
 ~~~ts
-check(
-  "stores_status_tenant_consistency",
-  sql`(
-    (${table.status} = 'provisioned' AND ${table.tenantId} IS NOT NULL)
-    OR
-    (${table.status} IN ('draft', 'ready_for_provisioning') AND ${table.tenantId} IS NULL)
-  )`
-),
-check(
-  "stores_delete_window_consistency",
-  sql`(
-    (${table.deletedAt} IS NULL AND ${table.deleteFinalizesAt} IS NULL)
-    OR
-    (${table.deletedAt} IS NOT NULL AND ${table.deleteFinalizesAt} IS NOT NULL)
-  )`
-),
-check(
-  "stores_slug_release_requires_delete",
-  sql`${table.slugReleasedAt} IS NULL OR ${table.deletedAt} IS NOT NULL`
-),
-check(
-  "stores_delete_finalizes_after_delete",
-  sql`${table.deleteFinalizesAt} IS NULL OR ${table.deleteFinalizesAt} >= ${table.deletedAt}`
-),
-uniqueIndex("stores_slug_reserved_unique")
-  .on(table.slug)
-  .where(sql`${table.slugReleasedAt} IS NULL`),
-uniqueIndex("stores_tenant_id_unique")
-  .on(table.tenantId)
-  .where(sql`${table.tenantId} IS NOT NULL`),
-index("stores_organization_id_idx").on(table.organizationId),
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  integer,
+  pgTable,
+  serial,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/pg-core";
+import { organizations } from "./organization";
+import { storeStatusEnum } from "./shared";
+import { controlPlaneTenants } from "./tenant";
+
+export const stores = pgTable(
+  "stores",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: integer("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    displayName: varchar("display_name", { length: 160 }).notNull(),
+    slug: varchar("slug", { length: 63 }).notNull(),
+    status: storeStatusEnum("status").notNull().default("draft"),
+    tenantId: integer("tenant_id").references(() => controlPlaneTenants.id),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deleteFinalizesAt: timestamp("delete_finalizes_at", { withTimezone: true }),
+    slugReleasedAt: timestamp("slug_released_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    check(
+      "stores_status_tenant_consistency",
+      sql`(
+        (${table.status} = 'provisioned' AND ${table.tenantId} IS NOT NULL)
+        OR
+        (${table.status} IN ('draft', 'ready_for_provisioning') AND ${table.tenantId} IS NULL)
+      )`
+    ),
+    check(
+      "stores_delete_window_consistency",
+      sql`(
+        (${table.deletedAt} IS NULL AND ${table.deleteFinalizesAt} IS NULL)
+        OR
+        (${table.deletedAt} IS NOT NULL AND ${table.deleteFinalizesAt} IS NOT NULL)
+      )`
+    ),
+    check(
+      "stores_slug_release_requires_delete",
+      sql`${table.slugReleasedAt} IS NULL OR ${table.deletedAt} IS NOT NULL`
+    ),
+    check(
+      "stores_delete_finalizes_after_delete",
+      sql`${table.deleteFinalizesAt} IS NULL OR ${table.deleteFinalizesAt} >= ${table.deletedAt}`
+    ),
+    uniqueIndex("stores_slug_reserved_unique")
+      .on(table.slug)
+      .where(sql`${table.slugReleasedAt} IS NULL`),
+    uniqueIndex("stores_tenant_id_unique")
+      .on(table.tenantId)
+      .where(sql`${table.tenantId} IS NOT NULL`),
+    index("stores_organization_id_idx").on(table.organizationId),
+  ]
+);
 ~~~
 
-Organization/Tenant FKs use default NO ACTION; never add cascade. Export from `control-plane-schema.ts`.
+The Organization and Tenant foreign keys intentionally use PostgreSQL default NO ACTION behavior; do not add `onDelete: "cascade"`.
+
+Append to `src/drizzle/control-plane-schema.ts`:
+
+~~~ts
+export * from "@/drizzle/control-schema/store";
+~~~
 
 - [ ] **Step 4: Add migration 0008 and guarded cleanup**
 
-Use SQL equivalent of Step 3, then:
+Create `src/drizzle/control-migrations/0008_store_onboarding.sql`:
 
 ~~~sql
-DO $$
+CREATE TYPE "public"."store_status" AS ENUM(
+  'draft',
+  'ready_for_provisioning',
+  'provisioned'
+);--> statement-breakpoint
+
+CREATE TABLE "stores" (
+  "id" serial PRIMARY KEY NOT NULL,
+  "organization_id" integer NOT NULL,
+  "display_name" varchar(160) NOT NULL,
+  "slug" varchar(63) NOT NULL,
+  "status" "public"."store_status" DEFAULT 'draft' NOT NULL,
+  "tenant_id" integer,
+  "deleted_at" timestamp with time zone,
+  "delete_finalizes_at" timestamp with time zone,
+  "slug_released_at" timestamp with time zone,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT "stores_status_tenant_consistency"
+    CHECK (
+      ("status" = 'provisioned' AND "tenant_id" IS NOT NULL)
+      OR
+      ("status" IN ('draft', 'ready_for_provisioning') AND "tenant_id" IS NULL)
+    ),
+  CONSTRAINT "stores_delete_window_consistency"
+    CHECK (
+      ("deleted_at" IS NULL AND "delete_finalizes_at" IS NULL)
+      OR
+      ("deleted_at" IS NOT NULL AND "delete_finalizes_at" IS NOT NULL)
+    ),
+  CONSTRAINT "stores_slug_release_requires_delete"
+    CHECK ("slug_released_at" IS NULL OR "deleted_at" IS NOT NULL),
+  CONSTRAINT "stores_delete_finalizes_after_delete"
+    CHECK (
+      "delete_finalizes_at" IS NULL
+      OR "delete_finalizes_at" >= "deleted_at"
+    )
+);--> statement-breakpoint
+
+ALTER TABLE "stores"
+  ADD CONSTRAINT "stores_organization_id_organizations_id_fk"
+  FOREIGN KEY ("organization_id")
+  REFERENCES "public"."organizations"("id")
+  ON UPDATE no action ON DELETE no action;--> statement-breakpoint
+
+ALTER TABLE "stores"
+  ADD CONSTRAINT "stores_tenant_id_tenants_id_fk"
+  FOREIGN KEY ("tenant_id")
+  REFERENCES "public"."tenants"("id")
+  ON UPDATE no action ON DELETE no action;--> statement-breakpoint
+
+CREATE UNIQUE INDEX "stores_slug_reserved_unique"
+  ON "stores" USING btree ("slug")
+  WHERE "slug_released_at" IS NULL;--> statement-breakpoint
+
+CREATE UNIQUE INDEX "stores_tenant_id_unique"
+  ON "stores" USING btree ("tenant_id")
+  WHERE "tenant_id" IS NOT NULL;--> statement-breakpoint
+
+CREATE INDEX "stores_organization_id_idx"
+  ON "stores" USING btree ("organization_id");--> statement-breakpoint
+
+DO $
 DECLARE
   legacy_slug text;
   legacy_schema text;
+  legacy_tenant_id integer;
 BEGIN
   FOR legacy_slug, legacy_schema IN
     SELECT *
@@ -250,10 +358,13 @@ BEGIN
         ('dvorik-collection', 'dvorik_collection')
     ) AS legacy(slug, schema_name)
   LOOP
-    IF EXISTS (
-      SELECT 1 FROM public.tenants
-      WHERE slug = legacy_slug AND schema_name = legacy_schema
-    ) THEN
+    SELECT id
+    INTO legacy_tenant_id
+    FROM public.tenants
+    WHERE slug = legacy_slug
+      AND schema_name = legacy_schema;
+
+    IF legacy_tenant_id IS NOT NULL THEN
       IF NOT EXISTS (
         SELECT 1 FROM pg_namespace WHERE nspname = legacy_schema
       )
@@ -265,20 +376,25 @@ BEGIN
       )
       AND NOT EXISTS (
         SELECT 1 FROM public.customer_oauth_transactions WHERE tenant_slug = legacy_slug
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM public.stores WHERE tenant_id = legacy_tenant_id
       ) THEN
         DELETE FROM public.tenants
-        WHERE slug = legacy_slug AND schema_name = legacy_schema;
+        WHERE id = legacy_tenant_id;
       ELSE
         RAISE NOTICE
           'Leaving legacy tenant % because schema or dependent control-plane data still exists',
           legacy_slug;
       END IF;
     END IF;
+
+    legacy_tenant_id := NULL;
   END LOOP;
-END $$;
+END $;
 ~~~
 
-Register journal entry:
+Register this entry after 0007 in `src/drizzle/control-migrations/meta/_journal.json`:
 
 ~~~json
 {
@@ -330,9 +446,11 @@ Expected: tests PASS before commit.
 ~~~ts
 import {
   STORE_DELETE_UNDO_MS,
+  nextStoreVersion,
   parseStoreProfile,
   parseStoreVersion,
   suggestStoreSlug,
+  validateStoreSlug,
 } from "../src/lib/merchant-stores/core.ts";
 
 test("slug normalization happens before reserved checking", () => {
@@ -354,6 +472,33 @@ test("slug suggestion is deterministic ASCII-only", () => {
   assert.equal(suggestStoreSlug("פנדה פופ"), "");
   assert.equal(suggestStoreSlug("פנדה Panda פופ Pop"), "panda-pop");
   assert.match(suggestStoreSlug("A".repeat(100)), /^[a-z0-9-]{1,63}$/);
+});
+
+test("slug validation distinguishes reserved from malformed input", () => {
+  assert.deepEqual(validateStoreSlug(" PANDA-POP "), {
+    ok: true,
+    slug: "panda-pop",
+  });
+  assert.deepEqual(validateStoreSlug(" ADMIN "), {
+    ok: false,
+    reason: "reserved",
+  });
+  assert.deepEqual(validateStoreSlug("panda pop"), {
+    ok: false,
+    reason: "invalid",
+  });
+});
+
+test("Store versions always advance even inside the same millisecond", () => {
+  const current = new Date("2026-09-20T10:00:00.100Z");
+  assert.equal(
+    nextStoreVersion(current, new Date("2026-09-20T10:00:00.100Z")).toISOString(),
+    "2026-09-20T10:00:00.101Z"
+  );
+  assert.equal(
+    nextStoreVersion(current, new Date("2026-09-20T10:00:01.000Z")).toISOString(),
+    "2026-09-20T10:00:01.000Z"
+  );
 });
 
 test("profile strips authority fields and rejects malformed slugs", () => {
@@ -503,6 +648,8 @@ Do not use Store-reserved set as legacy routing set.
 
 - [ ] **Step 4: Create Store core**
 
+Create `src/lib/merchant-stores/core.ts`:
+
 ~~~ts
 import { z } from "zod";
 import { STORE_RESERVED_ROUTE_SEGMENTS } from "@/lib/tenant-routing/core";
@@ -510,20 +657,39 @@ import { normalizeTenantSlug } from "@/lib/tenant-validation.mjs";
 
 export const STORE_DELETE_UNDO_MS = 10_000;
 
+export type StoreSlugValidation =
+  | { ok: true; slug: string }
+  | { ok: false; reason: "invalid" | "reserved" };
+
+export function validateStoreSlug(value: unknown): StoreSlugValidation {
+  if (typeof value !== "string") {
+    return { ok: false, reason: "invalid" };
+  }
+
+  const slug = value.trim().toLowerCase();
+  const normalized = normalizeTenantSlug(slug);
+  if (!normalized || normalized.slug !== slug) {
+    return { ok: false, reason: "invalid" };
+  }
+  if (STORE_RESERVED_ROUTE_SEGMENTS.has(slug)) {
+    return { ok: false, reason: "reserved" };
+  }
+  return { ok: true, slug };
+}
+
 const storeSlugSchema = z
   .string()
-  .trim()
-  .min(1)
-  .max(63)
-  .transform((value) => value.toLowerCase())
-  .superRefine((value, context) => {
-    const normalized = normalizeTenantSlug(value);
-    if (!normalized || normalized.slug !== value) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_store_slug" });
-      return;
-    }
-    if (STORE_RESERVED_ROUTE_SEGMENTS.has(value)) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: "reserved_store_slug" });
+  .transform((value) => value.trim().toLowerCase())
+  .superRefine((slug, context) => {
+    const validation = validateStoreSlug(slug);
+    if (!validation.ok) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          validation.reason === "reserved"
+            ? "reserved_store_slug"
+            : "invalid_store_slug",
+      });
     }
   });
 
@@ -577,6 +743,10 @@ export function parseStoreVersion(value: unknown) {
   const date = new Date(parsed.data);
   if (Number.isNaN(date.getTime())) throw new Error("invalid_store_version");
   return date;
+}
+
+export function nextStoreVersion(current: Date, now = new Date()) {
+  return new Date(Math.max(now.getTime(), current.getTime() + 1));
 }
 ~~~
 
@@ -639,13 +809,16 @@ test("Store repository is control-plane only and owner-scoped", async () => {
   assert.match(source, /role/);
   assert.match(source, /"owner"/);
   assert.match(source, /stores\.organizationId/);
+  assert.match(source, /controlPlaneTenants/);
+  assert.match(source, /controlPlaneTenants\.slug/);
+  assert.match(source, /nextStoreVersion/);
   assert.doesNotMatch(
     source,
     /getDbForTenant|getTenant\(|TENANT_SCHEMA_HEADER|search_path|schemaName.*input/
   );
 });
 
-test("same-slug races use transaction plus DB unique constraint", async () => {
+test("same-slug races and existing Tenant slugs remain unavailable", async () => {
   const source = await readFile("src/lib/merchant-stores/drizzle-repository.ts", "utf8");
   assert.match(source, /\.transaction\(/);
   assert.match(source, /deleteFinalizesAt/);
@@ -736,22 +909,117 @@ export interface MerchantStoreRepository {
 }
 ~~~
 
-- [ ] **Step 4: Implement reads and authorization**
+- [ ] **Step 4: Implement owner Organization resolution and active Store reads**
 
-Every normal Store query joins `stores.organizationId` to `organizationMemberships.organizationId` and requires:
-`merchantAccountId = merchantId`, `role = "owner"`, `stores.deletedAt IS NULL`.
-`findOwnedById` also requires exact Store id. Missing/deleted/cross-Organization returns null.
+Use one server-derived Organization selector in `drizzle-repository.ts` and reuse it for every Store operation:
 
-- [ ] **Step 5: Implement create and slug availability**
+~~~ts
+async function resolveOwnerOrganizationId(
+  tx: ReturnType<typeof getControlPlaneDb>,
+  merchantId: number
+) {
+  const [membership] = await tx
+    .select({ organizationId: organizationMemberships.organizationId })
+    .from(organizationMemberships)
+    .where(
+      and(
+        eq(organizationMemberships.merchantAccountId, merchantId),
+        eq(organizationMemberships.role, "owner")
+      )
+    )
+    .orderBy(
+      asc(organizationMemberships.createdAt),
+      asc(organizationMemberships.organizationId)
+    )
+    .limit(1);
 
-`createDraftForMerchant` transaction:
-1. resolve merchant's first owner Organization ordered by membership creation + Organization id;
-2. absent → `ORGANIZATION_REQUIRED`;
-3. finalize only matching rows with deletedAt nonnull, slugReleasedAt null, deleteFinalizesAt <= now;
-4. insert Store with `status: "draft"` and `tenantId: null`;
-5. map PostgreSQL code `23505` with constraint `stores_slug_reserved_unique` to `SLUG_UNAVAILABLE`.
+  return membership?.organizationId ?? null;
+}
+~~~
 
-Use:
+If the concrete Drizzle transaction type cannot use the helper signature above cleanly, keep the helper inside the transaction callback rather than weakening it to `any`.
+
+Normal Store reads first resolve this Organization id, then scope by both Store id/Organization and `deleted_at IS NULL`:
+
+~~~ts
+const organizationId = await resolveOwnerOrganizationId(db, merchantId);
+if (organizationId === null) return [];
+
+return db
+  .select(storeSelection)
+  .from(stores)
+  .where(
+    and(
+      eq(stores.organizationId, organizationId),
+      isNull(stores.deletedAt)
+    )
+  )
+  .orderBy(asc(stores.createdAt), asc(stores.id));
+~~~
+
+`findOwnedById` uses the same Organization id and adds `eq(stores.id, storeId)`; it returns `null` for missing, deleted, or cross-Organization rows.
+
+- [ ] **Step 5: Implement slug collision/finalization helpers and draft creation**
+
+Import `controlPlaneTenants`. Before reserving a Store slug, reject any existing Tenant with that slug, even though the static registry is empty:
+
+~~~ts
+async function assertNoTenantSlugCollision(
+  tx: ReturnType<typeof getControlPlaneDb>,
+  slug: string
+) {
+  const [tenant] = await tx
+    .select({ id: controlPlaneTenants.id })
+    .from(controlPlaneTenants)
+    .where(eq(controlPlaneTenants.slug, slug))
+    .limit(1);
+
+  if (tenant) {
+    throw new MerchantStoreError(
+      "SLUG_UNAVAILABLE",
+      "Store slug already belongs to a Tenant"
+    );
+  }
+}
+~~~
+
+As with the Organization helper, if transaction typing differs, define this helper inside the transaction callback with the concrete inferred `tx`.
+
+Finalize only expired reservations for the requested slug:
+
+~~~ts
+await tx
+  .update(stores)
+  .set({
+    slugReleasedAt: now,
+    updatedAt: now,
+  })
+  .where(
+    and(
+      eq(stores.slug, profile.slug),
+      isNotNull(stores.deletedAt),
+      isNull(stores.slugReleasedAt),
+      lte(stores.deleteFinalizesAt, now)
+    )
+  );
+~~~
+
+Then create:
+
+~~~ts
+const [created] = await tx
+  .insert(stores)
+  .values({
+    organizationId,
+    displayName: profile.displayName,
+    slug: profile.slug,
+    status: "draft",
+    tenantId: null,
+  })
+  .returning(storeSelection);
+~~~
+
+Wrap the transaction in `try/catch`. Map only PostgreSQL `23505` with constraint `stores_slug_reserved_unique` to `SLUG_UNAVAILABLE`; rethrow everything else:
 
 ~~~ts
 function isConstraintViolation(error: unknown, constraint: string) {
@@ -760,33 +1028,108 @@ function isConstraintViolation(error: unknown, constraint: string) {
 }
 ~~~
 
-`isSlugAvailable` verifies owner Organization. If current Store id is supplied, verify it is owned before excluding it. Expired deleted reservation is logically available, but this read does not mutate; create/update performs finalization transactionally.
+`isSlugAvailable` must:
+1. resolve the same owner Organization;
+2. validate/exclude `currentStoreId` only if it belongs to that Organization;
+3. return false if `public.tenants.slug = slug`;
+4. return false for an active Store reservation or deleted reservation whose `deleteFinalizesAt > now`;
+5. return true when the only Store reservation is deleted, unreleased, and expired; do not mutate during this advisory read.
 
-- [ ] **Step 6: Implement update/delete/Undo**
+- [ ] **Step 6: Implement edit/delete/Undo with monotonic versions**
 
-`updateOwned`:
-- transaction, owned row `FOR UPDATE`;
-- deleted/missing/cross-org → `NOT_FOUND`;
-- stale expected `updatedAt` → `CONFLICT`;
-- linked Tenant + changed slug → `SLUG_LOCKED`;
-- target slug change finalizes only expired matching reservation;
-- write display name and pre-provisioning slug, set updatedAt now;
-- unique conflict → `SLUG_UNAVAILABLE`.
+For `updateOwned`, transactionally lock the Store row scoped to the resolved Organization:
 
-`softDeleteOwned`:
-- lock owned active row;
-- stale version → `CONFLICT`;
-- tenant linked → `TENANT_LINKED`;
-- set deletedAt now, deleteFinalizesAt now+10s, updatedAt now;
-- return post-delete version + expiry.
+~~~ts
+const [current] = await tx
+  .select(storeSelection)
+  .from(stores)
+  .where(
+    and(
+      eq(stores.id, storeId),
+      eq(stores.organizationId, organizationId),
+      isNull(stores.deletedAt)
+    )
+  )
+  .limit(1)
+  .for("update");
 
-`undoDeleteOwned`:
-- lock owned deleted row;
-- require slugReleasedAt null;
-- require exact post-delete version;
-- require deleteFinalizesAt > now else `UNDO_EXPIRED`;
-- clear deletedAt/deleteFinalizesAt and set updatedAt now;
-- never clear slugReleasedAt.
+if (!current) {
+  throw new MerchantStoreError("NOT_FOUND", "Store not found");
+}
+if (current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+  throw new MerchantStoreError("CONFLICT", "Store changed");
+}
+if (current.tenantId !== null && profile.slug !== current.slug) {
+  throw new MerchantStoreError("SLUG_LOCKED", "Store slug is locked");
+}
+~~~
+
+If slug changes, run `assertNoTenantSlugCollision(tx, profile.slug)`, then opportunistically finalize only the expired matching Store reservation. Persist a strictly newer version:
+
+~~~ts
+const updatedAt = nextStoreVersion(current.updatedAt, now);
+
+const [updated] = await tx
+  .update(stores)
+  .set({
+    displayName: profile.displayName,
+    slug: current.tenantId === null ? profile.slug : current.slug,
+    updatedAt,
+  })
+  .where(eq(stores.id, current.id))
+  .returning(storeSelection);
+~~~
+
+Map `stores_slug_reserved_unique` exactly as creation does.
+
+For `softDeleteOwned`, lock the active owned row, require exact expected version, reject linked Tenant, then:
+
+~~~ts
+const updatedAt = nextStoreVersion(current.updatedAt, now);
+const deleteFinalizesAt = new Date(
+  now.getTime() + STORE_DELETE_UNDO_MS
+);
+
+const [deleted] = await tx
+  .update(stores)
+  .set({
+    deletedAt: now,
+    deleteFinalizesAt,
+    updatedAt,
+  })
+  .where(eq(stores.id, current.id))
+  .returning(storeSelection);
+
+return {
+  store: mapStore(deleted),
+  undoVersion: deleted.updatedAt.toISOString(),
+  undoExpiresAt: deleteFinalizesAt.toISOString(),
+};
+~~~
+
+For `undoDeleteOwned`, resolve the same Organization and lock by Store id/Organization without the normal `deletedAt IS NULL` filter. Require:
+- `deletedAt !== null`;
+- `slugReleasedAt === null`;
+- exact post-delete `updatedAt`;
+- nonnull `deleteFinalizesAt` and `deleteFinalizesAt.getTime() > now.getTime()`.
+
+Otherwise throw `NOT_FOUND`, `CONFLICT`, or `UNDO_EXPIRED` as appropriate. Restore with:
+
+~~~ts
+const updatedAt = nextStoreVersion(current.updatedAt, now);
+
+const [restored] = await tx
+  .update(stores)
+  .set({
+    deletedAt: null,
+    deleteFinalizesAt: null,
+    updatedAt,
+  })
+  .where(eq(stores.id, current.id))
+  .returning(storeSelection);
+~~~
+
+Never clear `slugReleasedAt`.
 
 - [ ] **Step 7: Add server accessor**
 
@@ -905,6 +1248,7 @@ import {
   parseStoreId,
   parseStoreVersion,
   storeProfileSchema,
+  validateStoreSlug,
 } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 
@@ -963,15 +1307,17 @@ export async function createStoreAction(
     };
   }
 
+  let store;
   try {
-    const store = await getMerchantStoreRepository().createDraftForMerchant(
+    store = await getMerchantStoreRepository().createDraftForMerchant(
       merchant.id,
       parsed.data
     );
-    redirect("/dashboard/stores/" + store.id);
   } catch (error) {
     return { success: false, message: messageForStoreError(error) };
   }
+
+  redirect("/dashboard/stores/" + store.id);
 }
 ~~~
 
@@ -1009,10 +1355,11 @@ export async function updateStoreAction(
       parsed.data,
       expectedUpdatedAt
     );
-    redirect("/dashboard/stores/" + storeId);
   } catch (error) {
     return { success: false, message: messageForStoreError(error) };
   }
+
+  redirect("/dashboard/stores/" + storeId);
 }
 ~~~
 
@@ -1026,13 +1373,12 @@ export async function checkStoreSlugAvailabilityAction(input: {
   currentStoreId?: number;
 }) {
   const merchant = await requireMerchantPage();
-  const parsed = storeProfileSchema.safeParse({
-    displayName: "availability-check",
-    slug: input.slug,
-  });
-
-  if (!parsed.success) {
-    return { available: false as const, reason: "invalid" as const };
+  const validation = validateStoreSlug(input.slug);
+  if (!validation.ok) {
+    return {
+      available: false as const,
+      reason: validation.reason,
+    };
   }
 
   let currentStoreId: number | undefined;
@@ -1047,14 +1393,14 @@ export async function checkStoreSlugAvailabilityAction(input: {
 
   const available = await getMerchantStoreRepository().isSlugAvailable(
     merchant.id,
-    parsed.data.slug,
+    validation.slug,
     currentStoreId
   );
 
   return {
     available,
     reason: available ? null : ("taken" as const),
-    slug: parsed.data.slug,
+    slug: validation.slug,
   };
 }
 ~~~
@@ -1141,7 +1487,7 @@ Expected: PASS before commit.
 - Modify: `tests/merchant-store-routes.test.mts`
 
 **Interfaces:**
-- Consumes Task 4 actions and Task 3 repository.
+- Consumes Task 4 actions, Task 3 repository, and Task 2 `validateStoreSlug` / `suggestStoreSlug`.
 - Produces create/edit/detail UX; no Tenant/schema side effects.
 
 - [ ] **Step 1: Add failing page/form/translation tests**
@@ -1268,7 +1614,7 @@ const [displayName, setDisplayName] = useState(
 const [slug, setSlug] = useState(initialValues?.slug ?? "");
 const [slugEdited, setSlugEdited] = useState(mode === "edit");
 const [availability, setAvailability] = useState<
-  "idle" | "checking" | "available" | "unavailable" | "invalid"
+  "idle" | "checking" | "available" | "unavailable" | "invalid" | "reserved"
 >("idle");
 
 function handleDisplayNameChange(value: string) {
@@ -1282,12 +1628,41 @@ function handleSlugChange(value: string) {
 }
 ~~~
 
-Use 300 ms debounced `useEffect`:
-- set checking;
-- call `checkStoreSlugAvailabilityAction` with slug and edit Store id;
-- local `cancelled` boolean prevents stale response overwrite;
-- invalid/empty slug shows invalid/manual state;
-- this check never substitutes for submit validation.
+Use `validateStoreSlug` before making the advisory server request, then debounce only valid slugs:
+
+~~~ts
+useEffect(() => {
+  const validation = validateStoreSlug(slug);
+  if (!validation.ok) {
+    setAvailability(validation.reason);
+    return;
+  }
+
+  let cancelled = false;
+  const timer = window.setTimeout(() => {
+    setAvailability("checking");
+
+    void checkStoreSlugAvailabilityAction({
+      slug: validation.slug,
+      currentStoreId: mode === "edit" ? initialValues?.id : undefined,
+    }).then((result) => {
+      if (cancelled) return;
+      if (result.reason === "invalid" || result.reason === "reserved") {
+        setAvailability(result.reason);
+      } else {
+        setAvailability(result.available ? "available" : "unavailable");
+      }
+    });
+  }, 300);
+
+  return () => {
+    cancelled = true;
+    window.clearTimeout(timer);
+  };
+}, [slug, mode, initialValues?.id]);
+~~~
+
+This is UX feedback only; submit validation and DB constraints remain authoritative.
 
 Render:
 - required `displayName`;
@@ -1429,15 +1804,63 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement Store list page**
 
-Server flow:
-1. require merchant;
-2. resolve first Organization;
-3. no Organization → redirect `/dashboard/business/new`;
-4. load `listForMerchant`;
-5. render My Stores, Add store, and empty Create your first store CTA;
-6. for nonempty results pass serialized list items to `StoreList`.
+Create `src/app/(merchant)/dashboard/stores/page.tsx` with this server flow:
 
-Client item shape:
+~~~tsx
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import { requireMerchantPage } from "@/lib/merchant-auth/server";
+import { getMerchantOrganizationRepository } from "@/lib/merchant-organizations/server";
+import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
+import { StoreList } from "./_components/StoreList";
+
+export default async function MerchantStoresPage() {
+  const merchant = await requireMerchantPage();
+  const organization =
+    await getMerchantOrganizationRepository().findFirstForMerchant(merchant.id);
+
+  if (!organization) {
+    redirect("/dashboard/business/new");
+  }
+
+  const stores = await getMerchantStoreRepository().listForMerchant(merchant.id);
+  const t = await getTranslations("MerchantStore");
+
+  const items = stores.map((store) => ({
+    id: store.id,
+    displayName: store.displayName,
+    slug: store.slug,
+    status: store.status,
+    tenantId: store.tenantId,
+    updatedAt: store.updatedAt.toISOString(),
+  }));
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold tracking-tight">{t("myStores")}</h1>
+        <Link href="/dashboard/stores/new">{t("addStore")}</Link>
+      </div>
+
+      {items.length === 0 ? (
+        <section className="mt-8 rounded-2xl bg-background p-8 ring-1 ring-black/5">
+          <p>{t("noStoresYet")}</p>
+          <Link href="/dashboard/stores/new">{t("createFirstStore")}</Link>
+        </section>
+      ) : (
+        <StoreList stores={items} />
+      )}
+    </main>
+  );
+}
+~~~
+
+Keep styling aligned with the existing dashboard/business pages; the important contract is the server-side auth/Organization check and Date serialization above.
+
+- [ ] **Step 4: Implement immediate delete and Undo**
+
+Use this client item shape and state in `StoreList.tsx`:
 
 ~~~ts
 type StoreListItem = {
@@ -1448,28 +1871,48 @@ type StoreListItem = {
   tenantId: number | null;
   updatedAt: string;
 };
-~~~
 
-- [ ] **Step 4: Implement immediate delete and Undo**
-
-Maintain:
-
-~~~ts
 const [hiddenStoreIds, setHiddenStoreIds] = useState<Set<number>>(
   () => new Set()
 );
+
+function setHidden(storeId: number, hidden: boolean) {
+  setHiddenStoreIds((current) => {
+    const next = new Set(current);
+    if (hidden) next.add(storeId);
+    else next.delete(storeId);
+    return next;
+  });
+}
 ~~~
 
-Delete behavior:
-- add id to hidden set before awaiting network;
-- call delete with Store id + current updatedAt;
-- failure restores id and shows error toast;
-- success opens Undo toast with `autoClose: 10_000` and `closeOnClick: false`;
-- Undo sends returned `undoVersion`;
-- success unhides + dismisses toast + `router.refresh()`;
-- failed/expired Undo keeps hidden, dismisses old toast, shows mapped error, refreshes.
+Delete handler:
 
-Use a helper that safely captures the toast id:
+~~~ts
+async function handleDelete(store: StoreListItem) {
+  if (store.tenantId !== null) {
+    toast.warning(t("deleteBlocked"));
+    return;
+  }
+
+  setHidden(store.id, true);
+
+  const result = await deleteStoreAction({
+    storeId: store.id,
+    expectedUpdatedAt: store.updatedAt,
+  });
+
+  if (!result.ok) {
+    setHidden(store.id, false);
+    toast.error(t(result.message));
+    return;
+  }
+
+  showUndoToast(store.id, result.undoVersion);
+}
+~~~
+
+Undo toast and handler:
 
 ~~~tsx
 function showUndoToast(storeId: number, undoVersion: string) {
@@ -1492,26 +1935,82 @@ function showUndoToast(storeId: number, undoVersion: string) {
     }
   );
 }
+
+async function handleUndo(
+  storeId: number,
+  undoVersion: string,
+  toastId: ReturnType<typeof toast.info>
+) {
+  const result = await undoStoreDeleteAction({
+    storeId,
+    expectedUpdatedAt: undoVersion,
+  });
+
+  toast.dismiss(toastId);
+
+  if (!result.ok) {
+    toast.error(t(result.message));
+    router.refresh();
+    return;
+  }
+
+  setHidden(storeId, false);
+  router.refresh();
+}
 ~~~
 
-For `tenantId !== null`, never call delete; render disabled/descriptive delete UI with `deleteBlocked`.
+Render only rows whose ids are not in `hiddenStoreIds`. For `tenantId !== null`, render a disabled/descriptive delete control plus `deleteBlocked`; do not call the delete action.
 
 - [ ] **Step 5: Replace dashboard Store placeholder**
 
-Only load Stores when Organization exists.
+In `src/app/(merchant)/dashboard/page.tsx`, load Stores only after an Organization exists:
 
-No Store:
-- My Stores;
-- Create your first store → `/dashboard/stores/new`.
+~~~ts
+const stores = organization
+  ? await getMerchantStoreRepository().listForMerchant(merchant.id)
+  : [];
+~~~
 
-One or more:
-- My Stores;
-- count;
-- up to first three names/statuses;
-- Manage stores → `/dashboard/stores`;
-- Add store → `/dashboard/stores/new`.
+Replace the old `storeSetupLater` section with the approved state split:
 
-Remove old `storeSetupLater` section.
+~~~tsx
+{organization ? (
+  <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
+    <h2 className="text-xl font-bold">{tStore("myStores")}</h2>
+
+    {stores.length === 0 ? (
+      <>
+        <p className="mt-2 text-muted-foreground">{tStore("noStoresYet")}</p>
+        <Link
+          href="/dashboard/stores/new"
+          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-foreground px-4 py-2 font-semibold text-background"
+        >
+          {tStore("createFirstStore")}
+        </Link>
+      </>
+    ) : (
+      <>
+        <p className="mt-2 text-muted-foreground">
+          {tStore("storesReady", { count: stores.length })}
+        </p>
+        <ul className="mt-4 space-y-2">
+          {stores.slice(0, 3).map((store) => (
+            <li key={store.id}>
+              {store.displayName} — {tStore(store.status)}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/dashboard/stores">{tStore("manageStores")}</Link>
+          <Link href="/dashboard/stores/new">{tStore("addStore")}</Link>
+        </div>
+      </>
+    )}
+  </section>
+) : null}
+~~~
+
+Add `const tStore = await getTranslations("MerchantStore")` and remove the old `storeSetupLater` copy usage. Ensure the `storesReady` translation accepts `{count}`.
 
 - [ ] **Step 6: Verify tests/build and commit**
 
