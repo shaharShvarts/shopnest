@@ -812,3 +812,915 @@ git commit -m "feat: add merchant store repository"
 ~~~
 
 Expected: PASS before commit.
+
+
+---
+
+### Task 4: Authenticated Store server actions
+
+**Files:**
+- Create: `src/app/(merchant)/dashboard/stores/_actions.ts`
+- Create: `tests/merchant-store-routes.test.mts`
+
+**Interfaces:**
+- Consumes: `requireMerchantPage()`, Task 2 parsers/schema, Task 3 repository.
+- Produces: `createStoreAction`, `updateStoreAction`,
+  `checkStoreSlugAvailabilityAction`, `deleteStoreAction`,
+  `undoStoreDeleteAction`.
+
+- [ ] **Step 1: Write failing action-boundary tests**
+
+Create `tests/merchant-store-routes.test.mts`:
+
+~~~ts
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+test("Store actions derive merchant authority server-side", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/_actions.ts",
+    "utf8"
+  );
+
+  assert.match(source, /requireMerchantPage\(\)/);
+  assert.match(source, /getMerchantStoreRepository/);
+  assert.match(source, /storeProfileSchema/);
+  assert.match(source, /parseStoreId/);
+  assert.match(source, /parseStoreVersion/);
+  assert.doesNotMatch(
+    source,
+    /merchantAccountId:\s*parsed|organizationId:\s*parsed|tenantId:\s*parsed|schemaName:\s*parsed|status:\s*parsed|role:\s*parsed/
+  );
+  assert.doesNotMatch(
+    source,
+    /getDbForTenant|getTenant\(|TENANT_SCHEMA_HEADER|search_path/
+  );
+});
+
+test("delete returns a server-issued post-delete version for Undo", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/_actions.ts",
+    "utf8"
+  );
+
+  assert.match(source, /softDeleteOwned/);
+  assert.match(source, /undoVersion/);
+  assert.match(source, /undoExpiresAt/);
+  assert.match(source, /undoDeleteOwned/);
+});
+
+test("slug availability is authenticated and advisory", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/_actions.ts",
+    "utf8"
+  );
+  const start = source.indexOf("checkStoreSlugAvailabilityAction");
+  assert.ok(start >= 0);
+  const availability = source.slice(start);
+  assert.match(availability, /requireMerchantPage\(\)/);
+  assert.match(availability, /isSlugAvailable/);
+});
+~~~
+
+- [ ] **Step 2: Run and verify RED**
+
+~~~bash
+npx --yes tsx --test tests/merchant-store-routes.test.mts
+~~~
+
+Expected: FAIL because Store actions do not exist.
+
+- [ ] **Step 3: Define closed action state and error mapping**
+
+In `_actions.ts`:
+
+~~~ts
+"use server";
+
+import { redirect } from "next/navigation";
+import { requireMerchantPage } from "@/lib/merchant-auth/server";
+import {
+  MerchantStoreError,
+  parseStoreId,
+  parseStoreVersion,
+  storeProfileSchema,
+} from "@/lib/merchant-stores/core";
+import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
+
+export type StoreActionMessage =
+  | "invalidStoreDetails"
+  | "storeUnavailable"
+  | "slugUnavailable"
+  | "slugLocked"
+  | "storeChanged"
+  | "storeAlreadyProvisioned"
+  | "undoExpired";
+
+export type StoreFormActionState = {
+  success: false;
+  message?: StoreActionMessage;
+  errors?: Record<string, string[] | undefined>;
+};
+
+function messageForStoreError(error: unknown): StoreActionMessage {
+  if (!(error instanceof MerchantStoreError)) return "storeUnavailable";
+
+  switch (error.code) {
+    case "SLUG_UNAVAILABLE":
+      return "slugUnavailable";
+    case "SLUG_LOCKED":
+      return "slugLocked";
+    case "CONFLICT":
+      return "storeChanged";
+    case "TENANT_LINKED":
+      return "storeAlreadyProvisioned";
+    case "UNDO_EXPIRED":
+      return "undoExpired";
+    default:
+      return "storeUnavailable";
+  }
+}
+~~~
+
+Never send raw DB errors to client UI.
+
+- [ ] **Step 4: Implement create action**
+
+~~~ts
+export async function createStoreAction(
+  _state: StoreFormActionState,
+  formData: FormData
+): Promise<StoreFormActionState> {
+  const merchant = await requireMerchantPage();
+  const parsed = storeProfileSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: "invalidStoreDetails",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const store = await getMerchantStoreRepository().createDraftForMerchant(
+      merchant.id,
+      parsed.data
+    );
+    redirect("/dashboard/stores/" + store.id);
+  } catch (error) {
+    return { success: false, message: messageForStoreError(error) };
+  }
+}
+~~~
+
+- [ ] **Step 5: Implement update action**
+
+~~~ts
+export async function updateStoreAction(
+  _state: StoreFormActionState,
+  formData: FormData
+): Promise<StoreFormActionState> {
+  const merchant = await requireMerchantPage();
+  const parsed = storeProfileSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: "invalidStoreDetails",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  let storeId: number;
+  let expectedUpdatedAt: Date;
+  try {
+    storeId = parseStoreId(formData.get("storeId"));
+    expectedUpdatedAt = parseStoreVersion(formData.get("expectedUpdatedAt"));
+  } catch {
+    return { success: false, message: "storeChanged" };
+  }
+
+  try {
+    await getMerchantStoreRepository().updateOwned(
+      merchant.id,
+      storeId,
+      parsed.data,
+      expectedUpdatedAt
+    );
+    redirect("/dashboard/stores/" + storeId);
+  } catch (error) {
+    return { success: false, message: messageForStoreError(error) };
+  }
+}
+~~~
+
+`storeId` is lookup input only. The repository reauthorizes ownership.
+
+- [ ] **Step 6: Implement authenticated slug availability**
+
+~~~ts
+export async function checkStoreSlugAvailabilityAction(input: {
+  slug: string;
+  currentStoreId?: number;
+}) {
+  const merchant = await requireMerchantPage();
+  const parsed = storeProfileSchema.safeParse({
+    displayName: "availability-check",
+    slug: input.slug,
+  });
+
+  if (!parsed.success) {
+    return { available: false as const, reason: "invalid" as const };
+  }
+
+  let currentStoreId: number | undefined;
+  try {
+    currentStoreId =
+      input.currentStoreId === undefined
+        ? undefined
+        : parseStoreId(input.currentStoreId);
+  } catch {
+    return { available: false as const, reason: "invalid" as const };
+  }
+
+  const available = await getMerchantStoreRepository().isSlugAvailable(
+    merchant.id,
+    parsed.data.slug,
+    currentStoreId
+  );
+
+  return {
+    available,
+    reason: available ? null : ("taken" as const),
+    slug: parsed.data.slug,
+  };
+}
+~~~
+
+This endpoint is UI feedback only. Create/update still enforce DB uniqueness.
+
+- [ ] **Step 7: Implement delete and Undo actions**
+
+~~~ts
+export async function deleteStoreAction(input: {
+  storeId: number;
+  expectedUpdatedAt: string;
+}) {
+  const merchant = await requireMerchantPage();
+
+  try {
+    const deleted = await getMerchantStoreRepository().softDeleteOwned(
+      merchant.id,
+      parseStoreId(input.storeId),
+      parseStoreVersion(input.expectedUpdatedAt)
+    );
+    return {
+      ok: true as const,
+      storeId: deleted.store.id,
+      undoVersion: deleted.undoVersion,
+      undoExpiresAt: deleted.undoExpiresAt,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: messageForStoreError(error),
+    };
+  }
+}
+
+export async function undoStoreDeleteAction(input: {
+  storeId: number;
+  expectedUpdatedAt: string;
+}) {
+  const merchant = await requireMerchantPage();
+
+  try {
+    const restored = await getMerchantStoreRepository().undoDeleteOwned(
+      merchant.id,
+      parseStoreId(input.storeId),
+      parseStoreVersion(input.expectedUpdatedAt)
+    );
+    return {
+      ok: true as const,
+      storeId: restored.id,
+      updatedAt: restored.updatedAt.toISOString(),
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: messageForStoreError(error),
+    };
+  }
+}
+~~~
+
+- [ ] **Step 8: Verify GREEN and commit**
+
+~~~bash
+npx --yes tsx --test tests/merchant-store.test.mts tests/merchant-store-routes.test.mts
+git add src/app/'(merchant)'/dashboard/stores/_actions.ts \
+  tests/merchant-store-routes.test.mts
+git commit -m "feat: add merchant store actions"
+~~~
+
+Expected: PASS before commit.
+
+---
+
+### Task 5: Store form, detail, and edit pages
+
+**Files:**
+- Create: `src/app/(merchant)/dashboard/stores/_components/StoreForm.tsx`
+- Create: `src/app/(merchant)/dashboard/stores/new/page.tsx`
+- Create: `src/app/(merchant)/dashboard/stores/[id]/page.tsx`
+- Create: `src/app/(merchant)/dashboard/stores/[id]/edit/page.tsx`
+- Modify: `src/messages/en.json`
+- Modify: `src/messages/he.json`
+- Modify: `tests/merchant-store-routes.test.mts`
+
+**Interfaces:**
+- Consumes Task 4 actions and Task 3 repository.
+- Produces create/edit/detail UX; no Tenant/schema side effects.
+
+- [ ] **Step 1: Add failing page/form/translation tests**
+
+Append:
+
+~~~ts
+test("merchant Store pages are global protected and tenant-independent", async () => {
+  const paths = [
+    "src/app/(merchant)/dashboard/stores/new/page.tsx",
+    "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
+    "src/app/(merchant)/dashboard/stores/[id]/edit/page.tsx",
+  ];
+  const sources = await Promise.all(paths.map((path) => readFile(path, "utf8")));
+
+  for (const source of sources) {
+    assert.match(source, /requireMerchantPage\(\)/);
+    assert.doesNotMatch(
+      source,
+      /getDbForTenant|getTenant\(|TenantLink|TENANT_SCHEMA_HEADER|search_path/
+    );
+  }
+});
+
+test("Store form exposes only merchant-editable fields and slug UX", async () => {
+  const form = await readFile(
+    "src/app/(merchant)/dashboard/stores/_components/StoreForm.tsx",
+    "utf8"
+  );
+
+  assert.match(form, /name=["']displayName["']/);
+  assert.match(form, /name=["']slug["']/);
+  assert.match(form, /suggestStoreSlug/);
+  assert.match(form, /checkStoreSlugAvailabilityAction/);
+  assert.match(form, /shopnest\.co\.il/);
+  assert.doesNotMatch(
+    form,
+    /name=["'](?:merchantAccountId|organizationId|tenantId|schemaName|role|status)["']/
+  );
+});
+
+test("MerchantStore translations stay aligned", async () => {
+  const [en, he] = await Promise.all([
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+  assert.deepEqual(
+    Object.keys(en.MerchantStore).sort(),
+    Object.keys(he.MerchantStore).sort()
+  );
+});
+~~~
+
+- [ ] **Step 2: Run and verify RED**
+
+~~~bash
+npx --yes tsx --test tests/merchant-store-routes.test.mts
+~~~
+
+Expected: FAIL.
+
+- [ ] **Step 3: Add aligned MerchantStore translation keys**
+
+Add the same keys to both locale files:
+
+~~~text
+myStores
+createFirstStore
+addStore
+createStoreTitle
+createStoreHelp
+editStoreTitle
+editStoreHelp
+storeName
+slug
+futureUrl
+slugAvailable
+slugUnavailable
+slugInvalid
+slugReserved
+slugManualRequired
+checkingSlug
+createStore
+creatingStore
+saveStore
+savingStore
+invalidStoreDetails
+storeUnavailable
+slugLocked
+storeChanged
+storeAlreadyProvisioned
+undoExpired
+draft
+ready_for_provisioning
+provisioned
+notLiveYet
+tenant
+notProvisioned
+editStore
+backToStores
+deleteStore
+storeDeleted
+undo
+undoing
+deleteBlocked
+noStoresYet
+storesReady
+manageStores
+~~~
+
+English `slugLocked`:
+`Store address is locked after activation because it is connected to the tenant and the store data structure.`
+
+Hebrew should convey the same approved meaning naturally.
+
+- [ ] **Step 4: Implement StoreForm state model**
+
+Use:
+
+~~~ts
+const [displayName, setDisplayName] = useState(
+  initialValues?.displayName ?? ""
+);
+const [slug, setSlug] = useState(initialValues?.slug ?? "");
+const [slugEdited, setSlugEdited] = useState(mode === "edit");
+const [availability, setAvailability] = useState<
+  "idle" | "checking" | "available" | "unavailable" | "invalid"
+>("idle");
+
+function handleDisplayNameChange(value: string) {
+  setDisplayName(value);
+  if (!slugEdited) setSlug(suggestStoreSlug(value));
+}
+
+function handleSlugChange(value: string) {
+  setSlugEdited(true);
+  setSlug(value.toLowerCase());
+}
+~~~
+
+Use 300 ms debounced `useEffect`:
+- set checking;
+- call `checkStoreSlugAvailabilityAction` with slug and edit Store id;
+- local `cancelled` boolean prevents stale response overwrite;
+- invalid/empty slug shows invalid/manual state;
+- this check never substitutes for submit validation.
+
+Render:
+- required `displayName`;
+- required `slug`;
+- URL preview using `shopnest.co.il/` + slug;
+- `aria-live="polite"` status;
+- manual slug hint when suggestion is empty;
+- hidden `storeId` and `expectedUpdatedAt` only in edit mode;
+- slug disabled/read-only if `tenantId !== null`;
+- visible lock explanation when linked.
+
+Use `useActionState` with create/update action.
+
+- [ ] **Step 5: Implement create page**
+
+Exact server flow:
+
+~~~ts
+const merchant = await requireMerchantPage();
+const organization =
+  await getMerchantOrganizationRepository().findFirstForMerchant(merchant.id);
+
+if (!organization) {
+  redirect("/dashboard/business/new");
+}
+~~~
+
+Then render `StoreForm mode="create"`. Never access Tenant context.
+
+- [ ] **Step 6: Implement detail page**
+
+Exact ownership flow:
+
+~~~ts
+const merchant = await requireMerchantPage();
+const id = parseStoreId((await params).id);
+const store = await getMerchantStoreRepository().findOwnedById(
+  merchant.id,
+  id
+);
+
+if (!store) notFound();
+~~~
+
+Render:
+- display name;
+- future URL;
+- status;
+- Tenant id or Not provisioned;
+- Not live yet for null Tenant;
+- Edit link;
+- Back to stores link.
+
+- [ ] **Step 7: Implement edit page**
+
+Use the same merchant/id/owned Store lookup. Pass:
+
+~~~ts
+initialValues={{
+  id: store.id,
+  displayName: store.displayName,
+  slug: store.slug,
+  tenantId: store.tenantId,
+  updatedAt: store.updatedAt.toISOString(),
+}}
+~~~
+
+to `StoreForm mode="edit"`.
+
+- [ ] **Step 8: Verify tests/build and commit**
+
+~~~bash
+npx --yes tsx --test tests/merchant-store.test.mts tests/merchant-store-routes.test.mts
+npm run build
+git add src/app/'(merchant)'/dashboard/stores/_components/StoreForm.tsx \
+  src/app/'(merchant)'/dashboard/stores/new/page.tsx \
+  src/app/'(merchant)'/dashboard/stores/'[id]'/page.tsx \
+  src/app/'(merchant)'/dashboard/stores/'[id]'/edit/page.tsx \
+  src/messages/en.json src/messages/he.json tests/merchant-store-routes.test.mts
+git commit -m "feat: add merchant store forms and details"
+~~~
+
+Expected: tests PASS and build exit 0 before commit.
+
+---
+
+### Task 6: Store list, first-store dashboard entry point, optimistic delete, and Undo
+
+**Files:**
+- Create: `src/app/(merchant)/dashboard/stores/_components/StoreList.tsx`
+- Create: `src/app/(merchant)/dashboard/stores/page.tsx`
+- Modify: `src/app/(merchant)/dashboard/page.tsx`
+- Modify: `tests/merchant-store-routes.test.mts`
+
+**Interfaces:**
+- Consumes `listForMerchant`, `deleteStoreAction`, `undoStoreDeleteAction`.
+- Produces approved My Stores UX and immediate reversible delete behavior.
+
+- [ ] **Step 1: Add failing list/dashboard tests**
+
+~~~ts
+test("dashboard replaces store-setup placeholder with Store onboarding", async () => {
+  const dashboard = await readFile(
+    "src/app/(merchant)/dashboard/page.tsx",
+    "utf8"
+  );
+
+  assert.match(dashboard, /getMerchantStoreRepository/);
+  assert.match(dashboard, /listForMerchant/);
+  assert.match(dashboard, /\/dashboard\/stores\/new/);
+  assert.match(dashboard, /\/dashboard\/stores/);
+  assert.doesNotMatch(dashboard, /storeSetupLater/);
+});
+
+test("Store list optimistically deletes and offers ten-second Undo", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/_components/StoreList.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /deleteStoreAction/);
+  assert.match(source, /undoStoreDeleteAction/);
+  assert.match(source, /setHiddenStoreIds/);
+  assert.match(source, /autoClose:\s*10_000/);
+  assert.match(source, /closeOnClick:\s*false/);
+  assert.match(source, /undoVersion/);
+  assert.match(source, /router\.refresh\(\)/);
+  assert.match(source, /deleteBlocked/);
+});
+~~~
+
+- [ ] **Step 2: Run and verify RED**
+
+~~~bash
+npx --yes tsx --test tests/merchant-store-routes.test.mts
+~~~
+
+Expected: FAIL.
+
+- [ ] **Step 3: Implement Store list page**
+
+Server flow:
+1. require merchant;
+2. resolve first Organization;
+3. no Organization → redirect `/dashboard/business/new`;
+4. load `listForMerchant`;
+5. render My Stores, Add store, and empty Create your first store CTA;
+6. for nonempty results pass serialized list items to `StoreList`.
+
+Client item shape:
+
+~~~ts
+type StoreListItem = {
+  id: number;
+  displayName: string;
+  slug: string;
+  status: "draft" | "ready_for_provisioning" | "provisioned";
+  tenantId: number | null;
+  updatedAt: string;
+};
+~~~
+
+- [ ] **Step 4: Implement immediate delete and Undo**
+
+Maintain:
+
+~~~ts
+const [hiddenStoreIds, setHiddenStoreIds] = useState<Set<number>>(
+  () => new Set()
+);
+~~~
+
+Delete behavior:
+- add id to hidden set before awaiting network;
+- call delete with Store id + current updatedAt;
+- failure restores id and shows error toast;
+- success opens Undo toast with `autoClose: 10_000` and `closeOnClick: false`;
+- Undo sends returned `undoVersion`;
+- success unhides + dismisses toast + `router.refresh()`;
+- failed/expired Undo keeps hidden, dismisses old toast, shows mapped error, refreshes.
+
+Use a helper that safely captures the toast id:
+
+~~~tsx
+function showUndoToast(storeId: number, undoVersion: string) {
+  let toastId: ReturnType<typeof toast.info>;
+
+  toastId = toast.info(
+    <span className="flex items-center gap-3">
+      <span>{t("storeDeleted")}</span>
+      <button
+        type="button"
+        className="font-semibold underline"
+        onClick={() => void handleUndo(storeId, undoVersion, toastId)}
+      >
+        {t("undo")}
+      </button>
+    </span>,
+    {
+      autoClose: 10_000,
+      closeOnClick: false,
+    }
+  );
+}
+~~~
+
+For `tenantId !== null`, never call delete; render disabled/descriptive delete UI with `deleteBlocked`.
+
+- [ ] **Step 5: Replace dashboard Store placeholder**
+
+Only load Stores when Organization exists.
+
+No Store:
+- My Stores;
+- Create your first store → `/dashboard/stores/new`.
+
+One or more:
+- My Stores;
+- count;
+- up to first three names/statuses;
+- Manage stores → `/dashboard/stores`;
+- Add store → `/dashboard/stores/new`.
+
+Remove old `storeSetupLater` section.
+
+- [ ] **Step 6: Verify tests/build and commit**
+
+~~~bash
+npx --yes tsx --test tests/merchant-organization-routes.test.mts \
+  tests/merchant-store-routes.test.mts
+npm run build
+git add src/app/'(merchant)'/dashboard/stores/_components/StoreList.tsx \
+  src/app/'(merchant)'/dashboard/stores/page.tsx \
+  src/app/'(merchant)'/dashboard/page.tsx \
+  tests/merchant-store-routes.test.mts
+git commit -m "feat: add store onboarding dashboard"
+~~~
+
+Expected: tests PASS and build exit 0 before commit.
+
+---
+
+### Task 7: Route audit, CI, full regression, DEV/STAGING acceptance
+
+**Files:**
+- Modify: `docs/route-audit.md`
+- Modify: `package.json`
+- Modify: `.github/workflows/ci.yml`
+- Modify: `tests/route-navigation.test.mjs`
+- Modify: `tests/merchant-store-routes.test.mts`
+
+**Interfaces:**
+- Produces documented route behavior, mandatory CI coverage, and READY TO MERGE evidence. Does not merge.
+
+- [ ] **Step 1: Add failing route-audit test**
+
+~~~ts
+test("route audit documents merchant Store routes and legacy slug 404", async () => {
+  const audit = await readFile("docs/route-audit.md", "utf8");
+  const tick = String.fromCharCode(96);
+
+  for (const route of [
+    "/dashboard/stores",
+    "/dashboard/stores/new",
+    "/dashboard/stores/[id]",
+    "/dashboard/stores/[id]/edit",
+  ]) {
+    assert.ok(
+      audit.includes(tick + route + tick),
+      "Missing route " + route
+    );
+  }
+
+  assert.match(audit, /panda-pop.*404|404.*panda-pop/i);
+});
+~~~
+
+Add the four Store routes to the platform route inventory in `tests/route-navigation.test.mjs` using the exact route strings its discovery helper produces.
+
+- [ ] **Step 2: Run and verify RED**
+
+~~~bash
+npx --yes tsx --test tests/route-navigation.test.mjs \
+  tests/merchant-store-routes.test.mts
+~~~
+
+Expected: FAIL until route audit/inventory are updated.
+
+- [ ] **Step 3: Update route audit**
+
+Add:
+- `/dashboard/stores` — active merchant + owner Organization; no Organization redirects to business creation.
+- `/dashboard/stores/new` — creates draft Store only; no Tenant/schema.
+- `/dashboard/stores/[id]` — owned active Store; invalid/cross-org/deleted is 404.
+- `/dashboard/stores/[id]/edit` — owner edit; slug locked after Tenant linkage.
+
+State explicitly that former demo slugs return 404 after registry cleanup until future provisioning/dynamic trusted registry. Store creation does not activate routing.
+
+- [ ] **Step 4: Wire Store tests into package and CI**
+
+Add to `package.json`:
+
+~~~json
+"merchant-store:test": "node --experimental-strip-types --test tests/merchant-store.test.mts tests/merchant-store-routes.test.mts"
+~~~
+
+Add to CI after merchant Organization tests:
+
+~~~yaml
+npx --yes tsx --test tests/merchant-store.test.mts tests/merchant-store-routes.test.mts
+~~~
+
+- [ ] **Step 5: Run complete automated suite**
+
+~~~bash
+npm ci
+npm run tenant:test
+npm run routing:test
+npm run cart:test
+npm run checkout:test
+npm run inventory:test
+npm run admin-auth:test
+npm run control-plane:test
+npm run catalog:test
+npm run storefront-ui:test
+npm run admin-ui:test
+npm run search:test
+npm run storefront-catalog:test
+npm run customer-auth:test
+npm run google-auth:test
+npm run shipping:test
+npm run cli-env:test
+npm run database:test
+npm run payment:test
+npm run image:test
+npm run environment-auth:test
+npm run marketing:test
+npx --yes tsx --test tests/merchant-auth.test.mts tests/merchant-auth-routes.test.mts
+npx --yes tsx --test tests/merchant-organization.test.mts tests/merchant-organization-routes.test.mts
+npx --yes tsx --test tests/merchant-store.test.mts tests/merchant-store-routes.test.mts
+~~~
+
+On current Ubuntu DEV host, if a script fails only with `ERR_NO_TYPESCRIPT` because `process.features.typescript=false`, rerun that same test file via `npx --yes tsx --test ...`. Do not classify the distro-Node limitation as application failure.
+
+Expected: zero test failures.
+
+- [ ] **Step 6: Run production build**
+
+~~~bash
+npm run build
+~~~
+
+Expected: exit 0.
+
+- [ ] **Step 7: DEV acceptance**
+
+Deploy branch through existing `/srv/shopnest/dev` procedure and run the existing control-plane migration command for DEV.
+
+Manual flow:
+1. merchant signup/login;
+2. create Business;
+3. dashboard shows Create your first store;
+4. create Panda Pop;
+5. slug suggestion `panda-pop`;
+6. URL preview `shopnest.co.il/panda-pop`;
+7. Store status `draft` and not live;
+8. edit name/slug;
+9. delete → immediate disappearance + Undo;
+10. Undo inside 10 seconds restores;
+11. delete again and wait >10 seconds;
+12. create a new Store with same `panda-pop` slug;
+13. direct `/panda-pop` still returns 404.
+
+DB verification:
+
+~~~sql
+SELECT
+  id, organization_id, display_name, slug, status, tenant_id,
+  deleted_at, delete_finalizes_at, slug_released_at, created_at, updated_at
+FROM public.stores
+ORDER BY id;
+
+SELECT count(*) AS tenants FROM public.tenants;
+
+SELECT schema_name
+FROM information_schema.schemata
+WHERE schema_name IN ('panda_pop', 'gift_shop', 'dvorik_collection');
+~~~
+
+Expected:
+- active recreated Store belongs to expected Organization;
+- active Store is draft with null tenant_id;
+- historical finalized deleted Store remains with nonnull slug_released_at;
+- no Tenant row/schema created by Store onboarding.
+
+- [ ] **Step 8: STAGING acceptance**
+
+Deploy via existing `/srv/shopnest/staging` procedure, apply control-plane migration, repeat create/view/edit/delete/Undo/delete-expire-slug-reuse flow.
+
+Verify:
+- no Tenant/schema creation;
+- old Storefront slugs remain 404;
+- global merchant routes remain healthy.
+
+- [ ] **Step 9: Commit docs/CI changes**
+
+~~~bash
+git add docs/route-audit.md package.json .github/workflows/ci.yml \
+  tests/route-navigation.test.mjs tests/merchant-store-routes.test.mts
+git commit -m "test: verify store onboarding end to end"
+~~~
+
+- [ ] **Step 10: Push and require green GitHub Actions**
+
+Push `feature/store-onboarding-draft-model`. GitHub Actions must conclude `success` for all tests and `npm run build`.
+
+- [ ] **Step 11: Final diff review**
+
+~~~bash
+git diff --stat master...HEAD
+git diff master...HEAD
+~~~
+
+Verify:
+- no Tenant/schema provisioning;
+- no browser-derived tenant/schema authority;
+- no production environment mutation;
+- no Store hard delete;
+- no Product delete refactor;
+- no legacy static tenant slugs;
+- no historical migration rewrite;
+- no secrets/unrelated refactor.
+
+- [ ] **Step 12: Stop at READY TO MERGE**
+
+Report branch/PR, migration evidence, focused Store tests, full CI result, build result, DEV acceptance, STAGING acceptance, and known limitations. Do not merge until explicit user approval.
