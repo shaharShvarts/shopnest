@@ -519,6 +519,7 @@
     "notLiveYet": "This store is not live yet. Provisioning has not created a tenant or database schema.",
     "tenant": "Tenant",
     "notProvisioned": "Not provisioned",
+    "viewStore": "View store",
     "editStore": "Edit store",
     "backToStores": "Back to stores",
     "deleteStore": "Delete store",
