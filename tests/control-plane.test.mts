@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import type { AdminPrincipal } from "../src/lib/admin-auth/core.ts";
+import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
 import {
   isTenantAdminPath,
   resolveTenantRoute,
@@ -14,12 +15,19 @@ import {
   storeMutationSchema,
   summarizePlatform,
   type ControlPlaneStore,
+  type StoreSummary,
 } from "../src/lib/control-plane/core.ts";
 
 const stores: ControlPlaneStore[] = [
   store("gift-shop", "gift_shop", "Gift Shop"),
   store("panda-pop", "panda_pop", "Panda Pop"),
 ];
+
+const fixtureTenantSlugs = new Set(["gift-shop", "panda-pop"]);
+function resolveFixtureTenant(value: unknown) {
+  const tenant = normalizeTenantSlug(value);
+  return tenant && fixtureTenantSlugs.has(tenant.slug) ? tenant : null;
+}
 const superAdmin: AdminPrincipal = {
   id: 1,
   email: "platform@example.com",
@@ -44,14 +52,14 @@ test("platform and tenant admin routes remain isolated", () => {
   assert.deepEqual(resolveTenantRoute("/admin"), { kind: "legacy" });
   assert.deepEqual(resolveTenantRoute("/admin/login"), { kind: "legacy" });
 
-  const tenantAdmin = resolveTenantRoute("/gift-shop/admin");
+  const tenantAdmin = resolveTenantRoute("/gift-shop/admin", resolveFixtureTenant);
   assert.equal(tenantAdmin.kind, "tenant");
   if (tenantAdmin.kind === "tenant") {
     assert.equal(tenantAdmin.internalPath, "/admin");
     assert.equal(isTenantAdminPath(tenantAdmin.internalPath), true);
   }
 
-  const tenantLogin = resolveTenantRoute("/gift-shop/admin/login");
+  const tenantLogin = resolveTenantRoute("/gift-shop/admin/login", resolveFixtureTenant);
   assert.equal(tenantLogin.kind, "tenant");
   if (tenantLogin.kind === "tenant") {
     assert.equal(isTenantAdminPath(tenantLogin.internalPath), true);
@@ -77,26 +85,71 @@ test("plans accept only small, medium, and large", () => {
   assert.equal(storeMutationSchema.safeParse({ ...mutation, featured: false, featuredRank: 1 }).success, false);
 });
 
-test("registered tenants are retained and unknown detail lookups fail closed", () => {
+test("legacy tenant rows are retained as data but are not trusted after registry cleanup", () => {
   assert.deepEqual(stores.map((store) => store.slug), ["gift-shop", "panda-pop"]);
-  assert.equal(findTrustedStore(stores, "gift-shop")?.schemaName, "gift_shop");
+  assert.equal(findTrustedStore(stores, "gift-shop"), null);
   assert.equal(findTrustedStore(stores, "unknown-store"), null);
 });
 
-test("browser supplied schemas cannot select an arbitrary schema", () => {
+test("browser supplied schemas and unconfigured tenant rows cannot select a schema", () => {
   assert.equal(resolveTrustedStore(store("gift-shop", "attacker_schema", "Spoofed")), null);
   assert.equal(resolveTrustedStore(store("unknown-store", "gift_shop", "Spoofed")), null);
-  assert.equal(resolveTrustedStore(stores[0])?.schema, "gift_shop");
+  assert.equal(resolveTrustedStore(stores[0]), null);
 });
 
-test("aggregation uses each validated tenant result without cross-tenant attribution", async () => {
-  const summaries = await buildStoreSummaries(stores, async (tenant) =>
-    tenant.slug === "gift-shop"
-      ? { orderCount: 2, salesVolume: 200, ordersToday: 1, revenueToday: 80, lastActivity: new Date("2026-09-10T08:00:00Z") }
-      : { orderCount: 9, salesVolume: 900, ordersToday: 3, revenueToday: 300, lastActivity: null }
+test("unconfigured tenant rows fail closed before metric loading", async () => {
+  let calls = 0;
+  const summaries = await buildStoreSummaries(stores, async () => {
+    calls += 1;
+    return {
+      orderCount: 1,
+      salesVolume: 1,
+      ordersToday: 1,
+      revenueToday: 1,
+      lastActivity: null,
+    };
+  });
+
+  assert.equal(calls, 0);
+  assert.deepEqual(
+    summaries.map((summary) => ({
+      slug: summary.slug,
+      kind: summary.kind,
+      reason: summary.kind === "unavailable" ? summary.reason : null,
+    })),
+    [
+      { slug: "gift-shop", kind: "unavailable", reason: "untrusted_registry" },
+      { slug: "panda-pop", kind: "unavailable", reason: "untrusted_registry" },
+    ]
   );
-  assert.equal(summaries[0].kind === "available" && summaries[0].metrics.orderCount, 2);
-  assert.equal(summaries[1].kind === "available" && summaries[1].metrics.orderCount, 9);
+});
+
+test("aggregation sums explicit trusted summaries without cross-tenant attribution", () => {
+  const summaries: StoreSummary[] = [
+    {
+      ...stores[0],
+      kind: "available",
+      metrics: {
+        orderCount: 2,
+        salesVolume: 200,
+        ordersToday: 1,
+        revenueToday: 80,
+        lastActivity: new Date("2026-09-10T08:00:00Z"),
+      },
+    },
+    {
+      ...stores[1],
+      kind: "available",
+      metrics: {
+        orderCount: 9,
+        salesVolume: 900,
+        ordersToday: 3,
+        revenueToday: 300,
+        lastActivity: null,
+      },
+    },
+  ];
+
   assert.deepEqual(summarizePlatform(summaries), {
     registeredStores: 2,
     activeStores: 2,
@@ -110,12 +163,26 @@ test("aggregation uses each validated tenant result without cross-tenant attribu
   });
 });
 
-test("one tenant failure produces an explicit partial total without misattribution", async () => {
-  const summaries = await buildStoreSummaries(stores, async (tenant) => {
-    if (tenant.slug === "panda-pop") throw new Error("tenant unavailable");
-    return { orderCount: 2, salesVolume: 200, ordersToday: 1, revenueToday: 80, lastActivity: null };
-  });
-  assert.equal(summaries[1].kind, "unavailable");
+test("explicit tenant failure produces a partial total without misattribution", () => {
+  const summaries: StoreSummary[] = [
+    {
+      ...stores[0],
+      kind: "available",
+      metrics: {
+        orderCount: 2,
+        salesVolume: 200,
+        ordersToday: 1,
+        revenueToday: 80,
+        lastActivity: null,
+      },
+    },
+    {
+      ...stores[1],
+      kind: "unavailable",
+      reason: "query_failed",
+    },
+  ];
+
   const total = summarizePlatform(summaries);
   assert.equal(total.complete, false);
   assert.deepEqual(total.failedStores, ["panda-pop"]);
