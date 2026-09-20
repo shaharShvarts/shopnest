@@ -149,3 +149,49 @@ test("Store version must be valid ISO time", () => {
   }
   assert.equal(STORE_DELETE_UNDO_MS, 10_000);
 });
+
+
+test("Store repository is control-plane only and owner-scoped", async () => {
+  const source = await readFile(
+    "src/lib/merchant-stores/drizzle-repository.ts",
+    "utf8"
+  );
+  assert.match(source, /getControlPlaneDb/);
+  assert.match(source, /organizationMemberships/);
+  assert.match(source, /merchantAccountId/);
+  assert.match(source, /role/);
+  assert.match(source, /"owner"/);
+  assert.match(source, /stores\.organizationId/);
+  assert.match(source, /controlPlaneTenants/);
+  assert.match(source, /controlPlaneTenants\.slug/);
+  assert.match(source, /nextStoreVersion/);
+  assert.doesNotMatch(
+    source,
+    /getDbForTenant|getTenant\(|TENANT_SCHEMA_HEADER|search_path|schemaName.*input/
+  );
+});
+
+test("same-slug races and existing Tenant slugs remain unavailable", async () => {
+  const source = await readFile(
+    "src/lib/merchant-stores/drizzle-repository.ts",
+    "utf8"
+  );
+  assert.match(source, /\.transaction\(/);
+  assert.match(source, /deleteFinalizesAt/);
+  assert.match(source, /slugReleasedAt/);
+  assert.match(source, /stores_slug_reserved_unique/);
+  assert.match(source, /23505/);
+  assert.match(source, /SLUG_UNAVAILABLE/);
+});
+
+test("edit delete and Undo compare expected updatedAt", async () => {
+  const source = await readFile(
+    "src/lib/merchant-stores/drizzle-repository.ts",
+    "utf8"
+  );
+  assert.match(source, /expectedUpdatedAt/);
+  assert.match(source, /stores\.updatedAt/);
+  assert.match(source, /STORE_DELETE_UNDO_MS/);
+  assert.match(source, /UNDO_EXPIRED/);
+  assert.match(source, /TENANT_LINKED/);
+});
