@@ -509,7 +509,13 @@ test("gift-shop callbacks cannot lookup or confirm panda-pop orders", async () =
   assert.equal(gift.physical, 10);
 });
 test("tenant routes and admin authorization prevent cross-tenant settings access", async () => {
-  assert.equal(resolveTenantRoute("/gift-shop/admin/payments").kind, "tenant");
+  assert.equal(
+    resolveTenantRoute(
+      "/gift-shop/admin/payments",
+      resolvePaymentFixtureTenant
+    ).kind,
+    "tenant"
+  );
   assert.equal(resolveTenantRoute("/unknown/admin/payments").kind, "not-found");
   const authSource = await source("../src/lib/admin-auth/core.ts");
   assert.ok(authSource.includes("authorizeTenantAdmin"));
@@ -905,7 +911,18 @@ test("in-flight testing retains a coherent snapshot while settings are replaced"
 // reimplementation of their guards. No Next server, database or live network is used.
 import ts from "typescript";
 import * as tenantRouting from "../src/lib/tenant-routing/core.ts";
-import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
+import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
+
+const paymentFixtureSlugs = new Set([
+  "gift-shop",
+  "panda-pop",
+  "dvorik-collection",
+]);
+
+function resolvePaymentFixtureTenant(value: unknown) {
+  const tenant = normalizeTenantSlug(value);
+  return tenant && paymentFixtureSlugs.has(tenant.slug) ? tenant : null;
+}
 async function loadWithMocks<T>(path: string, mocks: Record<string, unknown>): Promise<T> {
   const compiled = ts.transpileModule(await source(path), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
@@ -937,7 +954,7 @@ test("actual action isolates all three tenants and rejects forged selectors safe
   const settings = new Map(slugs.map((slug) => [slug, prepareSettings({ ...config, credentials: { ...credentials, apiPassword: `synthetic-${slug}-password` } }, null, slug)]));
   const before = structuredClone(settings);
   for (const slug of slugs) {
-    const tenant = resolveConfiguredTenant(slug)!;
+    const tenant = resolvePaymentFixtureTenant(slug)!;
     let authorized = false;
     let networkCalls = 0;
     const actions = await loadWithMocks<{ testPaymentConnection(input: unknown): Promise<{ success: boolean }> }>("../src/app/[tenant]/admin/payments/actions.ts", {
@@ -964,14 +981,39 @@ test("actual action isolates all three tenants and rejects forged selectors safe
 });
 
 test("middleware overwrites forged tenant headers on payment admin routes", async () => {
-  const capture = (_url: unknown, options: { request: { headers: Headers } }) => options.request.headers;
-  const { middleware } = await loadWithMocks<{ middleware(request: unknown): Promise<Headers> }>("../src/middleware.ts", {
+  const capture = (
+    _url: unknown,
+    options: { request: { headers: Headers } }
+  ) => options.request.headers;
+
+  class TestNextResponse {
+    status: number | undefined;
+    cookies = { set() {} };
+
+    constructor(_body?: unknown, options: { status?: number } = {}) {
+      this.status = options.status;
+    }
+
+    static rewrite = capture;
+    static next = (options: { request: { headers: Headers } }) =>
+      options.request.headers;
+  }
+
+  const fixtureRouting = {
+    ...tenantRouting,
+    resolveTenantRoute: (pathname: string) =>
+      tenantRouting.resolveTenantRoute(
+        pathname,
+        resolvePaymentFixtureTenant
+      ),
+  };
+
+  const { middleware } = await loadWithMocks<{
+    middleware(request: unknown): Promise<Headers>
+  }>("../src/middleware.ts", {
     nanoid: { nanoid: () => "synthetic-session" },
-    "next/server": { NextResponse: {
-      rewrite: capture,
-      next: (options: { request: { headers: Headers } }) => options.request.headers,
-    } },
-    "./lib/tenant-routing/core": tenantRouting,
+    "next/server": { NextResponse: TestNextResponse },
+    "./lib/tenant-routing/core": fixtureRouting,
   });
   for (const slug of ["gift-shop", "panda-pop", "dvorik-collection"]) {
     const headers = await middleware({
@@ -979,7 +1021,10 @@ test("middleware overwrites forged tenant headers on payment admin routes", asyn
       headers: new Headers({ "x-shopnest-tenant-slug": "attacker", "x-shopnest-tenant-schema": "public" }),
     });
     assert.equal(headers.get(tenantRouting.TENANT_HEADER), slug);
-    assert.equal(headers.get(tenantRouting.TENANT_SCHEMA_HEADER), resolveConfiguredTenant(slug)!.schema);
+    assert.equal(
+      headers.get(tenantRouting.TENANT_SCHEMA_HEADER),
+      resolvePaymentFixtureTenant(slug)!.schema
+    );
   }
   const headers = await middleware({ nextUrl: new URL("https://shop.example/admin/payments"), headers: new Headers({ "x-shopnest-tenant-slug": "gift-shop", "x-shopnest-tenant-schema": "gift_shop" }) });
   assert.equal(headers.has(tenantRouting.TENANT_HEADER), false);
