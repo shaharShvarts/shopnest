@@ -53,6 +53,8 @@ function loadGoogleOAuthFixture() {
   const exports: Record<string, unknown> = {};
   runInNewContext(outputText, {
     exports,
+    URL,
+    URLSearchParams,
     require(name: string) {
       if (name === "node:crypto") return require(name);
       if (name === "./core.ts") {
