@@ -55,8 +55,8 @@ jobs:
           npm run image:test
           npm run environment-auth:test
           npm run marketing:test
-          npm run merchant-auth:test
-          npm run merchant-organization:test
+          npx --yes tsx --test tests/merchant-auth.test.mts tests/merchant-auth-routes.test.mts
+          npx --yes tsx --test tests/merchant-organization.test.mts tests/merchant-organization-routes.test.mts
 
       - name: Build production application
         run: npm run build
