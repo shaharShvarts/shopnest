@@ -145,6 +145,7 @@ test("Store list optimistically deletes and offers ten-second Undo", async () =>
   assert.match(source, /result\.updatedAt/);
   assert.match(source, /autoClose:\s*10_000/);
   assert.match(source, /closeOnClick:\s*false/);
+  assert.match(source, /closeButton:\s*false/);
   assert.match(source, /undoVersion/);
   assert.match(source, /router\.refresh\(\)/);
   assert.match(source, /deleteBlocked/);
