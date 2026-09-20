@@ -1700,6 +1700,7 @@ test("Store form exposes only merchant-editable fields and slug UX", async () =>
   assert.match(form, /suggestStoreSlug/);
   assert.match(form, /checkStoreSlugAvailabilityAction/);
   assert.match(form, /shopnest\.co\.il/);
+  assert.match(form, /readOnly/);
   assert.doesNotMatch(
     form,
     /name=["'](?:merchantAccountId|organizationId|tenantId|schemaName|role|status)["']/
@@ -1809,6 +1810,11 @@ Use `validateStoreSlug` before making the advisory server request, then debounce
 
 ~~~ts
 useEffect(() => {
+  if (mode === "edit" && initialValues?.tenantId !== null) {
+    setAvailability("idle");
+    return;
+  }
+
   const validation = validateStoreSlug(slug);
   if (!validation.ok) {
     setAvailability(validation.reason);
@@ -1836,7 +1842,7 @@ useEffect(() => {
     cancelled = true;
     window.clearTimeout(timer);
   };
-}, [slug, mode, initialValues?.id]);
+}, [slug, mode, initialValues?.id, initialValues?.tenantId]);
 ~~~
 
 This is UX feedback only; submit validation and DB constraints remain authoritative.
@@ -1845,10 +1851,11 @@ Render:
 - required `displayName`;
 - required `slug`;
 - URL preview using `shopnest.co.il/` + slug;
-- `aria-live="polite"` status;
+- `aria-live="polite"` status, including distinct invalid/reserved/taken messages;
 - manual slug hint when suggestion is empty;
 - hidden `storeId` and `expectedUpdatedAt` only in edit mode;
-- slug disabled/read-only if `tenantId !== null`;
+- slug input is `readOnly` (not `disabled`) if `tenantId !== null`, so the current slug still submits with the edit form;
+- skip the availability request for a Tenant-linked Store because the slug is locked;
 - visible lock explanation when linked.
 
 Use `useActionState` with create/update action.
@@ -1963,6 +1970,8 @@ test("Store list optimistically deletes and offers ten-second Undo", async () =>
   assert.match(source, /deleteStoreAction/);
   assert.match(source, /undoStoreDeleteAction/);
   assert.match(source, /setHiddenStoreIds/);
+  assert.match(source, /setStoreVersions/);
+  assert.match(source, /result\.updatedAt/);
   assert.match(source, /autoClose:\s*10_000/);
   assert.match(source, /closeOnClick:\s*false/);
   assert.match(source, /undoVersion/);
@@ -2052,6 +2061,9 @@ type StoreListItem = {
 const [hiddenStoreIds, setHiddenStoreIds] = useState<Set<number>>(
   () => new Set()
 );
+const [storeVersions, setStoreVersions] = useState<Map<number, string>>(
+  () => new Map(stores.map((store) => [store.id, store.updatedAt]))
+);
 
 function setHidden(storeId: number, hidden: boolean) {
   setHiddenStoreIds((current) => {
@@ -2076,7 +2088,8 @@ async function handleDelete(store: StoreListItem) {
 
   const result = await deleteStoreAction({
     storeId: store.id,
-    expectedUpdatedAt: store.updatedAt,
+    expectedUpdatedAt:
+      storeVersions.get(store.id) ?? store.updatedAt,
   });
 
   if (!result.ok) {
@@ -2131,6 +2144,11 @@ async function handleUndo(
     return;
   }
 
+  setStoreVersions((current) => {
+    const next = new Map(current);
+    next.set(storeId, result.updatedAt);
+    return next;
+  });
   setHidden(storeId, false);
   router.refresh();
 }
@@ -2254,13 +2272,20 @@ Expected: FAIL until route audit/inventory are updated.
 
 - [ ] **Step 3: Update route audit**
 
-Add:
-- `/dashboard/stores` — active merchant + owner Organization; no Organization redirects to business creation.
-- `/dashboard/stores/new` — creates draft Store only; no Tenant/schema.
-- `/dashboard/stores/[id]` — owned active Store; invalid/cross-org/deleted is 404.
-- `/dashboard/stores/[id]/edit` — owner edit; slug locked after Tenant linkage.
+Append/update the platform route rows in `docs/route-audit.md` with:
 
-State explicitly that former demo slugs return 404 after registry cleanup until future provisioning/dynamic trusted registry. Store creation does not activate routing.
+~~~md
+| `/dashboard/stores` | Platform | Active merchant session + owner Organization | 200 Store list; no Organization redirects to `/dashboard/business/new` |
+| `/dashboard/stores/new` | Platform | Active merchant session + owner Organization | Creates draft Store only; no Tenant/schema |
+| `/dashboard/stores/[id]` | Platform | Active merchant owning the Store through Organization | 200 for owned active Store; invalid/cross-Organization/deleted Store is 404 |
+| `/dashboard/stores/[id]/edit` | Platform | Active merchant owner | Store edit; slug read-only after Tenant linkage |
+~~~
+
+Add this routing note next to the tenant-routing inventory:
+
+~~~md
+After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configured tenants and their storefront URLs return 404. Creating a Store with one of those slugs does not activate routing; Tenant provisioning and the future dynamic trusted registry are separate follow-up work.
+~~~
 
 - [ ] **Step 4: Wire Store tests into package and CI**
 
@@ -2320,7 +2345,19 @@ Expected: exit 0.
 
 - [ ] **Step 7: DEV acceptance**
 
-Deploy branch through existing `/srv/shopnest/dev` procedure and run the existing control-plane migration command for DEV.
+After implementation is pushed, deploy the feature branch to the existing DEV checkout:
+
+~~~bash
+cd /srv/shopnest/dev
+git fetch origin
+git switch feature/store-onboarding-draft-model
+git pull --ff-only origin feature/store-onboarding-draft-model
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --build
+docker compose --env-file .env.dev -f docker-compose.dev.yml exec -T web-dev   npm run control-plane:migrate
+docker compose --env-file .env.dev -f docker-compose.dev.yml ps
+~~~
+
+If the branch is not yet present locally, use `git switch --track origin/feature/store-onboarding-draft-model` instead of the first `git switch`. Do not reset volumes.
 
 Manual flow:
 1. merchant signup/login;
@@ -2361,11 +2398,31 @@ Expected:
 
 - [ ] **Step 8: STAGING acceptance**
 
-Deploy via existing `/srv/shopnest/staging` procedure, apply control-plane migration, repeat create/view/edit/delete/Undo/delete-expire-slug-reuse flow.
+Deploy the same reviewed branch to STAGING without touching volumes:
 
-Verify:
+~~~bash
+cd /srv/shopnest/staging
+git fetch origin
+git switch feature/store-onboarding-draft-model
+git pull --ff-only origin feature/store-onboarding-draft-model
+docker compose --env-file .env.staging -f docker-compose.staging.yml up -d --build
+docker compose --env-file .env.staging -f docker-compose.staging.yml exec -T web-staging   npm run control-plane:migrate
+docker compose --env-file .env.staging -f docker-compose.staging.yml ps
+~~~
+
+If the branch is not yet present locally, use `git switch --track origin/feature/store-onboarding-draft-model`.
+
+Repeat the create/view/edit/delete/Undo/delete-expire-slug-reuse flow, then verify:
+
+~~~bash
+curl -s -o /dev/null -w 'legacy panda HTTP %{http_code}\n'   https://staging.shopnest.co.il/panda-pop
+curl -s -o /dev/null -w 'dashboard HTTP %{http_code} redirect=%{redirect_url}\n'   https://staging.shopnest.co.il/dashboard
+~~~
+
+Expected:
 - no Tenant/schema creation;
-- old Storefront slugs remain 404;
+- `/panda-pop` is 404;
+- unauthenticated `/dashboard` keeps its normal login redirect behavior;
 - global merchant routes remain healthy.
 
 - [ ] **Step 9: Commit docs/CI changes**
@@ -2376,9 +2433,23 @@ git add docs/route-audit.md package.json .github/workflows/ci.yml \
 git commit -m "test: verify store onboarding end to end"
 ~~~
 
-- [ ] **Step 10: Push and require green GitHub Actions**
+- [ ] **Step 10: Push, open/refresh the Draft PR, and require green GitHub Actions**
 
-Push `feature/store-onboarding-draft-model`. GitHub Actions must conclude `success` for all tests and `npm run build`.
+Push:
+
+~~~bash
+git push -u origin feature/store-onboarding-draft-model
+~~~
+
+If PR #37 does not yet exist, open it as a Draft targeting `master` (use the GitHub connector in this harness; CLI equivalent shown for a local operator):
+
+~~~bash
+gh pr create   --draft   --base master   --head feature/store-onboarding-draft-model   --title "Add Store onboarding draft model"   --body "Implements the approved PR #37 Store onboarding/draft model. No Tenant/schema provisioning."
+~~~
+
+If the Draft PR already exists, do not create a second PR; push the branch and refresh its checks.
+
+GitHub Actions must conclude `success` for the full test job and `npm run build`. Do not mark the PR ready or merge while checks are pending/failing.
 
 - [ ] **Step 11: Final diff review**
 
@@ -2399,4 +2470,36 @@ Verify:
 
 - [ ] **Step 12: Stop at READY TO MERGE**
 
-Report branch/PR, migration evidence, focused Store tests, full CI result, build result, DEV acceptance, STAGING acceptance, and known limitations. Do not merge until explicit user approval.
+Use this report shape and stop for explicit approval:
+
+~~~text
+PR #37 — READY TO MERGE assessment
+
+Branch:
+feature/store-onboarding-draft-model
+
+Migration:
+PASS / FAIL + evidence
+
+Focused Store tests:
+PASS / FAIL + counts
+
+Full GitHub Actions:
+SUCCESS / FAILURE + workflow run
+
+Production build:
+PASS / FAIL
+
+DEV acceptance:
+PASS / FAIL + Store/slug/Undo/404 evidence
+
+STAGING acceptance:
+PASS / FAIL + Store/slug/Undo/404 evidence
+
+Known limitations:
+- Store creation does not provision Tenant/schema.
+- Store URL remains unroutable until future provisioning/dynamic registry.
+- No production rollout was performed.
+~~~
+
+Do not merge. Merge only after the user explicitly approves the READY TO MERGE assessment.
