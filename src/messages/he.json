@@ -585,9 +585,9 @@
     "subscription_state_invalid": "המנוי אינו במצב שמותר לפני הפעלת החנות.",
     "subscription_plan_inactive": "המסלול שנבחר כבר אינו פעיל. יש לבחור מסלול פעיל.",
     "policies_missing": "חסרים מסמכי מדיניות נדרשים ללקוחות או שהם עדיין לא פורסמו.",
-    "editStoreProfile": "עריכת פרופיל החנות",
     "configurePolicies": "הגדרת מדיניות",
-    "configureSubscription": "בחירת מסלול פעיל"
+    "configureSubscription": "בחירת מסלול פעיל",
+    "editBusinessProfile": "עריכת פרטי העסק"
   },
   "MerchantPolicies": {
     "title": "מדיניות החנות",
