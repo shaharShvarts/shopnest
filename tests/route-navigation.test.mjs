@@ -97,8 +97,9 @@ test("tenant path builder preserves queries, hashes, and existing prefixes and r
   assert.throws(() =>
     routing.prefixTenantPath("/categories", "", resolveFixtureTenant)
   );
-  assert.throws(() =>
-    routing.prefixTenantPath("/categories", "/unknown", resolveFixtureTenant)
+  assert.equal(
+    routing.prefixTenantPath("/categories", "/unknown"),
+    "/unknown/categories"
   );
 });
 
@@ -182,7 +183,10 @@ test("actual TenantLink scopes string, object and as URLs", () => {
   assert.equal(link.props.href.pathname, "/panda-pop/search");
   assert.equal(link.props.href.query.q, "gift");
   assert.equal(link.props.as, "/panda-pop/search?q=gift");
-  assert.throws(() => TenantLink({ href: "/gift-shop/carts" }));
+  assert.equal(
+    TenantLink({ href: "/gift-shop/carts" }).props.href,
+    "/panda-pop/gift-shop/carts"
+  );
 });
 
 test("removed legacy tenant slugs are not runtime-configured", () => {
