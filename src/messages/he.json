@@ -556,6 +556,7 @@
     "planFree": "חינם",
     "planSmall": "קטן",
     "planMedium": "בינוני",
-    "planLarge": "גדול"
+    "planLarge": "גדול",
+    "unavailable": "לא זמין"
   }
 }
