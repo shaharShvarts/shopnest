@@ -557,6 +557,8 @@
     "planSmall": "קטן",
     "planMedium": "בינוני",
     "planLarge": "גדול",
-    "unavailable": "לא זמין"
+    "unavailable": "לא זמין",
+    "inactivePlanBlocksActivation": "המסלול הזה כבר אינו זמין. יש לבחור מסלול פעיל לפני שניתן יהיה להפעיל את החנות.",
+    "inactivePlanGrandfathered": "המסלול הזה כבר אינו מוצע. החנות הפעילה הקיימת תמשיך לפעול עליו, אך לא ניתן לבחור בו מחדש."
   }
 }
