@@ -115,6 +115,9 @@ Rules:
 - browser-supplied Organization, Tenant, schema, subscription owner, or entitlement state is never trusted
 - only allowed plan codes from the active server-side catalog may be selected
 - if a previously selected plan later becomes inactive, the persisted subscription remains unchanged; the UI must continue to show that plan as the current unavailable selection and require an explicit choice of another active plan instead of visually or durably falling back to another plan
+- plan catalog status `inactive` means unavailable for new selection; it does not by itself revoke an existing live Store's entitlement or suspend that Store
+- a pre-provisioning Store whose selected plan is inactive must choose an active plan before later readiness/activation can succeed
+- an already provisioned/live Store may continue operating on an inactive plan, with a persistent merchant-facing warning; any forced migration or retirement deadline requires a separate explicit policy
 - merchant plan selection creates/updates the Store-scoped subscription record
 - merchant actions do not set subscription to `active`, `trialing`, `past_due`, or other billing-result states based on browser input
 - no Tenant or schema is created
@@ -218,6 +221,9 @@ Before READY TO MERGE:
 - browser cannot set subscription status/ownership/Tenant/schema
 - only active catalog plans can be selected
 - an already selected plan becoming inactive never silently changes or visually falls back to another plan
+- inactive catalog status does not automatically suspend an already live Store
+- pre-provisioning Stores cannot later activate while their selected plan is inactive
+- merchant UI surfaces a warning when the current selected plan is inactive
 - no tenant/schema is created
 - focused plan/subscription tests pass
 - existing merchant Store/Organization/auth tests pass
