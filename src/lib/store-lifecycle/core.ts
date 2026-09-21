@@ -70,6 +70,15 @@ export function canTransitionStore(
   return ALLOWED_STORE_TRANSITIONS[from].includes(to);
 }
 
+export function isStoreProvisioningLocked(
+  status: StoreLifecycleStatus
+) {
+  return (
+    status === "activation_requested" ||
+    status === "provisioning"
+  );
+}
+
 export class StoreLifecycleTransitionError extends Error {
   constructor(
     readonly from: StoreLifecycleStatus,
