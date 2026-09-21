@@ -561,6 +561,8 @@
     "planSmall": "Small",
     "planMedium": "Medium",
     "planLarge": "Large",
-    "unavailable": "Unavailable"
+    "unavailable": "Unavailable",
+    "inactivePlanBlocksActivation": "This plan is no longer available. Choose an active plan before this store can be activated.",
+    "inactivePlanGrandfathered": "This plan is no longer offered. Your existing live store will continue to operate on it; it is unavailable for new selection."
   }
 }
