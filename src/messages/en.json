@@ -530,5 +530,13 @@
     "noStoresYet": "You have not created a store yet.",
     "storesReady": "You have {count} stores. Manage the stores owned by your business.",
     "manageStores": "Manage stores"
+  },
+  "MerchantDashboard": {
+    "workspace": "Merchant workspace",
+    "overview": "Overview",
+    "business": "Business",
+    "stores": "Stores",
+    "navigation": "Merchant workspace navigation",
+    "signedInAs": "Signed in as"
   }
 }
