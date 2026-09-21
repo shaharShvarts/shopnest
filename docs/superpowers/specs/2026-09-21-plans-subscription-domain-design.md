@@ -39,7 +39,7 @@ Initial fields:
 
 Plan codes are stable machine identifiers. Display names may change.
 
-Initial catalog may include the currently presented ShopNest tiers, but PR #39 must not encode final prices, quotas, or provider product IDs.
+The initial catalog seeds stable identities for `free`, `small`, `medium`, and `large`, matching the currently presented tier names. The `free` identity does not define final free/trial eligibility or commercial policy. PR #39 must not encode final prices, quotas, billing periods, or provider product IDs.
 
 ### subscriptions
 
