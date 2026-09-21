@@ -556,6 +556,10 @@
     "selectionHelp": "Choose the commercial plan for this store. Selecting a plan does not charge you, activate billing, provision a tenant, or publish the store.",
     "selectionSaved": "Plan selection saved.",
     "selectionUnavailable": "That plan is unavailable. Choose an active plan and try again.",
-    "selectionLocked": "Plan selection for an already provisioned store is not handled by onboarding."
+    "selectionLocked": "Plan selection for an already provisioned store is not handled by onboarding.",
+    "planFree": "Free",
+    "planSmall": "Small",
+    "planMedium": "Medium",
+    "planLarge": "Large"
   }
 }
