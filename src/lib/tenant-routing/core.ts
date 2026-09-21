@@ -34,14 +34,20 @@ const GLOBAL_API_PATHS = new Set([
   "/api/iCount/payment",
 ]);
 
+export function isGlobalApiPath(path: string) {
+  return GLOBAL_API_PATHS.has(path.replace(/\/$/, ""));
+}
+
 export function isTenantHandlerPath(path: string) {
   return path.startsWith("/api/") || path.startsWith("/media/");
 }
 
 export const TENANT_HEADER = "x-shopnest-tenant-slug";
 export const TENANT_SCHEMA_HEADER = "x-shopnest-tenant-schema";
+export const TENANT_ROUTE_MODE_HEADER = "x-shopnest-tenant-route-mode";
 export const INTERNAL_PATH_HEADER = "x-shopnest-internal-path";
 
+export type TenantRouteMode = "path" | "host";
 export type Tenant = ValidatedTenant;
 export type TenantResolver = (value: unknown) => Tenant | null;
 export type AsyncTenantResolver = (
@@ -59,6 +65,18 @@ export function buildTenantRewriteUrl(requestUrl: URL, internalPath: string) {
   return rewriteUrl;
 }
 
+export function buildHostedTenantRewriteUrl(
+  requestUrl: URL,
+  tenant: Tenant,
+  internalPath: string
+) {
+  const rewriteUrl = new URL(requestUrl.toString());
+  rewriteUrl.pathname = isTenantHandlerPath(internalPath)
+    ? internalPath
+    : tenant.basePath + (internalPath === "/" ? "" : internalPath);
+  return rewriteUrl;
+}
+
 export function isTenantAdminPath(internalPath: string) {
   return internalPath === "/admin" || internalPath.startsWith("/admin/");
 }
@@ -72,7 +90,7 @@ export function resolveTenantRoute(
   if (
     !firstSegment ||
     LEGACY_ROUTE_SEGMENTS.has(firstSegment) ||
-    GLOBAL_API_PATHS.has(pathname.replace(/\/$/, ""))
+    isGlobalApiPath(pathname)
   ) {
     return { kind: "legacy" };
   }
@@ -81,7 +99,7 @@ export function resolveTenantRoute(
   if (!tenant) return { kind: "not-found" };
 
   // Global callbacks must use their canonical URL and state-bound tenant.
-  if (GLOBAL_API_PATHS.has("/" + rest.join("/"))) {
+  if (isGlobalApiPath("/" + rest.join("/"))) {
     return { kind: "not-found" };
   }
 
@@ -101,7 +119,7 @@ export async function resolveTenantRouteAsync(
   if (
     !firstSegment ||
     LEGACY_ROUTE_SEGMENTS.has(firstSegment) ||
-    GLOBAL_API_PATHS.has(pathname.replace(/\/$/, ""))
+    isGlobalApiPath(pathname)
   ) {
     return { kind: "legacy" };
   }
@@ -110,7 +128,7 @@ export async function resolveTenantRouteAsync(
   if (!tenant) return { kind: "not-found" };
 
   // Global callbacks must use their canonical URL and state-bound tenant.
-  if (GLOBAL_API_PATHS.has("/" + rest.join("/"))) {
+  if (isGlobalApiPath("/" + rest.join("/"))) {
     return { kind: "not-found" };
   }
 
@@ -121,18 +139,17 @@ export async function resolveTenantRouteAsync(
   };
 }
 
-export function prefixTenantPath(
-  path: string,
-  basePath: string
-) {
-  const baseSlug =
-    basePath.startsWith("/") && !basePath.slice(1).includes("/")
-      ? basePath.slice(1)
-      : "";
-  const normalizedBase = normalizeTenantSlug(baseSlug);
+export function prefixTenantPath(path: string, basePath: string) {
+  if (basePath !== "") {
+    const baseSlug =
+      basePath.startsWith("/") && !basePath.slice(1).includes("/")
+        ? basePath.slice(1)
+        : "";
+    const normalizedBase = normalizeTenantSlug(baseSlug);
 
-  if (!normalizedBase || normalizedBase.basePath !== basePath) {
-    throw new Error("Tenant navigation requires a valid tenant base path");
+    if (!normalizedBase || normalizedBase.basePath !== basePath) {
+      throw new Error("Tenant navigation requires a valid tenant base path");
+    }
   }
 
   if (path.startsWith("#") || path.startsWith("?")) return path;
@@ -167,6 +184,10 @@ export function prefixTenantPath(
   }
 
   const url = new URL(path, "https://shopnest.invalid");
+
+  if (basePath === "") {
+    return url.pathname + url.search + url.hash;
+  }
 
   if (
     url.pathname === basePath ||
