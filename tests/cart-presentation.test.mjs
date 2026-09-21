@@ -133,8 +133,9 @@ test("server refresh reloads quantity and current tenant DB product price; ignor
 test("cart and checkout retain trusted DB access, quantity-only writes and purchase snapshots", () => {
   const db = read("src/drizzle/db.ts");
   assert.match(db, /const tenant = await getTenant\(\)/);
-  assert.match(db, /configuredTenant.schema !== tenant.schema/);
-  assert.match(db, /search_path=\$\{configuredTenant.schema\}/);
+  assert.match(db, /isTrustedTenant\(tenant\)/);
+  assert.match(db, /search_path=\$\{tenant.schema\}/);
+  assert.doesNotMatch(db, /resolveConfiguredTenant/);
   const actions = read(root + "_actions/carts.ts");
   assert.match(actions, /updateProductQuantity\(productId: number, quantity: number\)/);
   assert.match(actions, /set\(\{ quantity: targetQuantity, updatedAt: new Date\(\) \}\)/);
