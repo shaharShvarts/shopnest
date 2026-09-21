@@ -1,88 +1,87 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import {
   MerchantPolicyError,
   parsePolicyDocumentInput,
+  type StorePolicyStatus,
 } from "@/lib/merchant-policies/core";
 import { getMerchantPolicyRepository } from "@/lib/merchant-policies/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 
-function redirectForPolicyError(storeId: number, error: unknown): never {
-  if (
-    error instanceof MerchantPolicyError &&
-    error.code === "STORE_NOT_FOUND"
-  ) {
-    redirect("/dashboard/stores");
-  }
+export type PolicyMutationState =
+  | { kind: "idle" }
+  | {
+      kind: "saved" | "published";
+      mutationId: string;
+      version: number;
+      documentStatus: StorePolicyStatus;
+      title: string;
+      content: string;
+    }
+  | { kind: "invalid" | "unavailable"; mutationId: string };
 
-  redirect("/dashboard/stores/" + storeId + "/policies?policy=invalid");
-}
-
-function parsePolicyFormForStore(storeId: number, formData: FormData) {
-  try {
-    return parsePolicyDocumentInput(Object.fromEntries(formData));
-  } catch {
-    redirect(
-      "/dashboard/stores/" + storeId + "/policies?policy=invalid"
-    );
-  }
-}
-
-export async function savePolicyDraftAction(formData: FormData) {
+export async function mutatePolicyAction(
+  _previousState: PolicyMutationState,
+  formData: FormData
+): Promise<PolicyMutationState> {
   const merchant = await requireMerchantPage();
+  const mutationId = new Date().toISOString();
 
   let storeId: number;
   try {
     storeId = parseStoreId(formData.get("storeId"));
   } catch {
-    redirect("/dashboard/stores");
+    return { kind: "invalid", mutationId };
   }
 
-  const input = parsePolicyFormForStore(storeId, formData);
-
-  try {
-    await getMerchantPolicyRepository().saveDraftForOwnedStore(
-      merchant.id,
-      storeId,
-      input
-    );
-  } catch (error) {
-    redirectForPolicyError(storeId, error);
+  const intent = formData.get("intent");
+  if (intent !== "draft" && intent !== "publish") {
+    return { kind: "invalid", mutationId };
   }
 
-  revalidatePath("/dashboard/stores/" + storeId);
-  revalidatePath("/dashboard/stores/" + storeId + "/policies");
-  redirect("/dashboard/stores/" + storeId + "/policies?policy=saved");
-}
-
-export async function publishPolicyAction(formData: FormData) {
-  const merchant = await requireMerchantPage();
-
-  let storeId: number;
+  let input;
   try {
-    storeId = parseStoreId(formData.get("storeId"));
+    input = parsePolicyDocumentInput(Object.fromEntries(formData));
   } catch {
-    redirect("/dashboard/stores");
+    return { kind: "invalid", mutationId };
   }
-
-  const input = parsePolicyFormForStore(storeId, formData);
 
   try {
-    await getMerchantPolicyRepository().publishForOwnedStore(
-      merchant.id,
-      storeId,
-      input
-    );
-  } catch (error) {
-    redirectForPolicyError(storeId, error);
-  }
+    const document =
+      intent === "draft"
+        ? await getMerchantPolicyRepository().saveDraftForOwnedStore(
+            merchant.id,
+            storeId,
+            input
+          )
+        : await getMerchantPolicyRepository().publishForOwnedStore(
+            merchant.id,
+            storeId,
+            input
+          );
 
-  revalidatePath("/dashboard/stores/" + storeId);
-  revalidatePath("/dashboard/stores/" + storeId + "/policies");
-  redirect(
-    "/dashboard/stores/" + storeId + "/policies?policy=published"
-  );
+    // Keep the parent Store readiness result fresh without navigating or
+    // reloading the current policy workspace.
+    revalidatePath("/dashboard/stores/" + storeId);
+
+    return {
+      kind: intent === "draft" ? "saved" : "published",
+      mutationId,
+      version: document.version,
+      documentStatus: document.status,
+      title: document.title,
+      content: document.content,
+    };
+  } catch (error) {
+    if (
+      error instanceof MerchantPolicyError &&
+      error.code === "STORE_NOT_FOUND"
+    ) {
+      return { kind: "unavailable", mutationId };
+    }
+
+    return { kind: "invalid", mutationId };
+  }
 }
