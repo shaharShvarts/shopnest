@@ -526,5 +526,13 @@
     "noStoresYet": "עדיין לא יצרת חנות.",
     "storesReady": "יש לך {count} חנויות. כאן מנהלים את החנויות שבבעלות העסק.",
     "manageStores": "ניהול חנויות"
+  },
+  "MerchantDashboard": {
+    "workspace": "סביבת עבודה לסוחר",
+    "overview": "סקירה",
+    "business": "עסק",
+    "stores": "חנויות",
+    "navigation": "ניווט בסביבת העבודה של הסוחר",
+    "signedInAs": "מחובר כ־"
   }
 }

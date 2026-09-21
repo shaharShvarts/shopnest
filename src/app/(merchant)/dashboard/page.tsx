@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { getMerchantOrganizationRepository } from "@/lib/merchant-organizations/server";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
-import { logoutMerchantAction } from "./_actions";
 
 export default async function MerchantDashboardPage() {
   const merchant = await requireMerchantPage();
@@ -22,10 +21,7 @@ export default async function MerchantDashboardPage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="mb-8">
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          ShopNest
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">
+        <h1 className="text-3xl font-bold tracking-tight">
           {t("dashboardGreeting", { name: merchant.displayName })}
         </h1>
         <p className="mt-2 text-muted-foreground">
@@ -161,17 +157,6 @@ export default async function MerchantDashboardPage() {
             )}
           </section>
         ) : null}
-
-        <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
-          <form action={logoutMerchantAction}>
-            <button
-              type="submit"
-              className="min-h-11 rounded-lg border border-border px-4 py-2 font-semibold"
-            >
-              {t("logout")}
-            </button>
-          </form>
-        </section>
       </div>
     </main>
   );
