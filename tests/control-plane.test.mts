@@ -85,22 +85,33 @@ test("plans accept only small, medium, and large", () => {
   assert.equal(storeMutationSchema.safeParse({ ...mutation, featured: false, featuredRank: 1 }).success, false);
 });
 
-test("legacy tenant rows are retained as data but are not trusted after registry cleanup", () => {
+test("active control-plane tenant rows are the trusted dynamic registry", () => {
   assert.deepEqual(stores.map((store) => store.slug), ["gift-shop", "panda-pop"]);
-  assert.equal(findTrustedStore(stores, "gift-shop"), null);
+  assert.equal(findTrustedStore(stores, "gift-shop")?.slug, "gift-shop");
   assert.equal(findTrustedStore(stores, "unknown-store"), null);
+  assert.equal(resolveTrustedStore(stores[0])?.schema, "gift_shop");
 });
 
-test("browser supplied schemas and unconfigured tenant rows cannot select a schema", () => {
-  assert.equal(resolveTrustedStore(store("gift-shop", "attacker_schema", "Spoofed")), null);
-  assert.equal(resolveTrustedStore(store("unknown-store", "gift_shop", "Spoofed")), null);
-  assert.equal(resolveTrustedStore(stores[0]), null);
+test("unsafe or inactive registry rows cannot select a tenant database", () => {
+  assert.equal(
+    resolveTrustedStore(store("gift-shop", "public", "Spoofed")),
+    null
+  );
+  assert.equal(
+    resolveTrustedStore({ ...stores[0], status: "suspended" }),
+    null
+  );
+  assert.equal(
+    resolveTrustedStore({ ...stores[0], status: "disabled" }),
+    null
+  );
 });
 
-test("unconfigured tenant rows fail closed before metric loading", async () => {
+test("active trusted registry rows may load isolated tenant metrics", async () => {
   let calls = 0;
-  const summaries = await buildStoreSummaries(stores, async () => {
+  const summaries = await buildStoreSummaries(stores, async (tenant) => {
     calls += 1;
+    assert.ok(["gift_shop", "panda_pop"].includes(tenant.schema));
     return {
       orderCount: 1,
       salesVolume: 1,
@@ -110,16 +121,15 @@ test("unconfigured tenant rows fail closed before metric loading", async () => {
     };
   });
 
-  assert.equal(calls, 0);
+  assert.equal(calls, 2);
   assert.deepEqual(
     summaries.map((summary) => ({
       slug: summary.slug,
       kind: summary.kind,
-      reason: summary.kind === "unavailable" ? summary.reason : null,
     })),
     [
-      { slug: "gift-shop", kind: "unavailable", reason: "untrusted_registry" },
-      { slug: "panda-pop", kind: "unavailable", reason: "untrusted_registry" },
+      { slug: "gift-shop", kind: "available" },
+      { slug: "panda-pop", kind: "available" },
     ]
   );
 });
@@ -209,7 +219,7 @@ test("route and mutation boundaries enforce server authorization and trusted sch
   assert.match(layout, /await requireSuperAdminPage\(\)/);
   assert.match(action, /updateControlPlaneStore/);
   assert.match(server, /await requireSuperAdmin\(\)/);
-  assert.match(server, /resolveTrustedStore\(existing\)/);
+  assert.match(server, /hasValidTenantIdentity\(existing\)/);
   assert.match(server, /getDbForTenant\(tenant\)/);
   assert.match(server, /unsupportedCurrencyCount/);
   assert.match(server, /Cannot aggregate mixed currencies/);
