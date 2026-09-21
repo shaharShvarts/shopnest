@@ -612,6 +612,7 @@
     "invalid": "לא ניתן לשמור את המדיניות. יש לבדוק את הכותרת והתוכן.",
     "marketUnavailableTitle": "כללי השוק אינם זמינים",
     "marketUnavailable": "ל-ShopNest עדיין אין תצורת דרישות מדיניות מאושרת עבור השוק הזה.",
-    "backToStore": "חזרה לחנות"
+    "backToStore": "חזרה לחנות",
+    "characterCount": "{count} / {minimum} תווים"
   }
 }
