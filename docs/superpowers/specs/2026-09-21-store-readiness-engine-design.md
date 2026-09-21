@@ -248,6 +248,8 @@ Before READY TO MERGE:
 - no Tenant/schema is created
 - no tenant-schema access is introduced for pre-provisioning readiness
 - EN/HE checklist renders correctly
+- policy editing uses inline mutation feedback without redirecting/reloading the whole policy workspace
+- policy Save/Publish stays disabled for invalid or unchanged client state, while server-side validation remains authoritative
 - focused readiness tests pass
 - existing merchant Store/Organization/subscription/auth tests pass
 - full GitHub Actions pass
