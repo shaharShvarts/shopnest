@@ -127,12 +127,14 @@ export class ActivationOrchestrationService {
 
     if (!readiness.ready) {
       if (current.status === "provisioning") {
-        await this.recordFailureIfStillProvisioning(
-          merchantId,
-          storeId,
-          "READINESS_REGRESSED",
-          now
-        );
+        const completed =
+          await this.recordFailureIfStillProvisioning(
+            merchantId,
+            storeId,
+            "READINESS_REGRESSED",
+            now
+          );
+        if (completed) return completed;
       } else {
         await this.lifecycleRepository.syncReadinessForOwnedStore(
           merchantId,
