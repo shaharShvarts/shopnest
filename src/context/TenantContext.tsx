@@ -20,9 +20,14 @@ export function TenantProvider({
   slug: string;
   children: ReactNode;
 }) {
-  if (normalizeTenantSlug(slug)?.basePath !== basePath) {
+  const normalized = normalizeTenantSlug(slug);
+  if (
+    !normalized ||
+    (basePath !== "" && normalized.basePath !== basePath)
+  ) {
     throw new Error("Invalid tenant navigation context");
   }
+
   const value = useMemo(
     () => ({
       basePath,

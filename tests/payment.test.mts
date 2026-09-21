@@ -1026,6 +1026,14 @@ test("middleware overwrites forged tenant headers on payment admin routes", asyn
       resolveTrustedTenant: async (value: unknown) =>
         resolvePaymentFixtureTenant(value),
     },
+    "./lib/domain-registry/core": {
+      normalizeRequestHostname: (value: unknown) =>
+        typeof value === "string" ? value.split(":")[0] : null,
+      isPlatformHostname: () => true,
+    },
+    "./lib/domain-registry/server": {
+      resolveTrustedDomain: async () => null,
+    },
   });
   for (const slug of ["gift-shop", "panda-pop", "dvorik-collection"]) {
     const headers = await middleware({

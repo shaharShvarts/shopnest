@@ -64,6 +64,7 @@ jobs:
           npm run store-readiness:test
           npm run store-lifecycle:test
           npm run tenant-registry:test
+          npm run domain-registry:test
 
       - name: Build production application
         run: npm run build

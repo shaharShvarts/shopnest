@@ -1,4 +1,4 @@
-import type { Tenant } from "@/lib/tenant";
+import type { Tenant, TenantRouteMode } from "@/lib/tenant";
 import type {
   AdminPrincipal,
   TenantAccessDecision,
@@ -16,12 +16,16 @@ export function resolveTenantAdminPageAccess(input: {
   principal: AdminPrincipal | null;
   tenant: Tenant | null;
   controlTenant: TenantControlRecord | null;
+  routeMode: TenantRouteMode | null;
 }): AdminPageAccess {
-  if (!input.tenant) return { kind: "not-found" };
+  if (!input.tenant || !input.routeMode) return { kind: "not-found" };
   if (input.decision === "unauthenticated" || !input.principal) {
     return {
       kind: "redirect",
-      location: `${input.tenant.basePath}/admin/login`,
+      location:
+        input.routeMode === "host"
+          ? "/admin/login"
+          : `${input.tenant.basePath}/admin/login`,
     };
   }
   if (input.decision === "unknown_tenant" || !input.controlTenant) {

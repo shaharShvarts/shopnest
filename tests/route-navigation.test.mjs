@@ -94,8 +94,9 @@ test("tenant path builder preserves queries, hashes, and existing prefixes and r
       routing.prefixTenantPath(path, "/panda-pop")
     );
   }
-  assert.throws(() =>
-    routing.prefixTenantPath("/categories", "", resolveFixtureTenant)
+  assert.equal(
+    routing.prefixTenantPath("/categories", ""),
+    "/categories"
   );
   assert.equal(
     routing.prefixTenantPath("/categories", "/unknown"),
@@ -124,6 +125,13 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     "./lib/tenant-registry/server": {
       resolveTrustedTenant: async value => resolveFixtureTenant(value),
     },
+    "./lib/domain-registry/core": {
+      normalizeRequestHostname: value => String(value || "").split(":")[0],
+      isPlatformHostname: () => true,
+    },
+    "./lib/domain-registry/server": {
+      resolveTrustedDomain: async () => null,
+    },
   });
   for (const path of [...platform, ...storefront.map(p => `/panda-pop${p}`), ...tenantAdmin.map(p => `/panda-pop${p}`), "/panda-pop/api/cart/add", "/panda-pop/media/products/a.png", "/api/customer-auth/google/callback"]) {
     const response = await middleware({ nextUrl: new URL(`${path}?q=gift`, "https://shop.test"), headers: new Headers({ [routing.TENANT_HEADER]: "gift-shop", [routing.TENANT_SCHEMA_HEADER]: "public", [routing.INTERNAL_PATH_HEADER]: "/admin/login" }), cookies: { has: () => false } });
@@ -146,6 +154,13 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     "./lib/tenant-registry/server": {
       resolveTrustedTenant: async () => null,
     },
+    "./lib/domain-registry/core": {
+      normalizeRequestHostname: value => String(value || "").split(":")[0],
+      isPlatformHostname: () => true,
+    },
+    "./lib/domain-registry/server": {
+      resolveTrustedDomain: async () => null,
+    },
   });
   for (const path of [
     "/panda-pop",
@@ -163,8 +178,87 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     assert.equal(response.status, 404);
   }
   // A dotted path may not skip middleware and inject trusted tenant headers.
-  const matcher = new RegExp(`^${config.matcher[1]}$`);
+  const matcher = new RegExp("^" + config.matcher[2] + "$");
   for (const path of ["/media/products/a.png", "/panda-pop/products/a.png", "/admin/foo.png"]) assert.ok(matcher.test(path));
+});
+
+test("custom Host resolves one trusted Tenant and keeps public URLs slug-free", async () => {
+  class Response {
+    constructor(body, options = {}) { this.body = body; this.status = options.status; }
+    cookies = { set() {} };
+    static next(options) { return Object.assign(new Response(), { kind: "next", headers: options.request.headers }); }
+    static rewrite(url, options) { return Object.assign(new Response(), { kind: "rewrite", url, headers: options.request.headers }); }
+  }
+
+  const tenant = resolveFixtureTenant("panda-pop");
+  const { middleware } = load("../src/middleware.ts", {
+    nanoid: { nanoid: () => "host-session" },
+    "next/server": { NextResponse: Response },
+    "./lib/tenant-routing/core": routing,
+    "./lib/tenant-registry/server": {
+      resolveTrustedTenant: async value => resolveFixtureTenant(value),
+    },
+    "./lib/domain-registry/core": {
+      normalizeRequestHostname: value => String(value || "").toLowerCase().replace(/:\\d+$/, ""),
+      isPlatformHostname: hostname => hostname === "shopnest.co.il",
+    },
+    "./lib/domain-registry/server": {
+      resolveTrustedDomain: async hostname => {
+        if (hostname === "error.example") throw new Error("db unavailable");
+        return hostname === "store.example" ? { hostname, tenant } : null;
+      },
+    },
+  });
+
+  const page = await middleware({
+    nextUrl: new URL("https://store.example/categories?q=gift"),
+    headers: new Headers({
+      host: "store.example",
+      [routing.TENANT_HEADER]: "gift-shop",
+      [routing.TENANT_SCHEMA_HEADER]: "public",
+      [routing.TENANT_ROUTE_MODE_HEADER]: "path",
+    }),
+    cookies: { has: () => false },
+  });
+  assert.equal(page.kind, "rewrite");
+  assert.equal(page.url.pathname, "/panda-pop/categories");
+  assert.equal(page.url.search, "?q=gift");
+  assert.equal(page.headers.get(routing.TENANT_HEADER), "panda-pop");
+  assert.equal(page.headers.get(routing.TENANT_SCHEMA_HEADER), "panda_pop");
+  assert.equal(page.headers.get(routing.TENANT_ROUTE_MODE_HEADER), "host");
+  assert.equal(page.headers.get(routing.INTERNAL_PATH_HEADER), "/categories");
+
+  const api = await middleware({
+    nextUrl: new URL("https://store.example/api/cart/add"),
+    headers: new Headers({ host: "store.example" }),
+    cookies: { has: () => false },
+  });
+  assert.equal(api.kind, "next");
+  assert.equal(api.headers.get(routing.TENANT_HEADER), "panda-pop");
+  assert.equal(api.headers.get(routing.INTERNAL_PATH_HEADER), "/api/cart/add");
+
+  const crossSlug = await middleware({
+    nextUrl: new URL("https://store.example/gift-shop/carts"),
+    headers: new Headers({ host: "store.example" }),
+    cookies: { has: () => false },
+  });
+  assert.equal(crossSlug.kind, "rewrite");
+  assert.equal(crossSlug.url.pathname, "/panda-pop/gift-shop/carts");
+  assert.equal(crossSlug.headers.get(routing.TENANT_HEADER), "panda-pop");
+
+  const unknown = await middleware({
+    nextUrl: new URL("https://unknown.example/"),
+    headers: new Headers({ host: "unknown.example" }),
+    cookies: { has: () => false },
+  });
+  assert.equal(unknown.status, 404);
+
+  const failed = await middleware({
+    nextUrl: new URL("https://error.example/"),
+    headers: new Headers({ host: "error.example" }),
+    cookies: { has: () => false },
+  });
+  assert.equal(failed.status, 503);
 });
 
 test("actual TenantLink scopes string, object and as URLs", () => {
@@ -211,7 +305,10 @@ test("provider has no tenantless fallback and tenant layout validates context ag
   let tenant = normalizeTenantSlug("panda-pop");
   const { default: layout } = load("../src/app/[tenant]/layout.tsx", {
     "react/jsx-runtime": jsx, "@/context/TenantContext": { TenantProvider: "TenantProvider" },
-    "@/lib/tenant-context": { getTenant: async () => tenant }, "next/navigation": { notFound() { throw new Error("404"); } },
+    "@/lib/tenant-context": {
+      getTenant: async () => tenant,
+      getTenantRouteMode: async () => "path",
+    }, "next/navigation": { notFound() { throw new Error("404"); } },
   });
   assert.equal((await layout({ params: Promise.resolve({ tenant: "panda-pop" }) })).props.basePath, "/panda-pop");
   await assert.rejects(() => layout({ params: Promise.resolve({ tenant: "gift-shop" }) }), /404/);
