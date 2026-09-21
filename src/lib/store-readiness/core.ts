@@ -1,4 +1,4 @@
-import type { StorePolicyType } from "@/lib/merchant-policies/core";
+import type { StorePolicyType } from "../merchant-policies/core.ts";
 
 export const READINESS_KEYS = [
   "store_profile",
