@@ -38,8 +38,6 @@ export async function middleware(req: NextRequest) {
       }
     | null = null;
   let routeMode: TenantRouteMode | null = null;
-  let isLegacyRoute = false;
-
   if (isPlatformHostname(hostname)) {
     let routeResolution;
     try {
@@ -58,8 +56,6 @@ export async function middleware(req: NextRequest) {
     if (routeResolution.kind === "tenant") {
       tenantRoute = routeResolution;
       routeMode = "path";
-    } else {
-      isLegacyRoute = true;
     }
   } else {
     if (isGlobalApiPath(req.nextUrl.pathname)) {
