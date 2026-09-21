@@ -589,9 +589,9 @@
     "subscription_state_invalid": "The subscription is not in an allowed pre-activation state.",
     "subscription_plan_inactive": "The selected plan is no longer active. Choose an active plan.",
     "policies_missing": "One or more required customer-facing policies are missing or unpublished.",
-    "editStoreProfile": "Edit Store profile",
     "configurePolicies": "Configure policies",
-    "configureSubscription": "Choose an active plan"
+    "configureSubscription": "Choose an active plan",
+    "editBusinessProfile": "Edit business profile"
   },
   "MerchantPolicies": {
     "title": "Store policies",
