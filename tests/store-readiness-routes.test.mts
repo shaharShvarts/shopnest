@@ -40,6 +40,8 @@ test("policy actions derive authority server-side", async () => {
   assert.match(source, /parsePolicyDocumentInput/);
   assert.match(source, /saveDraftForOwnedStore/);
   assert.match(source, /publishForOwnedStore/);
+  assert.match(source, /revalidatePath\("\/dashboard\/stores\/" \+ storeId\)/);
+  assert.doesNotMatch(source, /redirect\(/);
   assert.doesNotMatch(
     source,
     /formData\.get\(["'](?:organizationId|market|status|version|tenantId|schemaName)/
@@ -58,7 +60,7 @@ test("policy page is an authenticated merchant Store surface", async () => {
 
   assert.match(page, /requireMerchantPage\(\)/);
   assert.match(page, /getWorkspaceForOwnedStore/);
-  assert.match(page, /PolicyDocumentForm/);
+  assert.match(page, /PolicyDocumentEditor/);
   assert.match(page, /policyType=\{policyType\}/);
   assert.doesNotMatch(
     page,
@@ -66,7 +68,7 @@ test("policy page is an authenticated merchant Store surface", async () => {
   );
 });
 
-test("policy form avoids per-keystroke native validation popups", async () => {
+test("policy editor avoids native validation popups and duplicate saves", async () => {
   const form = await readFile(
     "src/app/(merchant)/dashboard/stores/[id]/policies/PolicyDocumentForm.tsx",
     "utf8"
@@ -75,22 +77,25 @@ test("policy form avoids per-keystroke native validation popups", async () => {
   assert.match(form, /noValidate/);
   assert.match(form, /MIN_POLICY_CONTENT_LENGTH = 80/);
   assert.match(form, /trimmedContentLength/);
+  assert.match(form, /dirty/);
   assert.match(form, /disabled=\{!canSubmit\}/);
-  assert.match(form, /characterCount/);
+  assert.match(form, /useActionState/);
+  assert.match(form, /unsavedChanges/);
+  assert.match(form, /name="intent"/);
   assert.doesNotMatch(form, /minLength=\{80\}/);
 });
 
-test("invalid policy content returns to the policy workspace", async () => {
+test("policy mutation returns inline state instead of navigating", async () => {
   const actions = await readFile(
     "src/app/(merchant)/dashboard/stores/[id]/policies/_actions.ts",
     "utf8"
   );
 
-  assert.match(actions, /parsePolicyFormForStore/);
-  assert.match(
-    actions,
-    /\/dashboard\/stores\/" \+ storeId \+ "\/policies\?policy=invalid/
-  );
+  assert.match(actions, /PolicyMutationState/);
+  assert.match(actions, /kind: "invalid"/);
+  assert.match(actions, /kind: "unavailable"/);
+  assert.match(actions, /kind: intent === "draft" \? "saved" : "published"/);
+  assert.doesNotMatch(actions, /redirect\(/);
 });
 
 test("readiness and policy translations stay aligned", async () => {
