@@ -43,6 +43,21 @@ export default async function MerchantStoreDetailPage({
       searchParams,
     ]);
 
+  const planDisplayName = (code: string, fallback: string) => {
+    switch (code) {
+      case "free":
+        return tSubscription("planFree");
+      case "small":
+        return tSubscription("planSmall");
+      case "medium":
+        return tSubscription("planMedium");
+      case "large":
+        return tSubscription("planLarge");
+      default:
+        return fallback;
+    }
+  };
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="mb-8">
@@ -152,7 +167,9 @@ export default async function MerchantStoreDetailPage({
               {tSubscription("selectedPlan")}
             </dt>
             <dd className="mt-1 font-medium">
-              {subscription?.plan.name ?? tSubscription("notSelected")}
+              {subscription
+                ? planDisplayName(subscription.plan.code, subscription.plan.name)
+                : tSubscription("notSelected")}
             </dd>
           </div>
           <div>
@@ -190,7 +207,7 @@ export default async function MerchantStoreDetailPage({
                 </option>
                 {activePlans.map((plan) => (
                   <option key={plan.id} value={plan.code}>
-                    {plan.name}
+                    {planDisplayName(plan.code, plan.name)}
                   </option>
                 ))}
               </select>
