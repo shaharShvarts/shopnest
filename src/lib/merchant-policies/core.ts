@@ -11,6 +11,10 @@ export const STORE_POLICY_TYPES = [
 export type StorePolicyType = (typeof STORE_POLICY_TYPES)[number];
 export type StorePolicyStatus = "draft" | "published";
 
+export function isStorePolicyType(value: string): value is StorePolicyType {
+  return (STORE_POLICY_TYPES as readonly string[]).includes(value);
+}
+
 const REQUIRED_POLICY_TYPES_BY_MARKET: Record<
   string,
   readonly StorePolicyType[]
