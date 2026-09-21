@@ -623,5 +623,17 @@
     "characters": "characters",
     "unsavedChanges": "Unsaved changes",
     "unavailable": "This policy workspace is no longer available for this Store."
+  },
+  "MerchantActivation": {
+    "title": "Activation",
+    "description": "ShopNest creates the isolated Tenant only after the server confirms every required setup item.",
+    "blocked": "Activation is blocked until every required readiness item is complete.",
+    "activate": "Activate store",
+    "inProgress": "Activation is in progress.",
+    "failed": "Activation could not be completed safely. Review the Store setup and try again.",
+    "notReady": "The Store is no longer ready for activation. Complete the required readiness items and try again.",
+    "planNotProvisionable": "The selected plan cannot be provisioned yet. Choose Small, Medium, or Large.",
+    "provisioned": "The Store has been provisioned successfully.",
+    "openStore": "Open storefront"
   }
 }
