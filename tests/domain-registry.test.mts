@@ -49,7 +49,7 @@ test("request Host normalization is exact and strips only transport syntax", () 
   );
   assert.equal(
     normalizeRequestHostname("[::1]:3000"),
-    "::1"
+    "[::1]"
   );
   assert.equal(normalizeRequestHostname("https://store.example"), null);
   assert.equal(normalizeRequestHostname("store.example/path"), null);
