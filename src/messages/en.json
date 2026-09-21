@@ -591,7 +591,8 @@
     "policies_missing": "One or more required customer-facing policies are missing or unpublished.",
     "configurePolicies": "Configure policies",
     "configureSubscription": "Choose an active plan",
-    "editBusinessProfile": "Edit business profile"
+    "editBusinessProfile": "Edit business profile",
+    "managePolicies": "Manage policies"
   },
   "MerchantPolicies": {
     "title": "Store policies",
