@@ -116,7 +116,7 @@ export default async function MerchantStoreDetailPage({
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href={"/dashboard/stores/" + store.id + "/edit"}
+            href="/dashboard/business/edit"
             className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
           >
             {t("editStore")}
@@ -173,7 +173,7 @@ export default async function MerchantStoreDetailPage({
                     href={"/dashboard/stores/" + store.id + "/edit"}
                     className="mt-2 inline-block text-sm font-semibold underline underline-offset-4"
                   >
-                    {tReadiness("editStoreProfile")}
+                    {tReadiness("editBusinessProfile")}
                   </Link>
                 ) : null}
 
