@@ -204,6 +204,21 @@ test("policy migration is additive and journaled", async () => {
   assert.equal(entry.idx, 10);
 });
 
+test("readiness only counts the latest policy version as published", async () => {
+  const readiness = await readFile(
+    "src/lib/store-readiness/drizzle-repository.ts",
+    "utf8"
+  );
+
+  assert.match(readiness, /desc\(storePolicyDocuments\.version\)/);
+  assert.match(readiness, /seenPolicyTypes\.has\(row\.policyType\)/);
+  assert.match(readiness, /row\.status === "published"/);
+  assert.doesNotMatch(
+    readiness,
+    /eq\(storePolicyDocuments\.status, "published"\)/
+  );
+});
+
 test("readiness and policy repositories remain control-plane owner scoped", async () => {
   const [readiness, policies] = await Promise.all([
     readFile("src/lib/store-readiness/drizzle-repository.ts", "utf8"),
