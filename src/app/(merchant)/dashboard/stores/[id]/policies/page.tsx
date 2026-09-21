@@ -9,10 +9,7 @@ import type {
 import { getMerchantPolicyRepository } from "@/lib/merchant-policies/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
-import {
-  publishPolicyAction,
-  savePolicyDraftAction,
-} from "./_actions";
+import { PolicyDocumentForm } from "./PolicyDocumentForm";
 
 export default async function MerchantStorePoliciesPage({
   params,
@@ -128,65 +125,25 @@ export default async function MerchantStorePoliciesPage({
                   </span>
                 </div>
 
-                <form className="mt-5 space-y-4">
-                  <input type="hidden" name="storeId" value={storeId} />
-                  <input type="hidden" name="policyType" value={policyType} />
-
-                  <div>
-                    <label
-                      htmlFor={policyType + "-title"}
-                      className="block text-sm font-semibold"
-                    >
-                      {t("documentTitle")}
-                    </label>
-                    <input
-                      id={policyType + "-title"}
-                      name="title"
-                      required
-                      minLength={3}
-                      maxLength={200}
-                      defaultValue={document?.title ?? policyLabel(policyType)}
-                      className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor={policyType + "-content"}
-                      className="block text-sm font-semibold"
-                    >
-                      {t("content")}
-                    </label>
-                    <textarea
-                      id={policyType + "-content"}
-                      name="content"
-                      required
-                      minLength={80}
-                      maxLength={100000}
-                      rows={10}
-                      defaultValue={document?.content ?? ""}
-                      className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2"
-                    />
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {t("contentHelp")}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      formAction={savePolicyDraftAction}
-                      className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-                    >
-                      {t("saveDraft")}
-                    </button>
-                    <button
-                      formAction={publishPolicyAction}
-                      className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-                    >
-                      {t("publish")}
-                    </button>
-                  </div>
-                </form>
+                <PolicyDocumentForm
+                  storeId={storeId}
+                  policyType={policyType}
+                  defaultTitle={
+                    document?.title ?? policyLabel(policyType)
+                  }
+                  defaultContent={document?.content ?? ""}
+                  labels={{
+                    documentTitle: t("documentTitle"),
+                    content: t("content"),
+                    contentHelp: t("contentHelp"),
+                    saveDraft: t("saveDraft"),
+                    publish: t("publish"),
+                    characterCount: t("characterCount", {
+                      count: "{count}",
+                      minimum: "{minimum}",
+                    }),
+                  }}
+                />
               </section>
             );
           })}
