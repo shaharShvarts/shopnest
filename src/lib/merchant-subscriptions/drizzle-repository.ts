@@ -245,6 +245,13 @@ export class DrizzleMerchantSubscriptionRepository
           );
         }
 
+        if (existing.tenantId !== null || existing.status !== "pending") {
+          throw new MerchantSubscriptionError(
+            "SUBSCRIPTION_LOCKED",
+            "Only pending pre-provisioning subscriptions can change plan here"
+          );
+        }
+
         const [updated] = await tx
           .update(subscriptions)
           .set({
