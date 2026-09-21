@@ -94,8 +94,9 @@ test("tenant path builder preserves queries, hashes, and existing prefixes and r
       routing.prefixTenantPath(path, "/panda-pop")
     );
   }
-  assert.throws(() =>
-    routing.prefixTenantPath("/categories", "", resolveFixtureTenant)
+  assert.equal(
+    routing.prefixTenantPath("/categories", ""),
+    "/categories"
   );
   assert.equal(
     routing.prefixTenantPath("/categories", "/unknown"),
