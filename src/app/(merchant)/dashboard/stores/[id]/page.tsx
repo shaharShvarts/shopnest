@@ -5,6 +5,7 @@ import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 import { getMerchantSubscriptionRepository } from "@/lib/merchant-subscriptions/server";
+import { getStoreReadinessRepository } from "@/lib/store-readiness/server";
 import { selectStorePlanAction } from "./_actions";
 
 export default async function MerchantStoreDetailPage({
@@ -34,14 +35,24 @@ export default async function MerchantStoreDetailPage({
   }
 
   const subscriptionRepository = getMerchantSubscriptionRepository();
-  const [t, tSubscription, activePlans, subscription, query] =
-    await Promise.all([
-      getTranslations("MerchantStore"),
-      getTranslations("MerchantSubscription"),
-      subscriptionRepository.listActivePlans(),
-      subscriptionRepository.findForOwnedStore(merchant.id, id),
-      searchParams,
-    ]);
+  const readinessRepository = getStoreReadinessRepository();
+  const [
+    t,
+    tSubscription,
+    tReadiness,
+    activePlans,
+    subscription,
+    readiness,
+    query,
+  ] = await Promise.all([
+    getTranslations("MerchantStore"),
+    getTranslations("MerchantSubscription"),
+    getTranslations("MerchantReadiness"),
+    subscriptionRepository.listActivePlans(),
+    subscriptionRepository.findForOwnedStore(merchant.id, id),
+    readinessRepository.evaluateForOwnedStore(merchant.id, id),
+    searchParams,
+  ]);
 
   const planDisplayName = (code: string, fallback: string) => {
     switch (code) {
@@ -105,7 +116,7 @@ export default async function MerchantStoreDetailPage({
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href={"/dashboard/stores/" + store.id + "/edit"}
+            href="/dashboard/business/edit"
             className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
           >
             {t("editStore")}
@@ -119,7 +130,85 @@ export default async function MerchantStoreDetailPage({
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
+      {store.tenantId === null && readiness ? (
+        <section
+          id="readiness"
+          className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">{tReadiness("title")}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {tReadiness("description")}
+              </p>
+            </div>
+            <span className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
+              {readiness.ready
+                ? tReadiness("ready")
+                : tReadiness("notReady")}
+            </span>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {readiness.requirements.map((requirement) => (
+              <div
+                key={requirement.key}
+                className="rounded-xl border border-border px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold">
+                    {tReadiness(requirement.key)}
+                  </p>
+                  <span className="text-sm font-medium">
+                    {tReadiness(requirement.status)}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {tReadiness(requirement.reason)}
+                </p>
+
+                {requirement.key === "store_profile" &&
+                requirement.status !== "complete" ? (
+                  <Link
+                    href={"/dashboard/stores/" + store.id + "/edit"}
+                    className="mt-2 inline-block text-sm font-semibold underline underline-offset-4"
+                  >
+                    {tReadiness("editBusinessProfile")}
+                  </Link>
+                ) : null}
+
+                {requirement.key === "policies" ? (
+                  <Link
+                    href={"/dashboard/stores/" + store.id + "/policies"}
+                    className="mt-2 inline-block text-sm font-semibold underline underline-offset-4"
+                  >
+                    {tReadiness(
+                      requirement.status === "complete"
+                        ? "managePolicies"
+                        : "configurePolicies"
+                    )}
+                  </Link>
+                ) : null}
+
+                {requirement.key === "subscription" &&
+                requirement.status !== "complete" ? (
+                  <a
+                    href="#plan"
+                    className="mt-2 inline-block text-sm font-semibold underline underline-offset-4"
+                  >
+                    {tReadiness("configureSubscription")}
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section
+        id="plan"
+        className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8"
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold">{tSubscription("plan")}</h2>

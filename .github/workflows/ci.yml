@@ -61,6 +61,7 @@ jobs:
           npx --yes tsx --test tests/merchant-organization.test.mts tests/merchant-organization-routes.test.mts
           npm run merchant-dashboard:test
           npm run merchant-subscription:test
+          npm run store-readiness:test
 
       - name: Build production application
         run: npm run build

@@ -37,6 +37,7 @@ handler methods return 405. Authentication below refers to the page/handler, not
 permission to perform every mutation reachable from it.
 After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configured tenants and their storefront URLs return 404. Creating a Store with one of those slugs does not activate routing; Tenant provisioning and the future dynamic trusted registry are separate follow-up work. The global `/dashboard/*` merchant routes share an authenticated merchant workspace shell with Overview, Business, Stores, merchant identity, and logout navigation; the shell does not select or access a tenant schema.
 Merchant plan selection is also control-plane only: it stores a pending Store-scoped subscription against an active global plan catalog and does not charge the merchant, create a Tenant/schema, publish a Store, or make its slug routable. The legacy `public.tenants.plan` field remains a compatibility snapshot for already-provisioned tenants.
+Store readiness is also control-plane only. The merchant Store detail computes a server-authoritative checklist from Store/Organization/subscription/policy data. Missing onboarding domains fail closed as unavailable. Policy documents are versioned and published under the owned Store boundary; neither readiness nor policy actions select a tenant schema or create/publish a Tenant.
 
 
 | Route pattern | Scope | Authentication requirement | Expected HTTP behavior |
@@ -58,6 +59,7 @@ Merchant plan selection is also control-plane only: it stores a pending Store-sc
 | `/dashboard/stores/new` | Platform | Active merchant session + owner Organization | 200 Store creation form; creates a draft Store only and never a Tenant/schema |
 | `/dashboard/stores/[id]` | Platform | Active merchant owning the Store through Organization | 200 owned active Store with control-plane plan/subscription selection for pre-provisioning Stores; invalid, cross-Organization, or deleted Store is 404 |
 | `/dashboard/stores/[id]/edit` | Platform | Active merchant owner | 200 Store edit; slug is read-only after Tenant linkage |
+| `/dashboard/stores/[id]/policies` | Platform | Active merchant owning the Store through Organization | 200 versioned Store policy workspace; save/publish actions remain control-plane only and cross-Organization access is 404 |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |
