@@ -63,12 +63,6 @@ export type MerchantStore = {
   slug: string;
   status: MerchantStoreStatus;
   tenantId: number | null;
-  activationRequestedAt: Date | null;
-  provisioningStartedAt: Date | null;
-  provisionedAt: Date | null;
-  lastProvisioningAttemptAt: Date | null;
-  provisioningAttemptCount: number;
-  lastProvisioningErrorCode: string | null;
   deletedAt: Date | null;
   deleteFinalizesAt: Date | null;
   slugReleasedAt: Date | null;
