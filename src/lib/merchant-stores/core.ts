@@ -115,6 +115,7 @@ export type StoreErrorCode =
   | "NOT_FOUND"
   | "SLUG_UNAVAILABLE"
   | "SLUG_LOCKED"
+  | "LIFECYCLE_LOCKED"
   | "CONFLICT"
   | "TENANT_LINKED"
   | "UNDO_EXPIRED";
