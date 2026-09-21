@@ -56,6 +56,7 @@ export type MerchantSubscriptionErrorCode =
   | "PLAN_UNAVAILABLE"
   | "STORE_NOT_FOUND"
   | "STORE_PROVISIONED"
+  | "SUBSCRIPTION_LOCKED"
   | "OWNERSHIP_MISMATCH";
 
 export class MerchantSubscriptionError extends Error {
