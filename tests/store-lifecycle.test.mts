@@ -147,6 +147,42 @@ test("failure stores only a safe code and never links a Tenant", () => {
   );
 });
 
+test("last provisioning error survives reset until a new attempt starts", () => {
+  const failed = {
+    ...snapshot("provisioning_failed"),
+    provisioningAttemptCount: 1,
+    lastProvisioningErrorCode: "SCHEMA_MIGRATION_FAILED",
+  };
+
+  const ready = applyStoreLifecycleTransition(
+    failed,
+    { to: "ready_for_provisioning" },
+    new Date("2026-09-21T08:05:00.000Z")
+  );
+  assert.equal(
+    ready.lastProvisioningErrorCode,
+    "SCHEMA_MIGRATION_FAILED"
+  );
+
+  const requested = applyStoreLifecycleTransition(
+    ready,
+    { to: "activation_requested" },
+    new Date("2026-09-21T08:06:00.000Z")
+  );
+  assert.equal(
+    requested.lastProvisioningErrorCode,
+    "SCHEMA_MIGRATION_FAILED"
+  );
+
+  const provisioning = applyStoreLifecycleTransition(
+    requested,
+    { to: "provisioning" },
+    new Date("2026-09-21T08:07:00.000Z")
+  );
+  assert.equal(provisioning.lastProvisioningErrorCode, null);
+  assert.equal(provisioning.provisioningAttemptCount, 2);
+});
+
 test("provisioned transition requires a trusted positive Tenant id", () => {
   const current = snapshot("provisioning");
 
