@@ -78,6 +78,13 @@
       "when": 1790046000000,
       "tag": "0010_store_policy_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790049600000,
+      "tag": "0011_store_provisioning_lifecycle",
+      "breakpoints": true
     }
   ]
 }
