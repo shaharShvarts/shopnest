@@ -18,6 +18,17 @@ test("Store detail renders server-authoritative readiness checklist", async () =
   );
 });
 
+test("completed policy readiness still links to policy management", async () => {
+  const page = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
+    "utf8"
+  );
+
+  assert.match(page, /requirement\.key === "policies"/);
+  assert.match(page, /managePolicies/);
+  assert.match(page, /\/policies/);
+});
+
 test("policy actions derive authority server-side", async () => {
   const source = await readFile(
     "src/app/(merchant)/dashboard/stores/[id]/policies/_actions.ts",
