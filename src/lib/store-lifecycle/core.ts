@@ -16,9 +16,14 @@ const ALLOWED_STORE_TRANSITIONS: Record<
 > = {
   draft: ["ready_for_provisioning"],
   ready_for_provisioning: ["draft", "activation_requested"],
-  activation_requested: ["ready_for_provisioning", "provisioning"],
+  activation_requested: [
+    "draft",
+    "ready_for_provisioning",
+    "provisioning",
+  ],
   provisioning: ["provisioned", "provisioning_failed"],
   provisioning_failed: [
+    "draft",
     "activation_requested",
     "ready_for_provisioning",
   ],
