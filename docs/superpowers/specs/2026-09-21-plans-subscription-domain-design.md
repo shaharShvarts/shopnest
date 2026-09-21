@@ -114,6 +114,7 @@ Rules:
 - Store ownership is resolved through Organization membership
 - browser-supplied Organization, Tenant, schema, subscription owner, or entitlement state is never trusted
 - only allowed plan codes from the active server-side catalog may be selected
+- if a previously selected plan later becomes inactive, the persisted subscription remains unchanged; the UI must continue to show that plan as the current unavailable selection and require an explicit choice of another active plan instead of visually or durably falling back to another plan
 - merchant plan selection creates/updates the Store-scoped subscription record
 - merchant actions do not set subscription to `active`, `trialing`, `past_due`, or other billing-result states based on browser input
 - no Tenant or schema is created
@@ -216,6 +217,7 @@ Before READY TO MERGE:
 - merchant cannot select a plan for another Organization's Store
 - browser cannot set subscription status/ownership/Tenant/schema
 - only active catalog plans can be selected
+- an already selected plan becoming inactive never silently changes or visually falls back to another plan
 - no tenant/schema is created
 - focused plan/subscription tests pass
 - existing merchant Store/Organization/auth tests pass
