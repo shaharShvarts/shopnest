@@ -166,11 +166,37 @@ export class DrizzleMerchantPolicyRepository
     now: Date
   ): Promise<MerchantPolicyDocument> {
     return getControlPlaneDb().transaction(async (tx) => {
-      const context = await findOwnedStoreContext(
-        tx as ReturnType<typeof getControlPlaneDb>,
-        merchantId,
-        storeId
-      );
+      const [context] = await tx
+        .select({
+          storeId: stores.id,
+          organizationId: stores.organizationId,
+          market: organizations.country,
+        })
+        .from(stores)
+        .innerJoin(
+          organizationMemberships,
+          and(
+            eq(
+              organizationMemberships.organizationId,
+              stores.organizationId
+            ),
+            eq(
+              organizationMemberships.merchantAccountId,
+              merchantId
+            ),
+            eq(organizationMemberships.role, "owner")
+          )
+        )
+        .innerJoin(
+          organizations,
+          eq(organizations.id, stores.organizationId)
+        )
+        .where(and(eq(stores.id, storeId), isNull(stores.deletedAt)))
+        .orderBy(
+          asc(organizationMemberships.createdAt),
+          asc(organizationMemberships.organizationId)
+        )
+        .limit(1);
 
       if (!context) {
         throw new MerchantPolicyError(
