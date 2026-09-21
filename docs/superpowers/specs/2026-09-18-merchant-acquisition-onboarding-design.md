@@ -301,6 +301,8 @@ StoreReadinessResult
 
 Activation must recalculate readiness immediately before provisioning.
 
+For the `subscription` readiness requirement, a pre-provisioning Store must reference a selectable active plan. If a plan becomes inactive after a Store is already provisioned and live, that catalog change alone must not retroactively suspend the Store or revoke its entitlement. The merchant workspace should surface a persistent warning for the affected Store. Any future forced migration, retirement deadline, or suspension policy must be explicit and separate from merely marking the plan inactive.
+
 Browser-supplied ready flags are never authoritative.
 
 Minimum product count, if required, must be configurable policy rather than hard-coded business logic where practical.
