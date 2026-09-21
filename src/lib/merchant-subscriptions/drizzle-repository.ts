@@ -36,15 +36,6 @@ const subscriptionSelection = {
   updatedAt: subscriptions.updatedAt,
 };
 
-function mapPlan(row: typeof plans.$inferSelect): MerchantPlan {
-  return {
-    id: row.id,
-    code: row.code,
-    name: row.name,
-    status: row.status,
-  };
-}
-
 function mapSubscription(
   row: typeof subscriptions.$inferSelect,
   plan: MerchantPlan
