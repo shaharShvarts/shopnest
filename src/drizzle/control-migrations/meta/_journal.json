@@ -71,6 +71,13 @@
       "when": 1790042400000,
       "tag": "0009_plans_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790046000000,
+      "tag": "0010_store_policy_documents",
+      "breakpoints": true
     }
   ]
 }
