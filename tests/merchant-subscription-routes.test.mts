@@ -35,6 +35,8 @@ test("owned Store detail exposes plan selection without tenant access", async ()
   assert.match(page, /name="planCode"/);
   assert.match(page, /subscription\?\.plan\.status === "inactive"/);
   assert.match(page, /value=\{subscription\.plan\.code\} disabled/);
+  assert.match(page, /inactivePlanBlocksActivation/);
+  assert.match(page, /inactivePlanGrandfathered/);
   assert.doesNotMatch(
     page,
     /getDbForTenant|getTenant\(|TenantLink|TENANT_SCHEMA_HEADER|search_path/
@@ -63,6 +65,8 @@ test("merchant subscription translations stay aligned", async () => {
     "selectionHelp",
     "selectionSaved",
     "unavailable",
+    "inactivePlanBlocksActivation",
+    "inactivePlanGrandfathered",
   ]) {
     assert.equal(typeof en.MerchantSubscription[key], "string");
     assert.equal(typeof he.MerchantSubscription[key], "string");
