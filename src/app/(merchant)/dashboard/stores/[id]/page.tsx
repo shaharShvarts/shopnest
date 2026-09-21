@@ -177,13 +177,16 @@ export default async function MerchantStoreDetailPage({
                   </Link>
                 ) : null}
 
-                {requirement.key === "policies" &&
-                requirement.status !== "complete" ? (
+                {requirement.key === "policies" ? (
                   <Link
                     href={"/dashboard/stores/" + store.id + "/policies"}
                     className="mt-2 inline-block text-sm font-semibold underline underline-offset-4"
                   >
-                    {tReadiness("configurePolicies")}
+                    {tReadiness(
+                      requirement.status === "complete"
+                        ? "managePolicies"
+                        : "configurePolicies"
+                    )}
                   </Link>
                 ) : null}
 
