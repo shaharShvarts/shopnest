@@ -33,6 +33,8 @@ test("owned Store detail exposes plan selection without tenant access", async ()
   assert.match(page, /findForOwnedStore/);
   assert.match(page, /selectStorePlanAction/);
   assert.match(page, /name="planCode"/);
+  assert.match(page, /subscription\?\.plan\.status === "inactive"/);
+  assert.match(page, /value=\{subscription\.plan\.code\} disabled/);
   assert.doesNotMatch(
     page,
     /getDbForTenant|getTenant\(|TenantLink|TENANT_SCHEMA_HEADER|search_path/
