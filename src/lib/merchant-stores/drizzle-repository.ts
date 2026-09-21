@@ -12,6 +12,7 @@ import {
   organizationMemberships,
   stores,
 } from "@/drizzle/control-plane-schema";
+import { isStoreProvisioningLocked } from "@/lib/store-lifecycle/core";
 import {
   MerchantStoreError,
   STORE_DELETE_UNDO_MS,
@@ -36,7 +37,19 @@ const storeSelection = {
   updatedAt: stores.updatedAt,
 };
 
-function mapStore(row: typeof stores.$inferSelect): MerchantStore {
+function mapStore(row: {
+  id: number;
+  organizationId: number;
+  displayName: string;
+  slug: string;
+  status: MerchantStore["status"];
+  tenantId: number | null;
+  deletedAt: Date | null;
+  deleteFinalizesAt: Date | null;
+  slugReleasedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): MerchantStore {
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -310,6 +323,13 @@ export class DrizzleMerchantStoreRepository
           );
         }
 
+        if (isStoreProvisioningLocked(current.status)) {
+          throw new MerchantStoreError(
+            "LIFECYCLE_LOCKED",
+            "Store configuration is locked while activation or provisioning is in progress"
+          );
+        }
+
         const slugChanged = profile.slug !== current.slug;
         if (current.tenantId !== null && slugChanged) {
           throw new MerchantStoreError(
@@ -520,6 +540,13 @@ export class DrizzleMerchantStoreRepository
         throw new MerchantStoreError(
           "CONFLICT",
           "Store changed"
+        );
+      }
+
+      if (isStoreProvisioningLocked(current.status)) {
+        throw new MerchantStoreError(
+          "LIFECYCLE_LOCKED",
+          "Store cannot be deleted while activation or provisioning is in progress"
         );
       }
 

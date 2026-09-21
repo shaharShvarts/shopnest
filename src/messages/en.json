@@ -529,7 +529,10 @@
     "deleteBlocked": "This store is linked to a tenant and cannot be deleted from this screen.",
     "noStoresYet": "You have not created a store yet.",
     "storesReady": "You have {count} stores. Manage the stores owned by your business.",
-    "manageStores": "Manage stores"
+    "manageStores": "Manage stores",
+    "activation_requested": "Activation requested",
+    "provisioning": "Provisioning",
+    "provisioning_failed": "Provisioning failed"
   },
   "MerchantDashboard": {
     "workspace": "Merchant workspace",

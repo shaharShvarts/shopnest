@@ -86,6 +86,24 @@ test("Store form exposes only merchant-editable fields and slug UX", async () =>
   );
 });
 
+test("draft Store edit keeps slug synced with name until slug is edited", async () => {
+  const form = await readFile(
+    "src/app/(merchant)/dashboard/stores/_components/StoreForm.tsx",
+    "utf8"
+  );
+
+  assert.match(
+    form,
+    /const \[slugEdited, setSlugEdited\] = useState\(false\)/
+  );
+  assert.match(
+    form,
+    /if \(!slugEdited && !slugLocked\) \{\s*setSlug\(suggestStoreSlug\(value\)\);/
+  );
+  assert.match(form, /setSlugEdited\(true\)/);
+  assert.match(form, /readOnly=\{slugLocked\}/);
+});
+
 test("MerchantStore translations stay aligned", async () => {
   const [en, he] = await Promise.all([
     readFile("src/messages/en.json", "utf8").then(JSON.parse),

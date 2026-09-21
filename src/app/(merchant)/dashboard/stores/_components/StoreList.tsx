@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast, type Id } from "react-toastify";
+import type { MerchantStoreStatus } from "@/lib/merchant-stores/core";
 import {
   deleteStoreAction,
   undoStoreDeleteAction,
@@ -14,7 +15,7 @@ export type StoreListItem = {
   id: number;
   displayName: string;
   slug: string;
-  status: "draft" | "ready_for_provisioning" | "provisioned";
+  status: MerchantStoreStatus;
   tenantId: number | null;
   updatedAt: string;
 };

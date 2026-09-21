@@ -525,7 +525,10 @@
     "deleteBlocked": "החנות מחוברת ל־tenant ולכן אי אפשר למחוק אותה מהמסך הזה.",
     "noStoresYet": "עדיין לא יצרת חנות.",
     "storesReady": "יש לך {count} חנויות. כאן מנהלים את החנויות שבבעלות העסק.",
-    "manageStores": "ניהול חנויות"
+    "manageStores": "ניהול חנויות",
+    "activation_requested": "הפעלה התבקשה",
+    "provisioning": "בתהליך הקמה",
+    "provisioning_failed": "ההקמה נכשלה"
   },
   "MerchantDashboard": {
     "workspace": "סביבת עבודה לסוחר",
