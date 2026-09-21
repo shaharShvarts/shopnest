@@ -9,14 +9,12 @@ import type {
 import { getMerchantPolicyRepository } from "@/lib/merchant-policies/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
-import { PolicyDocumentForm } from "./PolicyDocumentForm";
+import { PolicyDocumentEditor } from "./PolicyDocumentForm";
 
 export default async function MerchantStorePoliciesPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ policy?: string }>;
 }) {
   const merchant = await requireMerchantPage();
 
@@ -27,14 +25,13 @@ export default async function MerchantStorePoliciesPage({
     notFound();
   }
 
-  const [store, workspace, t, query] = await Promise.all([
+  const [store, workspace, t] = await Promise.all([
     getMerchantStoreRepository().findOwnedById(merchant.id, storeId),
     getMerchantPolicyRepository().getWorkspaceForOwnedStore(
       merchant.id,
       storeId
     ),
     getTranslations("MerchantPolicies"),
-    searchParams,
   ]);
 
   if (!store || !workspace) {
@@ -74,24 +71,6 @@ export default async function MerchantStorePoliciesPage({
         </p>
       </header>
 
-      {query.policy === "saved" ? (
-        <p role="status" className="mb-5 rounded-xl bg-muted px-4 py-3 text-sm">
-          {t("saved")}
-        </p>
-      ) : null}
-
-      {query.policy === "published" ? (
-        <p role="status" className="mb-5 rounded-xl bg-muted px-4 py-3 text-sm">
-          {t("published")}
-        </p>
-      ) : null}
-
-      {query.policy === "invalid" ? (
-        <p role="alert" className="mb-5 rounded-xl bg-muted px-4 py-3 text-sm">
-          {t("invalid")}
-        </p>
-      ) : null}
-
       {workspace.requiredPolicyTypes === null ? (
         <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
           <h2 className="text-xl font-bold">{t("marketUnavailableTitle")}</h2>
@@ -105,46 +84,35 @@ export default async function MerchantStorePoliciesPage({
             const document = latestByType.get(policyType);
 
             return (
-              <section
+              <PolicyDocumentEditor
                 key={policyType}
-                className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {policyLabel(policyType)}
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {document
-                        ? t("version", { version: document.version })
-                        : t("notCreated")}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
-                    {document ? t(document.status) : t("missing")}
-                  </span>
-                </div>
-
-                <PolicyDocumentForm
-                  storeId={storeId}
-                  policyType={policyType}
-                  defaultTitle={
-                    document?.title ?? policyLabel(policyType)
-                  }
-                  defaultContent={document?.content ?? ""}
-                  labels={{
-                    documentTitle: t("documentTitle"),
-                    content: t("content"),
-                    contentHelp: t("contentHelp"),
-                    saveDraft: t("saveDraft"),
-                    publish: t("publish"),
-                    characterCount: t("characterCount", {
-                      count: "{count}",
-                      minimum: "{minimum}",
-                    }),
-                  }}
-                />
-              </section>
+                storeId={storeId}
+                policyType={policyType}
+                policyLabel={policyLabel(policyType)}
+                initialVersion={document?.version ?? null}
+                initialStatus={document?.status ?? null}
+                defaultTitle={
+                  document?.title ?? policyLabel(policyType)
+                }
+                defaultContent={document?.content ?? ""}
+                labels={{
+                  documentTitle: t("documentTitle"),
+                  content: t("content"),
+                  contentHelp: t("contentHelp"),
+                  saveDraft: t("saveDraft"),
+                  publish: t("publish"),
+                  draft: t("draft"),
+                  published: t("published"),
+                  missing: t("missing"),
+                  notCreated: t("notCreated"),
+                  version: t("version", { version: "{version}" }),
+                  saved: t("saved"),
+                  invalid: t("invalid"),
+                  unavailable: t("unavailable"),
+                  unsavedChanges: t("unsavedChanges"),
+                  characters: t("characters"),
+                }}
+              />
             );
           })}
         </div>
