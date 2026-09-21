@@ -83,6 +83,7 @@ test("session expiration and disabled users invalidate existing sessions", async
 
 test("missing and expired tenant admin sessions redirect to the tenant login", async () => {
   const missingOutcome = resolveTenantAdminPageAccess({
+    routeMode: "path",
     decision: "unauthenticated",
     principal: null,
     tenant: pandaRouteTenant,
@@ -104,6 +105,7 @@ test("missing and expired tenant admin sessions redirect to the tenant login", a
   assert.equal(expiredPrincipal, null);
   assert.deepEqual(
     resolveTenantAdminPageAccess({
+      routeMode: "path",
       decision: "unauthenticated",
       principal: expiredPrincipal,
       tenant: pandaRouteTenant,
@@ -113,10 +115,27 @@ test("missing and expired tenant admin sessions redirect to the tenant login", a
   );
 });
 
+test("custom-domain tenant admin redirects to clean host login path", () => {
+  assert.deepEqual(
+    resolveTenantAdminPageAccess({
+      routeMode: "host",
+      decision: "unauthenticated",
+      principal: null,
+      tenant: pandaRouteTenant,
+      controlTenant: pandaTenant,
+    }),
+    {
+      kind: "redirect",
+      location: "/admin/login",
+    }
+  );
+});
+
 test("authenticated tenant admins load assigned tenants and forbidden stays forbidden", () => {
   const principal = tenantPrincipal();
   assert.deepEqual(
     resolveTenantAdminPageAccess({
+      routeMode: "path",
       decision: authorizeTenantAdmin(principal, pandaTenant),
       principal,
       tenant: pandaRouteTenant,
@@ -137,6 +156,7 @@ test("authenticated tenant admins load assigned tenants and forbidden stays forb
   };
   assert.deepEqual(
     resolveTenantAdminPageAccess({
+      routeMode: "path",
       decision: authorizeTenantAdmin(principal, giftControlTenant),
       principal,
       tenant: giftRouteTenant,

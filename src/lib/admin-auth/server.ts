@@ -5,8 +5,8 @@ import { cookies } from "next/headers";
 import { forbidden, notFound, redirect } from "next/navigation";
 import { getControlPlaneDb, getDbForTenant } from "@/drizzle/db";
 import { controlPlaneTenants } from "@/drizzle/control-plane-schema";
-import { getTenant } from "@/lib/tenant-context";
-import type { Tenant } from "@/lib/tenant";
+import { getTenant, getTenantRouteMode } from "@/lib/tenant-context";
+import type { Tenant, TenantRouteMode } from "@/lib/tenant";
 import {
   authorizeSuperAdmin,
   authorizeTenantAdmin,
@@ -60,9 +60,13 @@ export async function getTenantAdminAccess(): Promise<{
   principal: AdminPrincipal | null;
   tenant: Tenant | null;
   controlTenant: TenantControlRecord | null;
+  routeMode: TenantRouteMode | null;
 }> {
-  const tenant = await getTenant();
-  const principal = await getCurrentAdminSession();
+  const [tenant, routeMode, principal] = await Promise.all([
+    getTenant(),
+    getTenantRouteMode(),
+    getCurrentAdminSession(),
+  ]);
   const resolvedControlTenant = tenant
     ? await getControlTenant(tenant.slug)
     : null;
@@ -71,7 +75,7 @@ export async function getTenantAdminAccess(): Promise<{
       ? resolvedControlTenant
       : null;
   const decision = authorizeTenantAdmin(principal, controlTenant);
-  return { decision, principal, tenant, controlTenant };
+  return { decision, principal, tenant, controlTenant, routeMode };
 }
 
 export async function requireTenantAdmin() {
