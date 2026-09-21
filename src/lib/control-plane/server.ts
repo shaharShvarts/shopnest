@@ -4,13 +4,13 @@ import { asc, count, eq, isNull, max, sql } from "drizzle-orm";
 import { controlPlaneTenants } from "@/drizzle/control-plane-schema";
 import { getControlPlaneDb, getDbForTenant } from "@/drizzle/db";
 import { orders } from "@/drizzle/schema";
-import type { ValidatedTenant } from "@/lib/tenant-validation.mjs";
+import type { TrustedTenant } from "@/lib/tenant-registry/core";
 import { requireSuperAdmin } from "@/lib/admin-auth/server";
 import {
   authorizeStoreMutation,
   buildStoreSummaries,
   ControlPlaneError,
-  resolveTrustedStore,
+  hasValidTenantIdentity,
   summarizePlatform,
   type ControlPlaneStore,
   type StoreMetrics,
@@ -65,7 +65,7 @@ export async function updateControlPlaneStore(input: unknown) {
     .from(controlPlaneTenants)
     .where(eq(controlPlaneTenants.slug, update.slug))
     .limit(1);
-  if (!existing || !resolveTrustedStore(existing)) {
+  if (!existing || !hasValidTenantIdentity(existing)) {
     throw new ControlPlaneError("NOT_FOUND", "Unknown store");
   }
   const [updated] = await getControlPlaneDb()
@@ -88,7 +88,7 @@ export async function updateControlPlaneStore(input: unknown) {
   return updated;
 }
 
-async function loadTenantMetrics(tenant: ValidatedTenant): Promise<StoreMetrics> {
+async function loadTenantMetrics(tenant: TrustedTenant): Promise<StoreMetrics> {
   const db = getDbForTenant(tenant);
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);
