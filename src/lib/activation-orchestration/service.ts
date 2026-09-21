@@ -15,6 +15,23 @@ import type {
   ActivationProvisioningContext,
 } from "./drizzle-repository";
 
+export interface ActivationLifecycleService {
+  requestActivationForOwnedStore(
+    merchantId: number,
+    storeId: number,
+    now?: Date
+  ): ReturnType<StoreLifecycleService["requestActivationForOwnedStore"]>;
+  startProvisioning(
+    storeId: number,
+    now?: Date
+  ): ReturnType<StoreLifecycleService["startProvisioning"]>;
+  markProvisioningFailed(
+    storeId: number,
+    errorCode: string,
+    now?: Date
+  ): ReturnType<StoreLifecycleService["markProvisioningFailed"]>;
+}
+
 export interface ActivationTenantProvisioner {
   provision(context: ActivationProvisioningContext): Promise<void>;
 }
@@ -38,7 +55,7 @@ function asSafeFailureCode(
 
 export class ActivationOrchestrationService {
   constructor(
-    private readonly lifecycleService: StoreLifecycleService,
+    private readonly lifecycleService: ActivationLifecycleService,
     private readonly lifecycleRepository: StoreLifecycleRepository,
     private readonly readinessRepository: StoreReadinessRepository,
     private readonly activationRepository: ActivationOrchestrationRepository,
