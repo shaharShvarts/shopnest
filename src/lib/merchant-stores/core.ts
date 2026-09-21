@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { StoreLifecycleStatus } from "../store-lifecycle/core.ts";
 import { STORE_RESERVED_ROUTE_SEGMENTS } from "../tenant-routing/core.ts";
 import { normalizeTenantSlug } from "../tenant-validation.mjs";
 
@@ -53,10 +54,7 @@ export const storeProfileSchema = z
 
 export type StoreProfile = z.infer<typeof storeProfileSchema>;
 
-export type MerchantStoreStatus =
-  | "draft"
-  | "ready_for_provisioning"
-  | "provisioned";
+export type MerchantStoreStatus = StoreLifecycleStatus;
 
 export type MerchantStore = {
   id: number;
@@ -65,6 +63,12 @@ export type MerchantStore = {
   slug: string;
   status: MerchantStoreStatus;
   tenantId: number | null;
+  activationRequestedAt: Date | null;
+  provisioningStartedAt: Date | null;
+  provisionedAt: Date | null;
+  lastProvisioningAttemptAt: Date | null;
+  provisioningAttemptCount: number;
+  lastProvisioningErrorCode: string | null;
   deletedAt: Date | null;
   deleteFinalizesAt: Date | null;
   slugReleasedAt: Date | null;
