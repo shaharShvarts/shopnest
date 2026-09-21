@@ -105,6 +105,7 @@ ready_for_provisioning
   -> activation_requested
 
 activation_requested
+  -> draft
   -> ready_for_provisioning
   -> provisioning
 
@@ -113,6 +114,7 @@ provisioning
   -> provisioning_failed
 
 provisioning_failed
+  -> draft
   -> activation_requested
   -> ready_for_provisioning
 ```
@@ -135,7 +137,7 @@ PR #40 remains the readiness authority.
 
 A Store may enter `ready_for_provisioning` only from a server-computed readiness result where `ready === true`.
 
-If readiness later regresses before activation begins, the Store may return from `ready_for_provisioning` to `draft`.
+If readiness later regresses before activation begins, the Store may return from `ready_for_provisioning` or `activation_requested` to `draft`. A failed provisioning Store may also return to `draft` when its current readiness is no longer satisfied.
 
 Activation and provisioning must still recalculate readiness in PR #43 immediately before any provisioning side effect. Therefore a stale persisted `ready_for_provisioning` value never authorizes provisioning by itself.
 
