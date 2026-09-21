@@ -67,6 +67,7 @@ CREATE INDEX "subscriptions_plan_id_idx"
 
 INSERT INTO public.plans ("code", "name", "status")
 VALUES
+  ('free', 'Free', 'active'),
   ('small', 'Small', 'active'),
   ('medium', 'Medium', 'active'),
   ('large', 'Large', 'active')
