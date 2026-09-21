@@ -219,7 +219,8 @@ export default async function MerchantStoreDetailPage({
                     {planDisplayName(
                       subscription.plan.code,
                       subscription.plan.name
-                    )}
+                    )}{" "}
+                    — {tSubscription("unavailable")}
                   </option>
                 ) : null}
                 {activePlans.map((plan) => (
