@@ -260,7 +260,7 @@ The readiness evaluator must never start provisioning merely because the store b
 
 Readiness is computed server-side from authoritative data.
 
-Example requirement keys:
+Required readiness keys:
 - store_profile
 - shipping
 - payments
@@ -268,6 +268,21 @@ Example requirement keys:
 - policies
 - products
 - subscription
+
+The `policies` requirement is a hard activation gate. A Store must not become ready for activation unless all legal/customer-facing policy documents required for its configured market are present, published, and pass server-side completeness checks.
+
+The policy model must support, at minimum:
+- returns / refunds / cancellation policy
+- privacy policy
+- terms of sale / terms of use
+- shipping / delivery policy
+- merchant/business identification and customer-contact details
+- additional jurisdiction-specific disclosures or policies required for the configured market
+- cookie/tracking disclosure where applicable
+
+The exact legally required set must be jurisdiction-aware and configurable rather than hard-coded as one universal list. Israel is the initial launch market, but production readiness must be checked against current applicable law before launch.
+
+Policy content must be merchant-managed and versioned. Readiness must use authoritative persisted policy state, never browser-supplied `complete` flags. Missing or unpublished mandatory policy content must block activation.
 
 A readiness result should expose machine-readable per-requirement state plus an overall ready boolean.
 
@@ -602,7 +617,7 @@ PR #36 — Organization / Business Model
 PR #37 — Store Onboarding / Draft Model and Slug Request
 PR #38 — Merchant Dashboard Shell
 PR #39 — Plans and Subscription Domain Model
-PR #40 — Readiness Engine / Checklist
+PR #40 — Readiness Engine / Checklist, including mandatory Store legal-policy readiness
 PR #41 — Provisioning Lifecycle / State Machine
 PR #42 — Dynamic Trusted Tenant Registry Resolution
 PR #43 — Activation Orchestration
