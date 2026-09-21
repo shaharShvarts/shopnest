@@ -1,5 +1,5 @@
-import type { Tenant } from "@/lib/tenant-routing/core";
-import { normalizeTenantSlug } from "@/lib/tenant-validation.mjs";
+import type { Tenant } from "../tenant-routing/core.ts";
+import { normalizeTenantSlug } from "../tenant-validation.mjs";
 
 const SAFE_SCHEMA_PATTERN = /^[a-z0-9_]+$/;
 const TRUSTED_TENANT_MARKER = Symbol.for("shopnest.trusted-tenant");
