@@ -616,6 +616,7 @@
     "invalid": "The policy could not be saved. Check the title and content.",
     "marketUnavailableTitle": "Market rules unavailable",
     "marketUnavailable": "ShopNest does not yet have an approved policy requirement configuration for this market.",
-    "backToStore": "Back to Store"
+    "backToStore": "Back to Store",
+    "characterCount": "{count} / {minimum} characters"
   }
 }
