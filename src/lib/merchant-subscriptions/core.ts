@@ -4,7 +4,7 @@ import {
   subscriptionStatuses,
   type PlanStatus,
   type SubscriptionStatus,
-} from "@/drizzle/control-schema/shared";
+} from "../../drizzle/control-schema/shared.ts";
 
 export { planStatuses, subscriptionStatuses };
 export type { PlanStatus, SubscriptionStatus };
