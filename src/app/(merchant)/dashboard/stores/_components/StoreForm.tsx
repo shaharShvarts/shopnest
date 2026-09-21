@@ -51,7 +51,7 @@ export function StoreForm({
     initialValues?.displayName ?? ""
   );
   const [slug, setSlug] = useState(initialValues?.slug ?? "");
-  const [slugEdited, setSlugEdited] = useState(mode === "edit");
+  const [slugEdited, setSlugEdited] = useState(false);
   const [availability, setAvailability] =
     useState<Availability>("idle");
   const slugLocked =
@@ -107,7 +107,7 @@ export function StoreForm({
 
   function handleDisplayNameChange(value: string) {
     setDisplayName(value);
-    if (!slugEdited) {
+    if (!slugEdited && !slugLocked) {
       setSlug(suggestStoreSlug(value));
     }
   }
