@@ -51,7 +51,7 @@ test("plans/subscriptions migration is additive, constrained, and seeded", async
   assert.match(sql, /subscriptions_store_id_unique/);
   assert.match(sql, /INSERT INTO public\.plans/);
   assert.match(sql, /ON CONFLICT \("code"\) DO NOTHING/);
-  for (const code of ["small", "medium", "large"]) {
+  for (const code of ["free", "small", "medium", "large"]) {
     assert.match(sql, new RegExp("'" + code + "'"));
   }
   assert.doesNotMatch(sql, /DROP TABLE|DROP SCHEMA|TRUNCATE/);
@@ -85,6 +85,8 @@ test("subscription repository stays control-plane only and owner scoped", async 
   assert.match(source, /"active"/);
   assert.match(source, /subscriptions\.storeId/);
   assert.match(source, /\.transaction\(/);
+  assert.match(source, /existing\.status !== "pending"/);
+  assert.match(source, /existing\.tenantId !== null/);
   assert.doesNotMatch(
     source,
     /getDbForTenant|getTenant\(|TENANT_SCHEMA_HEADER|search_path|schemaName.*input/
