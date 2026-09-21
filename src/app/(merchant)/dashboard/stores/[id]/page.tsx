@@ -6,14 +6,17 @@ import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 import { getMerchantSubscriptionRepository } from "@/lib/merchant-subscriptions/server";
 import { getStoreReadinessRepository } from "@/lib/store-readiness/server";
-import { selectStorePlanAction } from "./_actions";
+import {
+  activateStoreAction,
+  selectStorePlanAction,
+} from "./_actions";
 
 export default async function MerchantStoreDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ plan?: string }>;
+  searchParams: Promise<{ plan?: string; activation?: string }>;
 }) {
   const merchant = await requireMerchantPage();
 
@@ -40,6 +43,7 @@ export default async function MerchantStoreDetailPage({
     t,
     tSubscription,
     tReadiness,
+    tActivation,
     activePlans,
     subscription,
     readiness,
@@ -48,6 +52,7 @@ export default async function MerchantStoreDetailPage({
     getTranslations("MerchantStore"),
     getTranslations("MerchantSubscription"),
     getTranslations("MerchantReadiness"),
+    getTranslations("MerchantActivation"),
     subscriptionRepository.listActivePlans(),
     subscriptionRepository.findForOwnedStore(merchant.id, id),
     readinessRepository.evaluateForOwnedStore(merchant.id, id),
@@ -204,6 +209,77 @@ export default async function MerchantStoreDetailPage({
           </div>
         </section>
       ) : null}
+
+      <section className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
+        <h2 className="text-xl font-bold">{tActivation("title")}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {tActivation("description")}
+        </p>
+
+        {query.activation === "success" ? (
+          <p
+            role="status"
+            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
+          >
+            {tActivation("provisioned")}
+          </p>
+        ) : null}
+
+        {query.activation === "not-ready" ? (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
+          >
+            {tActivation("notReady")}
+          </p>
+        ) : null}
+
+        {query.activation === "plan" ? (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
+          >
+            {tActivation("planNotProvisionable")}
+          </p>
+        ) : null}
+
+        {query.activation === "failed" ? (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
+          >
+            {tActivation("failed")}
+          </p>
+        ) : null}
+
+        {store.tenantId !== null ? (
+          <Link
+            href={"/" + store.slug}
+            className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
+          >
+            {tActivation("openStore")}
+          </Link>
+        ) : store.status === "activation_requested" ||
+          store.status === "provisioning" ? (
+          <p className="mt-5 rounded-xl bg-muted px-4 py-3 text-sm">
+            {tActivation("inProgress")}
+          </p>
+        ) : readiness?.ready ? (
+          <form action={activateStoreAction} className="mt-5">
+            <input type="hidden" name="storeId" value={store.id} />
+            <button
+              type="submit"
+              className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
+            >
+              {tActivation("activate")}
+            </button>
+          </form>
+        ) : (
+          <p className="mt-5 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+            {tActivation("blocked")}
+          </p>
+        )}
+      </section>
 
       <section
         id="plan"
