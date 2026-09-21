@@ -64,6 +64,13 @@
       "when": 1790035200000,
       "tag": "0008_store_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790042400000,
+      "tag": "0009_plans_subscriptions",
+      "breakpoints": true
     }
   ]
 }

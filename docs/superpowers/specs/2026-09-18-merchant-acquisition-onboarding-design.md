@@ -260,7 +260,7 @@ The readiness evaluator must never start provisioning merely because the store b
 
 Readiness is computed server-side from authoritative data.
 
-Example requirement keys:
+Required readiness keys:
 - store_profile
 - shipping
 - payments
@@ -268,6 +268,21 @@ Example requirement keys:
 - policies
 - products
 - subscription
+
+The `policies` requirement is a hard activation gate. A Store must not become ready for activation unless all legal/customer-facing policy documents required for its configured market are present, published, and pass server-side completeness checks.
+
+The policy model must support, at minimum:
+- returns / refunds / cancellation policy
+- privacy policy
+- terms of sale / terms of use
+- shipping / delivery policy
+- merchant/business identification and customer-contact details
+- additional jurisdiction-specific disclosures or policies required for the configured market
+- cookie/tracking disclosure where applicable
+
+The exact legally required set must be jurisdiction-aware and configurable rather than hard-coded as one universal list. Israel is the initial launch market, but production readiness must be checked against current applicable law before launch.
+
+Policy content must be merchant-managed and versioned. Readiness must use authoritative persisted policy state, never browser-supplied `complete` flags. Missing or unpublished mandatory policy content must block activation.
 
 A readiness result should expose machine-readable per-requirement state plus an overall ready boolean.
 
@@ -285,6 +300,8 @@ StoreReadinessResult
   - subscription
 
 Activation must recalculate readiness immediately before provisioning.
+
+For the `subscription` readiness requirement, a pre-provisioning Store must reference a selectable active plan. If a plan becomes inactive after a Store is already provisioned and live, that catalog change alone must not retroactively suspend the Store or revoke its entitlement. The merchant workspace should surface a persistent warning for the affected Store. Any future forced migration, retirement deadline, or suspension policy must be explicit and separate from merely marking the plan inactive.
 
 Browser-supplied ready flags are never authoritative.
 
@@ -602,14 +619,17 @@ PR #36 — Organization / Business Model
 PR #37 — Store Onboarding / Draft Model and Slug Request
 PR #38 — Merchant Dashboard Shell
 PR #39 — Plans and Subscription Domain Model
-PR #40 — Readiness Engine / Checklist
+PR #40 — Readiness Engine / Checklist, including mandatory Store legal-policy readiness
 PR #41 — Provisioning Lifecycle / State Machine
 PR #42 — Dynamic Trusted Tenant Registry Resolution
 PR #43 — Activation Orchestration
 PR #44 — Domain Model and Trusted Host Resolution
 PR #45 — Cloudflare / Custom-Domain Automation
+PR #46 — Accessibility for People with Disabilities / WCAG Hardening
 
 Each PR must remain single-purpose and begin from current master.
+
+PR #46 is specifically about accessibility for people with disabilities across the public marketing site, merchant dashboard, storefront, tenant admin, and control-plane surfaces. The audit and implementation should address visual, motor, hearing, and cognitive accessibility needs, including semantic HTML, full keyboard-only operation, visible focus, form labels and error association, ARIA only where needed, screen-reader behavior and live/status announcements, contrast, touch-target sizing, zoom/reflow, image alternative text, captions/transcripts for media where applicable, reduced-motion support, and Hebrew RTL accessibility. Automated accessibility checks should be added where practical, with manual keyboard and screen-reader acceptance before READY TO MERGE.
 
 ## 21. PR #34 approved scope
 

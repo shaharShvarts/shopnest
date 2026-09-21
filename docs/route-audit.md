@@ -36,6 +36,7 @@ Page redirects normally use 307; server-action redirects use 303. Unsupported
 handler methods return 405. Authentication below refers to the page/handler, not
 permission to perform every mutation reachable from it.
 After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configured tenants and their storefront URLs return 404. Creating a Store with one of those slugs does not activate routing; Tenant provisioning and the future dynamic trusted registry are separate follow-up work. The global `/dashboard/*` merchant routes share an authenticated merchant workspace shell with Overview, Business, Stores, merchant identity, and logout navigation; the shell does not select or access a tenant schema.
+Merchant plan selection is also control-plane only: it stores a pending Store-scoped subscription against an active global plan catalog and does not charge the merchant, create a Tenant/schema, publish a Store, or make its slug routable. The legacy `public.tenants.plan` field remains a compatibility snapshot for already-provisioned tenants.
 
 
 | Route pattern | Scope | Authentication requirement | Expected HTTP behavior |
@@ -55,7 +56,7 @@ After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configur
 | `/dashboard/business/edit` | Platform | Active merchant session with owner membership | 200 business edit form for the current organization; merchants without an organization redirect to `/dashboard/business/new` |
 | `/dashboard/stores` | Platform | Active merchant session + owner Organization | 200 Store list; merchants without an Organization redirect to `/dashboard/business/new` |
 | `/dashboard/stores/new` | Platform | Active merchant session + owner Organization | 200 Store creation form; creates a draft Store only and never a Tenant/schema |
-| `/dashboard/stores/[id]` | Platform | Active merchant owning the Store through Organization | 200 owned active Store; invalid, cross-Organization, or deleted Store is 404 |
+| `/dashboard/stores/[id]` | Platform | Active merchant owning the Store through Organization | 200 owned active Store with control-plane plan/subscription selection for pre-provisioning Stores; invalid, cross-Organization, or deleted Store is 404 |
 | `/dashboard/stores/[id]/edit` | Platform | Active merchant owner | 200 Store edit; slug is read-only after Tenant linkage |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |

@@ -534,5 +534,31 @@
     "stores": "חנויות",
     "navigation": "ניווט בסביבת העבודה של הסוחר",
     "signedInAs": "מחובר כ־"
+  },
+  "MerchantSubscription": {
+    "plan": "מסלול",
+    "selectPlan": "בחירת מסלול",
+    "choosePlan": "יש לבחור מסלול",
+    "selectedPlan": "המסלול שנבחר",
+    "subscriptionStatus": "סטטוס מנוי",
+    "savePlan": "שמירת מסלול",
+    "notSelected": "טרם נבחר",
+    "pending": "ממתין",
+    "trialing": "בתקופת ניסיון",
+    "active": "פעיל",
+    "past_due": "תשלום באיחור",
+    "cancelled": "בוטל",
+    "expired": "פג תוקף",
+    "selectionHelp": "בחרו את המסלול המסחרי של החנות. בחירת מסלול אינה מחייבת בתשלום, אינה מפעילה חיוב, אינה יוצרת Tenant ואינה מפרסמת את החנות.",
+    "selectionSaved": "בחירת המסלול נשמרה.",
+    "selectionUnavailable": "המסלול אינו זמין. יש לבחור מסלול פעיל ולנסות שוב.",
+    "selectionLocked": "בחירת מסלול לחנות שכבר עברה provisioning אינה מתבצעת דרך האונבורדינג.",
+    "planFree": "חינם",
+    "planSmall": "קטן",
+    "planMedium": "בינוני",
+    "planLarge": "גדול",
+    "unavailable": "לא זמין",
+    "inactivePlanBlocksActivation": "המסלול הזה כבר אינו זמין. יש לבחור מסלול פעיל לפני שניתן יהיה להפעיל את החנות.",
+    "inactivePlanGrandfathered": "המסלול הזה כבר אינו מוצע. החנות הפעילה הקיימת תמשיך לפעול עליו, אך לא ניתן לבחור בו מחדש."
   }
 }

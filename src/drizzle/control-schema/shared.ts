@@ -34,3 +34,22 @@ export const storeStatuses = [
 ] as const;
 export type StoreStatus = (typeof storeStatuses)[number];
 export const storeStatusEnum = pgEnum("store_status", storeStatuses);
+
+
+export const planStatuses = ["active", "inactive"] as const;
+export type PlanStatus = (typeof planStatuses)[number];
+export const planStatusEnum = pgEnum("plan_status", planStatuses);
+
+export const subscriptionStatuses = [
+  "pending",
+  "trialing",
+  "active",
+  "past_due",
+  "cancelled",
+  "expired",
+] as const;
+export type SubscriptionStatus = (typeof subscriptionStatuses)[number];
+export const subscriptionStatusEnum = pgEnum(
+  "subscription_status",
+  subscriptionStatuses
+);

@@ -15,3 +15,5 @@ export * from "@/drizzle/control-schema/merchantPasswordReset";
 export * from "@/drizzle/control-schema/organization";
 export * from "@/drizzle/control-schema/organizationMembership";
 export * from "@/drizzle/control-schema/store";
+export * from "@/drizzle/control-schema/plan";
+export * from "@/drizzle/control-schema/subscription";
