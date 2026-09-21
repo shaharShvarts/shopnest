@@ -587,7 +587,8 @@
     "policies_missing": "חסרים מסמכי מדיניות נדרשים ללקוחות או שהם עדיין לא פורסמו.",
     "configurePolicies": "הגדרת מדיניות",
     "configureSubscription": "בחירת מסלול פעיל",
-    "editBusinessProfile": "עריכת פרטי העסק"
+    "editBusinessProfile": "עריכת פרטי העסק",
+    "managePolicies": "ניהול מדיניות"
   },
   "MerchantPolicies": {
     "title": "מדיניות החנות",
