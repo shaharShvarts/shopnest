@@ -35,7 +35,7 @@ data. Listed 200 responses assume the corresponding tenant/data is provisioned.
 Page redirects normally use 307; server-action redirects use 303. Unsupported
 handler methods return 405. Authentication below refers to the page/handler, not
 permission to perform every mutation reachable from it.
-After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configured tenants and their storefront URLs return 404. Creating a Store with one of those slugs does not activate routing; Tenant provisioning and the future dynamic trusted registry are separate follow-up work.
+After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configured tenants and their storefront URLs return 404. Creating a Store with one of those slugs does not activate routing; Tenant provisioning and the future dynamic trusted registry are separate follow-up work. The global `/dashboard/*` merchant routes share an authenticated merchant workspace shell with Overview, Business, Stores, merchant identity, and logout navigation; the shell does not select or access a tenant schema.
 
 
 | Route pattern | Scope | Authentication requirement | Expected HTTP behavior |
@@ -49,7 +49,7 @@ After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configur
 | `/signup` | Platform | None | 200 merchant registration; successful signup creates only a merchant account/session and redirects to `/dashboard` |
 | `/forgot-password` | Platform | None | 200 merchant password-reset request; submission is non-enumerating |
 | `/reset-password` | Platform | Valid one-use reset token required to change password | 200 reset form or invalid-link state; successful reset invalidates merchant sessions |
-| `/dashboard` | Platform | Active merchant session | 200 merchant workspace; anonymous/expired/disabled sessions redirect to `/login` |
+| `/dashboard` | Platform | Active merchant session | 200 merchant overview inside the shared authenticated merchant workspace shell; anonymous/expired/disabled sessions redirect to `/login` |
 | `/dashboard/business` | Platform | Active merchant session with an organization membership | 200 business details for the merchant organization; merchants without an organization redirect to `/dashboard/business/new` |
 | `/dashboard/business/new` | Platform | Active merchant session | 200 first-business form when no organization exists; merchants with an organization redirect to `/dashboard/business` |
 | `/dashboard/business/edit` | Platform | Active merchant session with owner membership | 200 business edit form for the current organization; merchants without an organization redirect to `/dashboard/business/new` |
