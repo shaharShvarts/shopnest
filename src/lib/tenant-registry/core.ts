@@ -33,19 +33,30 @@ export function isSafeTenantSchemaName(value: unknown): value is string {
   );
 }
 
+export function tenantIdentityFromRegistryRecord(
+  record: Pick<TenantRegistryRecord, "slug" | "schemaName">
+): Tenant | null {
+  const normalized = normalizeTenantSlug(record.slug);
+  if (!normalized || normalized.slug !== record.slug) return null;
+  if (!isSafeTenantSchemaName(record.schemaName)) return null;
+
+  return Object.freeze({
+    slug: record.slug,
+    schema: record.schemaName,
+    basePath: `/${record.slug}`,
+  });
+}
+
 export function trustedTenantFromRegistryRecord(
   record: TenantRegistryRecord
 ): TrustedTenant | null {
   if (record.status !== "active") return null;
 
-  const normalized = normalizeTenantSlug(record.slug);
-  if (!normalized || normalized.slug !== record.slug) return null;
-  if (!isSafeTenantSchemaName(record.schemaName)) return null;
+  const identity = tenantIdentityFromRegistryRecord(record);
+  if (!identity) return null;
 
   const tenant = {
-    slug: record.slug,
-    schema: record.schemaName,
-    basePath: `/${record.slug}`,
+    ...identity,
   } as TrustedTenant;
 
   Object.defineProperty(tenant, TRUSTED_TENANT_MARKER, {
