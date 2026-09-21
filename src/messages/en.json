@@ -538,5 +538,24 @@
     "stores": "Stores",
     "navigation": "Merchant workspace navigation",
     "signedInAs": "Signed in as"
+  },
+  "MerchantSubscription": {
+    "plan": "Plan",
+    "selectPlan": "Choose a plan",
+    "choosePlan": "Select a plan",
+    "selectedPlan": "Selected plan",
+    "subscriptionStatus": "Subscription status",
+    "savePlan": "Save plan",
+    "notSelected": "Not selected",
+    "pending": "Pending",
+    "trialing": "Trialing",
+    "active": "Active",
+    "past_due": "Past due",
+    "cancelled": "Cancelled",
+    "expired": "Expired",
+    "selectionHelp": "Choose the commercial plan for this store. Selecting a plan does not charge you, activate billing, provision a tenant, or publish the store.",
+    "selectionSaved": "Plan selection saved.",
+    "selectionUnavailable": "That plan is unavailable. Choose an active plan and try again.",
+    "selectionLocked": "Plan selection for an already provisioned store is not handled by onboarding."
   }
 }
