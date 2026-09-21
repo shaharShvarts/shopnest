@@ -41,7 +41,7 @@
     "merchant-auth:test": "node --experimental-strip-types --test tests/merchant-auth.test.mts tests/merchant-auth-routes.test.mts",
     "merchant-organization:test": "node --experimental-strip-types --test tests/merchant-organization.test.mts tests/merchant-organization-routes.test.mts",
     "merchant-dashboard:test": "node --experimental-strip-types --test tests/merchant-dashboard-shell.test.mts",
-    "merchant-subscription:test": "node --experimental-strip-types --test tests/merchant-subscription.test.mts tests/merchant-subscription-routes.test.mts"
+    "merchant-subscription:test": "npx --yes tsx --test tests/merchant-subscription.test.mts tests/merchant-subscription-routes.test.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
