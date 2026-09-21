@@ -133,7 +133,6 @@ export function applyStoreLifecycleTransition(
         ...next,
         activationRequestedAt: null,
         provisioningStartedAt: null,
-        lastProvisioningErrorCode: null,
       };
 
     case "ready_for_provisioning":
@@ -141,7 +140,6 @@ export function applyStoreLifecycleTransition(
         ...next,
         activationRequestedAt: null,
         provisioningStartedAt: null,
-        lastProvisioningErrorCode: null,
       };
 
     case "activation_requested":
@@ -149,7 +147,6 @@ export function applyStoreLifecycleTransition(
         ...next,
         activationRequestedAt: now,
         provisioningStartedAt: null,
-        lastProvisioningErrorCode: null,
       };
 
     case "provisioning":
