@@ -59,12 +59,12 @@ export type MerchantSubscriptionErrorCode =
   | "OWNERSHIP_MISMATCH";
 
 export class MerchantSubscriptionError extends Error {
-  constructor(
-    readonly code: MerchantSubscriptionErrorCode,
-    message: string
-  ) {
+  readonly code: MerchantSubscriptionErrorCode;
+
+  constructor(code: MerchantSubscriptionErrorCode, message: string) {
     super(message);
     this.name = "MerchantSubscriptionError";
+    this.code = code;
   }
 }
 
