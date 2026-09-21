@@ -21,63 +21,68 @@ function redirectForPolicyError(storeId: number, error: unknown): never {
   redirect("/dashboard/stores/" + storeId + "/policies?policy=invalid");
 }
 
-function parsePolicyForm(formData: FormData) {
-  return {
-    storeId: parseStoreId(formData.get("storeId")),
-    input: parsePolicyDocumentInput(Object.fromEntries(formData)),
-  };
+function parsePolicyFormForStore(storeId: number, formData: FormData) {
+  try {
+    return parsePolicyDocumentInput(Object.fromEntries(formData));
+  } catch {
+    redirect(
+      "/dashboard/stores/" + storeId + "/policies?policy=invalid"
+    );
+  }
 }
 
 export async function savePolicyDraftAction(formData: FormData) {
   const merchant = await requireMerchantPage();
 
-  let parsed;
+  let storeId: number;
   try {
-    parsed = parsePolicyForm(formData);
+    storeId = parseStoreId(formData.get("storeId"));
   } catch {
     redirect("/dashboard/stores");
   }
 
+  const input = parsePolicyFormForStore(storeId, formData);
+
   try {
     await getMerchantPolicyRepository().saveDraftForOwnedStore(
       merchant.id,
-      parsed.storeId,
-      parsed.input
+      storeId,
+      input
     );
   } catch (error) {
-    redirectForPolicyError(parsed.storeId, error);
+    redirectForPolicyError(storeId, error);
   }
 
-  revalidatePath("/dashboard/stores/" + parsed.storeId);
-  revalidatePath("/dashboard/stores/" + parsed.storeId + "/policies");
-  redirect(
-    "/dashboard/stores/" + parsed.storeId + "/policies?policy=saved"
-  );
+  revalidatePath("/dashboard/stores/" + storeId);
+  revalidatePath("/dashboard/stores/" + storeId + "/policies");
+  redirect("/dashboard/stores/" + storeId + "/policies?policy=saved");
 }
 
 export async function publishPolicyAction(formData: FormData) {
   const merchant = await requireMerchantPage();
 
-  let parsed;
+  let storeId: number;
   try {
-    parsed = parsePolicyForm(formData);
+    storeId = parseStoreId(formData.get("storeId"));
   } catch {
     redirect("/dashboard/stores");
   }
 
+  const input = parsePolicyFormForStore(storeId, formData);
+
   try {
     await getMerchantPolicyRepository().publishForOwnedStore(
       merchant.id,
-      parsed.storeId,
-      parsed.input
+      storeId,
+      input
     );
   } catch (error) {
-    redirectForPolicyError(parsed.storeId, error);
+    redirectForPolicyError(storeId, error);
   }
 
-  revalidatePath("/dashboard/stores/" + parsed.storeId);
-  revalidatePath("/dashboard/stores/" + parsed.storeId + "/policies");
+  revalidatePath("/dashboard/stores/" + storeId);
+  revalidatePath("/dashboard/stores/" + storeId + "/policies");
   redirect(
-    "/dashboard/stores/" + parsed.storeId + "/policies?policy=published"
+    "/dashboard/stores/" + storeId + "/policies?policy=published"
   );
 }
