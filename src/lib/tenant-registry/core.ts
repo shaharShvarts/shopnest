@@ -2,7 +2,8 @@ import type { Tenant } from "@/lib/tenant-routing/core";
 import { normalizeTenantSlug } from "@/lib/tenant-validation.mjs";
 
 const SAFE_SCHEMA_PATTERN = /^[a-z0-9_]+$/;
-const TRUSTED_TENANT = Symbol.for("shopnest.trusted-tenant");
+const TRUSTED_TENANT_MARKER = Symbol.for("shopnest.trusted-tenant");
+declare const trustedTenantBrand: unique symbol;
 
 export const TENANT_REGISTRY_CACHE_TTL_MS = 5_000;
 
@@ -13,7 +14,7 @@ export type TenantRegistryRecord = {
 };
 
 export type TrustedTenant = Tenant & {
-  readonly [TRUSTED_TENANT]: true;
+  readonly [trustedTenantBrand]: true;
 };
 
 export interface TenantRegistryRepository {
@@ -47,7 +48,7 @@ export function trustedTenantFromRegistryRecord(
     basePath: `/${record.slug}`,
   } as TrustedTenant;
 
-  Object.defineProperty(tenant, TRUSTED_TENANT, {
+  Object.defineProperty(tenant, TRUSTED_TENANT_MARKER, {
     value: true,
     enumerable: false,
     configurable: false,
@@ -60,7 +61,9 @@ export function trustedTenantFromRegistryRecord(
 export function isTrustedTenant(value: Tenant | null): value is TrustedTenant {
   return Boolean(
     value &&
-      (value as Partial<TrustedTenant>)[TRUSTED_TENANT] === true
+      (value as Tenant & Record<PropertyKey, unknown>)[
+        TRUSTED_TENANT_MARKER
+      ] === true
   );
 }
 
