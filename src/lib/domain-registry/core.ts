@@ -56,9 +56,6 @@ export function normalizeRequestHostname(value: unknown): string | null {
     return null;
   }
 
-  if (hostname.startsWith("[") && hostname.endsWith("]")) {
-    hostname = hostname.slice(1, -1);
-  }
   if (hostname.endsWith(".")) hostname = hostname.slice(0, -1);
 
   return hostname || null;
