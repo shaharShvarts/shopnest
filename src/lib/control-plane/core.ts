@@ -1,9 +1,10 @@
 import { z } from "zod";
 import type { AdminPrincipal, TenantStatus } from "../admin-auth/core.ts";
 import {
-  resolveConfiguredTenant,
-  type ValidatedTenant,
-} from "../tenant-validation.mjs";
+  tenantIdentityFromRegistryRecord,
+  trustedTenantFromRegistryRecord,
+  type TrustedTenant,
+} from "../tenant-registry/core.ts";
 
 export const tenantPlans = ["small", "medium", "large"] as const;
 export type TenantPlan = (typeof tenantPlans)[number];
@@ -72,9 +73,23 @@ export function authorizeStoreMutation(
   return parsed.data;
 }
 
-export function resolveTrustedStore(store: ControlPlaneStore): ValidatedTenant | null {
-  const tenant = resolveConfiguredTenant(store.slug);
-  return tenant && tenant.schema === store.schemaName ? tenant : null;
+export function resolveTrustedStore(
+  store: ControlPlaneStore
+): TrustedTenant | null {
+  return trustedTenantFromRegistryRecord({
+    slug: store.slug,
+    schemaName: store.schemaName,
+    status: store.status,
+  });
+}
+
+export function hasValidTenantIdentity(store: ControlPlaneStore) {
+  return Boolean(
+    tenantIdentityFromRegistryRecord({
+      slug: store.slug,
+      schemaName: store.schemaName,
+    })
+  );
 }
 
 export function findTrustedStore(stores: ControlPlaneStore[], slug: unknown) {
@@ -85,7 +100,7 @@ export function findTrustedStore(stores: ControlPlaneStore[], slug: unknown) {
 
 export async function buildStoreSummaries(
   stores: ControlPlaneStore[],
-  loadMetrics: (tenant: ValidatedTenant) => Promise<StoreMetrics>
+  loadMetrics: (tenant: TrustedTenant) => Promise<StoreMetrics>
 ): Promise<StoreSummary[]> {
   return Promise.all(
     stores.map(async (store): Promise<StoreSummary> => {

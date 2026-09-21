@@ -85,16 +85,21 @@ test("tenant path builder preserves queries, hashes, and existing prefixes and r
       "panda-pop"
     );
   }
-  for (const path of ["/gift-shop/categories", "/panda-pop/../gift-shop/carts", "//evil.test", "https://evil.test", "/panda-pop%2f..%2fgift-shop", "/%2e%2e%2fadmin", "/\\evil.test"]) {
+  assert.equal(
+    routing.prefixTenantPath("/gift-shop/categories", "/panda-pop"),
+    "/panda-pop/gift-shop/categories"
+  );
+  for (const path of ["/panda-pop/../gift-shop/carts", "//evil.test", "https://evil.test", "/panda-pop%2f..%2fgift-shop", "/%2e%2e%2fadmin", "/\\evil.test"]) {
     assert.throws(() =>
-      routing.prefixTenantPath(path, "/panda-pop", resolveFixtureTenant)
+      routing.prefixTenantPath(path, "/panda-pop")
     );
   }
   assert.throws(() =>
     routing.prefixTenantPath("/categories", "", resolveFixtureTenant)
   );
-  assert.throws(() =>
-    routing.prefixTenantPath("/categories", "/unknown", resolveFixtureTenant)
+  assert.equal(
+    routing.prefixTenantPath("/categories", "/unknown"),
+    "/unknown/categories"
   );
 });
 
@@ -107,13 +112,18 @@ test("actual middleware preserves physical page routes and replaces spoofed head
   }
   const fixtureRouting = {
     ...routing,
-    resolveTenantRoute: pathname =>
-      routing.resolveTenantRoute(pathname, resolveFixtureTenant),
+    resolveTenantRouteAsync: pathname =>
+      Promise.resolve(
+        routing.resolveTenantRoute(pathname, resolveFixtureTenant)
+      ),
   };
   const { middleware, config } = load("../src/middleware.ts", {
     nanoid: { nanoid: () => "test-session" },
     "next/server": { NextResponse: Response },
     "./lib/tenant-routing/core": fixtureRouting,
+    "./lib/tenant-registry/server": {
+      resolveTrustedTenant: async value => resolveFixtureTenant(value),
+    },
   });
   for (const path of [...platform, ...storefront.map(p => `/panda-pop${p}`), ...tenantAdmin.map(p => `/panda-pop${p}`), "/panda-pop/api/cart/add", "/panda-pop/media/products/a.png", "/api/customer-auth/google/callback"]) {
     const response = await middleware({ nextUrl: new URL(`${path}?q=gift`, "https://shop.test"), headers: new Headers({ [routing.TENANT_HEADER]: "gift-shop", [routing.TENANT_SCHEMA_HEADER]: "public", [routing.INTERNAL_PATH_HEADER]: "/admin/login" }), cookies: { has: () => false } });
@@ -133,6 +143,9 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     nanoid: { nanoid: () => "runtime-session" },
     "next/server": { NextResponse: Response },
     "./lib/tenant-routing/core": routing,
+    "./lib/tenant-registry/server": {
+      resolveTrustedTenant: async () => null,
+    },
   });
   for (const path of [
     "/panda-pop",
@@ -170,7 +183,10 @@ test("actual TenantLink scopes string, object and as URLs", () => {
   assert.equal(link.props.href.pathname, "/panda-pop/search");
   assert.equal(link.props.href.query.q, "gift");
   assert.equal(link.props.as, "/panda-pop/search?q=gift");
-  assert.throws(() => TenantLink({ href: "/gift-shop/carts" }));
+  assert.equal(
+    TenantLink({ href: "/gift-shop/carts" }).props.href,
+    "/panda-pop/gift-shop/carts"
+  );
 });
 
 test("removed legacy tenant slugs are not runtime-configured", () => {
@@ -184,9 +200,9 @@ test("provider has no tenantless fallback and tenant layout validates context ag
     "react/jsx-runtime": jsx,
     "@/lib/tenant": {
       ...routing,
-      resolveConfiguredTenant: resolveFixtureTenant,
+      normalizeTenantSlug,
       prefixTenantPath: (path, basePath) =>
-        routing.prefixTenantPath(path, basePath, resolveFixtureTenant),
+        routing.prefixTenantPath(path, basePath),
     },
     react: { createContext: value => ({ value }), useContext: context => context.value, useMemo: fn => fn() },
   });

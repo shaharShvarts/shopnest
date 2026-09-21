@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { prefixTenantPath, resolveConfiguredTenant } from "@/lib/tenant";
+import { normalizeTenantSlug, prefixTenantPath } from "@/lib/tenant";
 
 type TenantContextValue = {
   basePath: string;
@@ -20,7 +20,7 @@ export function TenantProvider({
   slug: string;
   children: ReactNode;
 }) {
-  if (resolveConfiguredTenant(slug)?.basePath !== basePath) {
+  if (normalizeTenantSlug(slug)?.basePath !== basePath) {
     throw new Error("Invalid tenant navigation context");
   }
   const value = useMemo(

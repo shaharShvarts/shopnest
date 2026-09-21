@@ -1,4 +1,5 @@
 import {
+  normalizeTenantSlug,
   resolveConfiguredTenant,
   type ValidatedTenant,
 } from "../tenant-validation.mjs";
@@ -43,6 +44,9 @@ export const INTERNAL_PATH_HEADER = "x-shopnest-internal-path";
 
 export type Tenant = ValidatedTenant;
 export type TenantResolver = (value: unknown) => Tenant | null;
+export type AsyncTenantResolver = (
+  value: unknown
+) => Promise<Tenant | null>;
 
 export type TenantRouteResolution =
   | { kind: "legacy" }
@@ -88,14 +92,47 @@ export function resolveTenantRoute(
   };
 }
 
+export async function resolveTenantRouteAsync(
+  pathname: string,
+  resolveTenant: AsyncTenantResolver
+): Promise<TenantRouteResolution> {
+  const [firstSegment, ...rest] = pathname.split("/").filter(Boolean);
+
+  if (
+    !firstSegment ||
+    LEGACY_ROUTE_SEGMENTS.has(firstSegment) ||
+    GLOBAL_API_PATHS.has(pathname.replace(/\/$/, ""))
+  ) {
+    return { kind: "legacy" };
+  }
+
+  const tenant = await resolveTenant(firstSegment);
+  if (!tenant) return { kind: "not-found" };
+
+  // Global callbacks must use their canonical URL and state-bound tenant.
+  if (GLOBAL_API_PATHS.has("/" + rest.join("/"))) {
+    return { kind: "not-found" };
+  }
+
+  return {
+    kind: "tenant",
+    tenant,
+    internalPath: rest.length === 0 ? "/" : "/" + rest.join("/"),
+  };
+}
+
 export function prefixTenantPath(
   path: string,
-  basePath: string,
-  resolveTenant: TenantResolver = resolveConfiguredTenant
+  basePath: string
 ) {
-  const tenant = resolveTenant(basePath.slice(1));
-  if (!tenant || tenant.basePath !== basePath) {
-    throw new Error("Tenant navigation requires a configured tenant");
+  const baseSlug =
+    basePath.startsWith("/") && !basePath.slice(1).includes("/")
+      ? basePath.slice(1)
+      : "";
+  const normalizedBase = normalizeTenantSlug(baseSlug);
+
+  if (!normalizedBase || normalizedBase.basePath !== basePath) {
+    throw new Error("Tenant navigation requires a valid tenant base path");
   }
 
   if (path.startsWith("#") || path.startsWith("?")) return path;
@@ -103,30 +140,38 @@ export function prefixTenantPath(
   if (
     !path.startsWith("/") ||
     path.startsWith("//") ||
-    /[\\\u0000-\u0020]/.test(path) ||
-    /%2f|%5c/i.test(path.split(/[?#]/)[0])
+    /[\\\u0000-\u0020]/.test(path)
   ) {
     throw new Error("Tenant navigation requires a local absolute path");
   }
 
-  const url = new URL(path, "https://shopnest.invalid");
-  const decoded = decodeURIComponent(url.pathname);
+  const rawPath = path.split(/[?#]/)[0];
+  if (/%2f|%5c/i.test(rawPath)) {
+    throw new Error("Unsafe tenant navigation path");
+  }
+
+  let rawDecoded: string;
+  try {
+    rawDecoded = decodeURIComponent(rawPath);
+  } catch {
+    throw new Error("Unsafe tenant navigation path");
+  }
 
   if (
-    decoded.includes("\\") ||
-    decoded.split("/").some((segment) => segment === "." || segment === "..")
+    rawDecoded.includes("\\") ||
+    rawDecoded
+      .split("/")
+      .some((segment) => segment === "." || segment === "..")
   ) {
     throw new Error("Unsafe tenant navigation path");
   }
 
-  const first = decoded.split("/")[1];
-  const targetTenant = resolveTenant(first);
+  const url = new URL(path, "https://shopnest.invalid");
 
-  if (targetTenant && targetTenant.slug !== tenant.slug) {
-    throw new Error("Cross-tenant navigation is not allowed");
-  }
-
-  if (targetTenant) {
+  if (
+    url.pathname === basePath ||
+    url.pathname.startsWith(basePath + "/")
+  ) {
     return url.pathname + url.search + url.hash;
   }
 

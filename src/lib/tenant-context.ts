@@ -4,11 +4,11 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import {
   prefixTenantPath,
-  resolveConfiguredTenant,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
   type Tenant,
 } from "./tenant";
+import { resolveTrustedTenant } from "./tenant-registry/server";
 
 export async function getTenant(): Promise<Tenant | null> {
   const requestHeaders = await headers();
@@ -16,7 +16,7 @@ export async function getTenant(): Promise<Tenant | null> {
 
   if (!slug) return null;
 
-  const tenant = resolveConfiguredTenant(slug);
+  const tenant = await resolveTrustedTenant(slug);
   if (!tenant) throw new Error("Unknown tenant context");
 
   const schema = requestHeaders.get(TENANT_SCHEMA_HEADER);

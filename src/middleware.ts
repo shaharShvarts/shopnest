@@ -4,13 +4,22 @@ import {
   buildTenantRewriteUrl,
   INTERNAL_PATH_HEADER,
   isTenantHandlerPath,
-  resolveTenantRoute,
+  resolveTenantRouteAsync,
   TENANT_HEADER,
   TENANT_SCHEMA_HEADER,
 } from "./lib/tenant-routing/core";
+import { resolveTrustedTenant } from "./lib/tenant-registry/server";
 
 export async function middleware(req: NextRequest) {
-  const routeResolution = resolveTenantRoute(req.nextUrl.pathname);
+  let routeResolution;
+  try {
+    routeResolution = await resolveTenantRouteAsync(
+      req.nextUrl.pathname,
+      resolveTrustedTenant
+    );
+  } catch {
+    return new NextResponse("Service Unavailable", { status: 503 });
+  }
 
   if (routeResolution.kind === "not-found") {
     return new NextResponse("Not Found", { status: 404 });
@@ -55,6 +64,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
+  runtime: "nodejs",
   matcher: [
     "/:tenant/media/:path*",
     "/((?!_next/|static/|favicon.ico$|[^/]+\\.(?:svg|png|jpg|jpeg|webp|gif|ico|woff|woff2)$).*)",
