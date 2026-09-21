@@ -613,6 +613,8 @@
     "marketUnavailableTitle": "כללי השוק אינם זמינים",
     "marketUnavailable": "ל-ShopNest עדיין אין תצורת דרישות מדיניות מאושרת עבור השוק הזה.",
     "backToStore": "חזרה לחנות",
-    "characterCount": "{count} / {minimum} תווים"
+    "characters": "תווים",
+    "unsavedChanges": "שינויים שלא נשמרו",
+    "unavailable": "מסמכי המדיניות אינם זמינים עוד עבור החנות הזו."
   }
 }
