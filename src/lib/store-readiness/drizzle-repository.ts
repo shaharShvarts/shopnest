@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/db";
 import {
   organizationMemberships,
@@ -95,8 +95,12 @@ export class DrizzleStoreReadinessRepository
       )
       .limit(1);
 
-    const publishedPolicyRows = await db
-      .select({ policyType: storePolicyDocuments.policyType })
+    const policyRows = await db
+      .select({
+        policyType: storePolicyDocuments.policyType,
+        status: storePolicyDocuments.status,
+        version: storePolicyDocuments.version,
+      })
       .from(storePolicyDocuments)
       .where(
         and(
@@ -105,14 +109,24 @@ export class DrizzleStoreReadinessRepository
             storePolicyDocuments.organizationId,
             context.storeOrganizationId
           ),
-          eq(storePolicyDocuments.market, context.country),
-          eq(storePolicyDocuments.status, "published")
+          eq(storePolicyDocuments.market, context.country)
         )
+      )
+      .orderBy(
+        asc(storePolicyDocuments.policyType),
+        desc(storePolicyDocuments.version)
       );
 
     const publishedPolicyTypes = new Set<StorePolicyType>();
-    for (const row of publishedPolicyRows) {
-      if (isStorePolicyType(row.policyType)) {
+    const seenPolicyTypes = new Set<string>();
+    for (const row of policyRows) {
+      if (seenPolicyTypes.has(row.policyType)) continue;
+      seenPolicyTypes.add(row.policyType);
+
+      if (
+        row.status === "published" &&
+        isStorePolicyType(row.policyType)
+      ) {
         publishedPolicyTypes.add(row.policyType);
       }
     }
