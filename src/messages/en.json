@@ -617,6 +617,8 @@
     "marketUnavailableTitle": "Market rules unavailable",
     "marketUnavailable": "ShopNest does not yet have an approved policy requirement configuration for this market.",
     "backToStore": "Back to Store",
-    "characterCount": "{count} / {minimum} characters"
+    "characters": "characters",
+    "unsavedChanges": "Unsaved changes",
+    "unavailable": "This policy workspace is no longer available for this Store."
   }
 }
