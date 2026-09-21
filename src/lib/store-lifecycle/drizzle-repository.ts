@@ -9,7 +9,6 @@ import {
   applyStoreLifecycleTransition,
   assertSafeProvisioningErrorCode,
   assertTrustedTenantId,
-  StoreLifecycleInputError,
   type StoreLifecycleSnapshot,
 } from "./core";
 
