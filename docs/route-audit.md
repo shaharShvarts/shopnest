@@ -35,6 +35,8 @@ data. Listed 200 responses assume the corresponding tenant/data is provisioned.
 Page redirects normally use 307; server-action redirects use 303. Unsupported
 handler methods return 405. Authentication below refers to the page/handler, not
 permission to perform every mutation reachable from it.
+After PR #37, `panda-pop`, `gift-shop`, and `dvorik-collection` are not configured tenants and their storefront URLs return 404. Creating a Store with one of those slugs does not activate routing; Tenant provisioning and the future dynamic trusted registry are separate follow-up work.
+
 
 | Route pattern | Scope | Authentication requirement | Expected HTTP behavior |
 | --- | --- | --- | --- |
@@ -51,6 +53,10 @@ permission to perform every mutation reachable from it.
 | `/dashboard/business` | Platform | Active merchant session with an organization membership | 200 business details for the merchant organization; merchants without an organization redirect to `/dashboard/business/new` |
 | `/dashboard/business/new` | Platform | Active merchant session | 200 first-business form when no organization exists; merchants with an organization redirect to `/dashboard/business` |
 | `/dashboard/business/edit` | Platform | Active merchant session with owner membership | 200 business edit form for the current organization; merchants without an organization redirect to `/dashboard/business/new` |
+| `/dashboard/stores` | Platform | Active merchant session + owner Organization | 200 Store list; merchants without an Organization redirect to `/dashboard/business/new` |
+| `/dashboard/stores/new` | Platform | Active merchant session + owner Organization | 200 Store creation form; creates a draft Store only and never a Tenant/schema |
+| `/dashboard/stores/[id]` | Platform | Active merchant owning the Store through Organization | 200 owned active Store; invalid, cross-Organization, or deleted Store is 404 |
+| `/dashboard/stores/[id]/edit` | Platform | Active merchant owner | 200 Store edit; slug is read-only after Tenant linkage |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |

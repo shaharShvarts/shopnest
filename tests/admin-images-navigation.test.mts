@@ -26,6 +26,7 @@ import {
   parseTenantMediaUrl,
   resolveTenantImageUrl,
 } from "../src/lib/images/image-url.mjs";
+import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
 import {
   deleteCatalogImage,
   LocalMediaError,
@@ -33,6 +34,13 @@ import {
   saveCatalogImage,
   tenantMediaFilePath,
 } from "../src/lib/media/local-media-store.mjs";
+
+const mediaFixtureSlugs = new Set(["gift-shop", "panda-pop"]);
+
+function resolveMediaFixtureTenant(value: unknown) {
+  const tenant = normalizeTenantSlug(value);
+  return tenant && mediaFixtureSlugs.has(tenant.slug) ? tenant : null;
+}
 
 async function imageBytes(contents: string) {
   return sharp({ create: { width: 2, height: 2, channels: 3, background: {
@@ -62,15 +70,24 @@ test("a runtime image is readable immediately after upload without a rebuild", a
       kind: "categories",
       file: await imageFile("category-image"),
       uploadsRoot,
+      resolveTenant: resolveMediaFixtureTenant,
     });
     assert.match(
       uploaded.imageUrl,
       /^\/gift-shop\/media\/categories\/[a-f0-9-]+\.png$/
     );
 
-    const media = parseTenantMediaUrl(uploaded.imageUrl, "gift-shop");
+    const media = parseTenantMediaUrl(
+      uploaded.imageUrl,
+      "gift-shop",
+      resolveMediaFixtureTenant
+    );
     assert.ok(media);
-    const response = await readCatalogImage({ ...media, uploadsRoot });
+    const response = await readCatalogImage({
+      ...media,
+      uploadsRoot,
+      resolveTenant: resolveMediaFixtureTenant,
+    });
     assert.equal(response.contentType, "image/png");
     assert.deepEqual(response.bytes, await imageBytes("category-image"));
   });
@@ -83,27 +100,41 @@ test("gift-shop and panda-pop use separate physical namespaces", async () => {
       kind: "products",
       file: await imageFile("gift"),
       uploadsRoot,
+      resolveTenant: resolveMediaFixtureTenant,
     });
     const panda = await saveCatalogImage({
       tenantSlug: "panda-pop",
       kind: "products",
       file: await imageFile("panda"),
       uploadsRoot,
+      resolveTenant: resolveMediaFixtureTenant,
     });
 
     assert.notEqual(path.dirname(gift.filePath), path.dirname(panda.filePath));
     assert.match(gift.filePath, /gift-shop[\\/]products/);
     assert.match(panda.filePath, /panda-pop[\\/]products/);
     assert.equal(
-      resolveTenantImageUrl(gift.imageUrl, "panda-pop"),
+      resolveTenantImageUrl(
+        gift.imageUrl,
+        "panda-pop",
+        resolveMediaFixtureTenant
+      ),
       null
     );
-    assert.equal(parseTenantMediaUrl(gift.imageUrl, "panda-pop"), null);
+    assert.equal(
+      parseTenantMediaUrl(
+        gift.imageUrl,
+        "panda-pop",
+        resolveMediaFixtureTenant
+      ),
+      null
+    );
     assert.equal(
       await deleteCatalogImage({
         tenantSlug: "panda-pop",
         imageUrl: gift.imageUrl,
         uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
       }),
       false
     );
@@ -125,7 +156,11 @@ test("media paths reject traversal, arbitrary directories, and unknown tenants",
     "folder/secret.jpg",
   ]) {
     assert.throws(
-      () => tenantMediaFilePath({ ...base, filename }),
+      () => tenantMediaFilePath({
+        ...base,
+        filename,
+        resolveTenant: resolveMediaFixtureTenant,
+      }),
       LocalMediaError
     );
   }
@@ -135,6 +170,7 @@ test("media paths reject traversal, arbitrary directories, and unknown tenants",
         ...base,
         kind: "private" as never,
         filename: "image.jpg",
+        resolveTenant: resolveMediaFixtureTenant,
       }),
     LocalMediaError
   );
@@ -144,6 +180,7 @@ test("media paths reject traversal, arbitrary directories, and unknown tenants",
         ...base,
         tenantSlug: "random-store",
         filename: "image.jpg",
+        resolveTenant: resolveMediaFixtureTenant,
       }),
     LocalMediaError
   );
@@ -153,29 +190,50 @@ test("media paths reject traversal, arbitrary directories, and unknown tenants",
 
 test("legacy image values resolve safely inside only the current tenant", () => {
   assert.equal(
-    resolveTenantImageUrl("/categories/file.jpg", "gift-shop"),
+    resolveTenantImageUrl(
+      "/categories/file.jpg",
+      "gift-shop",
+      resolveMediaFixtureTenant
+    ),
     "/gift-shop/media/categories/file.jpg"
   );
   assert.equal(
-    resolveTenantImageUrl("categories/file.jpg", "gift-shop"),
+    resolveTenantImageUrl(
+      "categories/file.jpg",
+      "gift-shop",
+      resolveMediaFixtureTenant
+    ),
     "/gift-shop/media/categories/file.jpg"
   );
   assert.equal(
-    resolveTenantImageUrl("public\\subcategories\\file.jpg", "panda-pop"),
+    resolveTenantImageUrl(
+      "public\\subcategories\\file.jpg",
+      "panda-pop",
+      resolveMediaFixtureTenant
+    ),
     "/panda-pop/media/subcategories/file.jpg"
   );
   assert.equal(
-    resolveTenantImageUrl("/gift-shop/products/file.jpg", "gift-shop"),
+    resolveTenantImageUrl(
+      "/gift-shop/products/file.jpg",
+      "gift-shop",
+      resolveMediaFixtureTenant
+    ),
     "/gift-shop/media/products/file.jpg"
   );
   assert.equal(
-    resolveTenantImageUrl("/gift-shop/products/file.jpg", "panda-pop"),
+    resolveTenantImageUrl(
+      "/gift-shop/products/file.jpg",
+      "panda-pop",
+      resolveMediaFixtureTenant
+    ),
     null
   );
   assert.equal(
     resolveTenantImageUrl(
       "https://cdn.example.com/gift-shop/products/file.jpg",
-      "gift-shop"
+      "gift-shop",
+      resolveMediaFixtureTenant
     ),
     "https://cdn.example.com/gift-shop/products/file.jpg"
   );
@@ -189,6 +247,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
         kind,
         file: await imageFile(`${kind}-old`, "image/png"),
         uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
       });
       assert.deepEqual(
         (await readCatalogImage({
@@ -196,6 +255,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           kind,
           filename: original.filename,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         })).bytes,
         await imageBytes(`${kind}-old`)
       );
@@ -205,12 +265,14 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
         kind,
         file: await imageFile(`${kind}-new`, "image/webp"),
         uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
       });
       assert.equal(
         await deleteCatalogImage({
           tenantSlug: "gift-shop",
           imageUrl: original.imageUrl,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         true
       );
@@ -220,6 +282,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           kind,
           filename: original.filename,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         (error: unknown) =>
           error instanceof LocalMediaError && error.code === "NOT_FOUND"
@@ -230,6 +293,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           kind,
           filename: replacement.filename,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         })).bytes,
         await imageBytes(`${kind}-new`)
       );
@@ -238,6 +302,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           tenantSlug: "gift-shop",
           imageUrl: replacement.imageUrl,
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         true
       );
@@ -246,6 +311,7 @@ for (const kind of ["categories", "subcategories", "products"] as const) {
           tenantSlug: "gift-shop",
           imageUrl: "https://cdn.example.com/image.jpg",
           uploadsRoot,
+          resolveTenant: resolveMediaFixtureTenant,
         }),
         false
       );

@@ -21,7 +21,6 @@ import {
 } from "../src/lib/admin-auth/navigation.ts";
 import { shouldUseSecureAdminCookie } from "../src/lib/admin-auth/cookie.ts";
 import { hashAdminPassword } from "../src/lib/admin-auth/password.mjs";
-import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 import { provisionAdminAccount } from "../scripts/lib/admin-account-provisioning.mjs";
 
 const validPassword = "correct horse battery staple";
@@ -33,7 +32,11 @@ const pandaTenant: TenantControlRecord = {
   displayName: "Panda Pop",
   status: "active",
 };
-const pandaRouteTenant = resolveConfiguredTenant("panda-pop")!;
+const pandaRouteTenant = {
+  slug: "panda-pop",
+  schema: "panda_pop",
+  basePath: "/panda-pop",
+};
 
 test("valid admin login succeeds and invalid password is rejected", async () => {
   const repository = new FakeAdminRepository([tenantAdmin()]);
@@ -127,7 +130,11 @@ test("authenticated tenant admins load assigned tenants and forbidden stays forb
     slug: "gift-shop",
     schemaName: "gift_shop",
   };
-  const giftRouteTenant = resolveConfiguredTenant("gift-shop")!;
+  const giftRouteTenant = {
+    slug: "gift-shop",
+    schema: "gift_shop",
+    basePath: "/gift-shop",
+  };
   assert.deepEqual(
     resolveTenantAdminPageAccess({
       decision: authorizeTenantAdmin(principal, giftControlTenant),

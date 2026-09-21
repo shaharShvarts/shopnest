@@ -12,12 +12,26 @@ import sharp from "sharp";
 import * as validation from "../src/lib/media/validate-image.mjs";
 import { MAX_IMAGE_UPLOAD_BYTES } from "../src/lib/images/upload-limits.mjs";
 import { saveCatalogImage, readCatalogImage } from "../src/lib/media/local-media-store.mjs";
+import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
+
+const mediaFixtureSlugs = new Set(["gift-shop"]);
+
+const resolveMediaFixtureTenant = value => {
+  const tenant = normalizeTenantSlug(value);
+  return tenant && mediaFixtureSlugs.has(tenant.slug) ? tenant : null;
+};
 
 const image = () => sharp({ create: { width: 12, height: 9, channels: 4, background: "#3478aacc" } });
 const file = (bytes, name = "upload.jpg", type = "image/jpeg") => new File([new Uint8Array(bytes)], name, { type });
 async function withRoot(run) {
   const uploadsRoot = await mkdtemp(path.join(tmpdir(), "shopnest-image-validation-"));
-  const save = (file) => saveCatalogImage({ tenantSlug: "gift-shop", kind: "products", file, uploadsRoot });
+  const save = (file) => saveCatalogImage({
+    tenantSlug: "gift-shop",
+    kind: "products",
+    file,
+    uploadsRoot,
+    resolveTenant: resolveMediaFixtureTenant,
+  });
   try { await run(save, uploadsRoot); }
   finally { await rm(uploadsRoot, { recursive: true, force: true }); }
 }
@@ -28,7 +42,13 @@ for (const format of ["jpeg", "png", "webp", "gif", "tiff", "avif"]) {
     await withRoot(async (save, uploadsRoot) => {
       const result = await save(file(bytes, "not-an-image.txt", "application/octet-stream"));
       assert.match(result.filename, /^[a-f0-9-]+\.png$/);
-      const stored = await readCatalogImage({ tenantSlug: "gift-shop", kind: "products", filename: result.filename, uploadsRoot });
+      const stored = await readCatalogImage({
+        tenantSlug: "gift-shop",
+        kind: "products",
+        filename: result.filename,
+        uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
+      });
       assert.equal(stored.contentType, "image/png");
       const meta = await sharp(stored.bytes).metadata();
       assert.equal(meta.format, "png");
@@ -43,7 +63,13 @@ test("accepts decodable SVG and stores raster pixels rather than executable mark
   await withRoot(async (save, uploadsRoot) => {
     const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="12" height="9"><script>alert(1)</script><rect width="12" height="9" fill="red"/></svg>');
     const result = await save(file(svg, "drawing.svg", "image/svg+xml"));
-    const stored = await readCatalogImage({ tenantSlug: "gift-shop", kind: "products", filename: result.filename, uploadsRoot });
+    const stored = await readCatalogImage({
+        tenantSlug: "gift-shop",
+        kind: "products",
+        filename: result.filename,
+        uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
+      });
     assert.equal((await sharp(stored.bytes).metadata()).format, "png");
     assert.equal(stored.bytes.includes(Buffer.from("<script")), false);
   });
@@ -108,7 +134,13 @@ test("validates all animation frames and uses the first frame for the catalog", 
   assert.equal((await sharp(gif, { animated: true }).metadata()).pages, 2);
   await withRoot(async (save, uploadsRoot) => {
     const result = await save(file(gif, "animated.gif", "image/gif"));
-    const stored = await readCatalogImage({ tenantSlug: "gift-shop", kind: "products", filename: result.filename, uploadsRoot });
+    const stored = await readCatalogImage({
+        tenantSlug: "gift-shop",
+        kind: "products",
+        filename: result.filename,
+        uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
+      });
     assert.equal((await sharp(stored.bytes).metadata()).height, 9);
     await assert.rejects(save(file(gif.subarray(0, gif.length - 6), "corrupt.gif", "image/gif")), { code: "INVALID_IMAGE" });
   });
@@ -120,7 +152,13 @@ test("rejects empty uploads and applies EXIF orientation while stripping metadat
     assert.deepEqual(await readdir(uploadsRoot), []);
     const jpeg = await image().jpeg().withMetadata({ orientation: 6 }).toBuffer();
     const result = await save(file(jpeg));
-    const stored = await readCatalogImage({ tenantSlug: "gift-shop", kind: "products", filename: result.filename, uploadsRoot });
+    const stored = await readCatalogImage({
+        tenantSlug: "gift-shop",
+        kind: "products",
+        filename: result.filename,
+        uploadsRoot,
+        resolveTenant: resolveMediaFixtureTenant,
+      });
     const meta = await sharp(stored.bytes).metadata();
     assert.equal(meta.width, 9);
     assert.equal(meta.height, 12);

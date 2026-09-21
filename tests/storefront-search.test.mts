@@ -13,11 +13,17 @@ import {
   buildTenantRewriteUrl,
   resolveTenantRoute,
 } from "../src/lib/tenant-routing/core.ts";
+import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
 import {
   calculateInventoryAvailability,
   type InventoryAvailability,
   type InventoryProductRecord,
 } from "../src/lib/inventory/core.ts";
+
+const resolveSearchFixtureTenant = (value: unknown) => {
+  const tenant = normalizeTenantSlug(value);
+  return tenant?.slug === "gift-shop" ? tenant : null;
+};
 
 type MemoryProduct = SearchCatalogProduct & {
   productActive: boolean;
@@ -77,7 +83,10 @@ test("physical tenant routes preserve search queries through the SearchPage boun
 
   for (const [path, expectedQuery] of cases) {
     const browserUrl = new URL(path, "http://shopnest.local");
-    const route = resolveTenantRoute(browserUrl.pathname);
+    const route = resolveTenantRoute(
+      browserUrl.pathname,
+      resolveSearchFixtureTenant
+    );
     assert.equal(route.kind, "tenant");
     if (route.kind !== "tenant") continue;
 
@@ -94,7 +103,10 @@ test("tenant rewrite preserves every query parameter, not only q", () => {
     "/gift-shop/search?q=gift&category=7&sort=newest",
     "http://shopnest.local"
   );
-  const route = resolveTenantRoute(browserUrl.pathname);
+  const route = resolveTenantRoute(
+      browserUrl.pathname,
+      resolveSearchFixtureTenant
+    );
   assert.equal(route.kind, "tenant");
   if (route.kind !== "tenant") return;
 

@@ -5,14 +5,16 @@ import {
 } from "../src/lib/tenant-routing/core.ts";
 import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
 
-test("configured tenant allowlist", () => {
-  assert.equal(resolveConfiguredTenant("panda-pop")?.schema, "panda_pop");
-  assert.equal(
-    resolveConfiguredTenant("dvorik-collection")?.schema,
-    "dvorik_collection"
-  );
-  assert.equal(resolveConfiguredTenant("gift-shop")?.schema, "gift_shop");
-  assert.equal(resolveConfiguredTenant("random-store"), null);
+test("legacy tenants are no longer statically configured", () => {
+  for (const slug of [
+    "panda-pop",
+    "gift-shop",
+    "dvorik-collection",
+    "random-store",
+  ]) {
+    assert.equal(resolveConfiguredTenant(slug), null);
+    assert.deepEqual(resolveTenantRoute("/" + slug), { kind: "not-found" });
+  }
 });
 
 test("admin remains a legacy route", () => {

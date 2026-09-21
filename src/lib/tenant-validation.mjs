@@ -1,10 +1,6 @@
 const TENANT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-export const CONFIGURED_TENANT_SLUGS = Object.freeze([
-  "panda-pop",
-  "dvorik-collection",
-  "gift-shop",
-]);
+export const CONFIGURED_TENANT_SLUGS = Object.freeze([]);
 
 export function normalizeTenantSlug(value) {
   if (typeof value !== "string") return null;

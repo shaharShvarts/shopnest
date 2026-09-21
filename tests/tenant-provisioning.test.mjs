@@ -15,13 +15,10 @@ import {
   scopeMigrationSql,
 } from "../scripts/lib/tenant-provisioning.mjs";
 
-test("configured tenant slugs map to safe PostgreSQL schemas", () => {
-  assert.equal(resolveConfiguredTenant("panda-pop")?.schema, "panda_pop");
-  assert.equal(
-    resolveConfiguredTenant("dvorik-collection")?.schema,
-    "dvorik_collection"
-  );
-  assert.equal(resolveConfiguredTenant("gift-shop")?.schema, "gift_shop");
+test("legacy tenant slugs are no longer statically configured", () => {
+  for (const slug of ["panda-pop", "gift-shop", "dvorik-collection"]) {
+    assert.equal(resolveConfiguredTenant(slug), null);
+  }
 });
 
 test("control-plane tables cannot be included in tenant migrations", () => {

@@ -4,7 +4,22 @@ import { runInNewContext } from "node:vm";
 import test from "node:test";
 import ts from "typescript";
 import * as routing from "../src/lib/tenant-routing/core.ts";
-import { resolveConfiguredTenant } from "../src/lib/tenant-validation.mjs";
+import {
+  normalizeTenantSlug,
+  resolveConfiguredTenant,
+} from "../src/lib/tenant-validation.mjs";
+
+const fixtureTenantSlugs = new Set([
+  "fixture-store",
+  "gift-shop",
+  "panda-pop",
+  "dvorik-collection",
+]);
+
+function resolveFixtureTenant(value) {
+  const tenant = normalizeTenantSlug(value);
+  return tenant && fixtureTenantSlugs.has(tenant.slug) ? tenant : null;
+}
 
 const storefront = ["", "/categories", "/categories/1/products", "/categories/1/subcategories/2", "/products/1/details", "/carts", "/checkout", "/checkout/payment/123", "/account", "/account/login", "/account/register", "/account/orders", "/account/orders/1", "/forgot-password", "/reset-password", "/search", "/shipping", "/privacy-policy"];
 const tenantAdmin = ["", "/login", "/categories", "/categories/new", "/categories/1/edit", "/subcategories", "/subcategories/new", "/subcategories/1/edit", "/products", "/products/new", "/products/1/edit", "/orders", "/orders/1", "/payments", "/shipping", "/shipping/new", "/shipping/1/edit"].map(path => `/admin${path}`);
@@ -25,13 +40,22 @@ function load(file, dependencies) {
 test("every storefront/admin route retains its tenant; tenantless storefronts and unknown tenants fail closed", () => {
   for (const path of platform) assert.equal(routing.resolveTenantRoute(path).kind, "legacy");
   for (const path of [...storefront, ...tenantAdmin]) {
-    const route = routing.resolveTenantRoute(`/panda-pop${path}`);
+    const route = routing.resolveTenantRoute(
+      `/panda-pop${path}`,
+      resolveFixtureTenant
+    );
     assert.equal(route.kind, "tenant");
     assert.equal(route.tenant.slug, "panda-pop");
     assert.equal(route.tenant.schema, "panda_pop");
     assert.equal(route.internalPath, path || "/");
-    assert.equal(routing.prefixTenantPath(path || "/", "/panda-pop"), `/panda-pop${path}`);
-    assert.equal(routing.resolveTenantRoute(`/unknown${path}`).kind, "not-found");
+    assert.equal(
+      routing.prefixTenantPath(path || "/", "/panda-pop", resolveFixtureTenant),
+      `/panda-pop${path}`
+    );
+    assert.equal(
+      routing.resolveTenantRoute(`/unknown${path}`, resolveFixtureTenant).kind,
+      "not-found"
+    );
   }
   for (const path of storefront.filter(Boolean)) {
     const expected = platform.includes(path) ? "legacy" : "not-found";
@@ -44,15 +68,34 @@ test("every storefront/admin route retains its tenant; tenantless storefronts an
 
 test("tenant path builder preserves queries, hashes, and existing prefixes and rejects cross-tenant/context escapes", () => {
   for (const path of storefront) {
-    const url = routing.prefixTenantPath(`${path || "/"}?q=gift#content`, "/panda-pop");
-    assert.equal(routing.prefixTenantPath(url, "/panda-pop"), url);
-    assert.equal(routing.resolveTenantRoute(new URL(url, "https://shop.test").pathname).tenant.slug, "panda-pop");
+    const url = routing.prefixTenantPath(
+      `${path || "/"}?q=gift#content`,
+      "/panda-pop",
+      resolveFixtureTenant
+    );
+    assert.equal(
+      routing.prefixTenantPath(url, "/panda-pop", resolveFixtureTenant),
+      url
+    );
+    assert.equal(
+      routing.resolveTenantRoute(
+        new URL(url, "https://shop.test").pathname,
+        resolveFixtureTenant
+      ).tenant.slug,
+      "panda-pop"
+    );
   }
   for (const path of ["/gift-shop/categories", "/panda-pop/../gift-shop/carts", "//evil.test", "https://evil.test", "/panda-pop%2f..%2fgift-shop", "/%2e%2e%2fadmin", "/\\evil.test"]) {
-    assert.throws(() => routing.prefixTenantPath(path, "/panda-pop"));
+    assert.throws(() =>
+      routing.prefixTenantPath(path, "/panda-pop", resolveFixtureTenant)
+    );
   }
-  assert.throws(() => routing.prefixTenantPath("/categories", ""));
-  assert.throws(() => routing.prefixTenantPath("/categories", "/unknown"));
+  assert.throws(() =>
+    routing.prefixTenantPath("/categories", "", resolveFixtureTenant)
+  );
+  assert.throws(() =>
+    routing.prefixTenantPath("/categories", "/unknown", resolveFixtureTenant)
+  );
 });
 
 test("actual middleware preserves physical page routes and replaces spoofed headers; only API/media rewrite", async () => {
@@ -62,8 +105,15 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     static next(options) { return Object.assign(new Response(), { kind: "next", headers: options.request.headers }); }
     static rewrite(url, options) { return Object.assign(new Response(), { kind: "rewrite", url, headers: options.request.headers }); }
   }
+  const fixtureRouting = {
+    ...routing,
+    resolveTenantRoute: pathname =>
+      routing.resolveTenantRoute(pathname, resolveFixtureTenant),
+  };
   const { middleware, config } = load("../src/middleware.ts", {
-    nanoid: { nanoid: () => "test-session" }, "next/server": { NextResponse: Response }, "./lib/tenant-routing/core": routing,
+    nanoid: { nanoid: () => "test-session" },
+    "next/server": { NextResponse: Response },
+    "./lib/tenant-routing/core": fixtureRouting,
   });
   for (const path of [...platform, ...storefront.map(p => `/panda-pop${p}`), ...tenantAdmin.map(p => `/panda-pop${p}`), "/panda-pop/api/cart/add", "/panda-pop/media/products/a.png", "/api/customer-auth/google/callback"]) {
     const response = await middleware({ nextUrl: new URL(`${path}?q=gift`, "https://shop.test"), headers: new Headers({ [routing.TENANT_HEADER]: "gift-shop", [routing.TENANT_SCHEMA_HEADER]: "public", [routing.INTERNAL_PATH_HEADER]: "/admin/login" }), cookies: { has: () => false } });
@@ -78,6 +128,27 @@ test("actual middleware preserves physical page routes and replaces spoofed head
   for (const path of ["/categories", "/unknown/categories", "/api/cart/add", "/media/products/a.png"]) {
     assert.equal((await middleware({ nextUrl: new URL(path, "https://shop.test") })).status, 404);
   }
+
+  const { middleware: runtimeMiddleware } = load("../src/middleware.ts", {
+    nanoid: { nanoid: () => "runtime-session" },
+    "next/server": { NextResponse: Response },
+    "./lib/tenant-routing/core": routing,
+  });
+  for (const path of [
+    "/panda-pop",
+    "/gift-shop/admin",
+    "/dvorik-collection/api/cart/add",
+  ]) {
+    const response = await runtimeMiddleware({
+      nextUrl: new URL(path, "https://shop.test"),
+      headers: new Headers({
+        [routing.TENANT_HEADER]: "attacker",
+        [routing.TENANT_SCHEMA_HEADER]: "public",
+      }),
+      cookies: { has: () => false },
+    });
+    assert.equal(response.status, 404);
+  }
   // A dotted path may not skip middleware and inject trusted tenant headers.
   const matcher = new RegExp(`^${config.matcher[1]}$`);
   for (const path of ["/media/products/a.png", "/panda-pop/products/a.png", "/admin/foo.png"]) assert.ok(matcher.test(path));
@@ -87,7 +158,12 @@ test("actual TenantLink scopes string, object and as URLs", () => {
   const { TenantLink } = load("../src/components/TenantLink.tsx", {
     "next/link": { default: "Link" }, "react/jsx-runtime": jsx,
     react: { forwardRef: render => render },
-    "@/context/TenantContext": { useTenant: () => ({ path: path => routing.prefixTenantPath(path, "/panda-pop") }) },
+    "@/context/TenantContext": {
+      useTenant: () => ({
+        path: path =>
+          routing.prefixTenantPath(path, "/panda-pop", resolveFixtureTenant),
+      }),
+    },
   });
   for (const path of [...storefront, ...tenantAdmin]) assert.equal(TenantLink({ href: path || "/" }).props.href, `/panda-pop${path}`);
   const link = TenantLink({ href: { pathname: "/search", query: { q: "gift" } }, as: "/search?q=gift" });
@@ -97,14 +173,26 @@ test("actual TenantLink scopes string, object and as URLs", () => {
   assert.throws(() => TenantLink({ href: "/gift-shop/carts" }));
 });
 
+test("removed legacy tenant slugs are not runtime-configured", () => {
+  for (const slug of ["panda-pop", "gift-shop", "dvorik-collection"]) {
+    assert.equal(resolveConfiguredTenant(slug), null);
+  }
+});
+
 test("provider has no tenantless fallback and tenant layout validates context against route params", async () => {
   const provider = load("../src/context/TenantContext.tsx", {
-    "react/jsx-runtime": jsx, "@/lib/tenant": { ...routing, resolveConfiguredTenant },
+    "react/jsx-runtime": jsx,
+    "@/lib/tenant": {
+      ...routing,
+      resolveConfiguredTenant: resolveFixtureTenant,
+      prefixTenantPath: (path, basePath) =>
+        routing.prefixTenantPath(path, basePath, resolveFixtureTenant),
+    },
     react: { createContext: value => ({ value }), useContext: context => context.value, useMemo: fn => fn() },
   });
   assert.throws(() => provider.useTenant(), /TenantProvider/);
   assert.throws(() => provider.TenantProvider({ slug: "panda-pop", basePath: "/gift-shop" }), /Invalid tenant/);
-  let tenant = resolveConfiguredTenant("panda-pop");
+  let tenant = normalizeTenantSlug("panda-pop");
   const { default: layout } = load("../src/app/[tenant]/layout.tsx", {
     "react/jsx-runtime": jsx, "@/context/TenantContext": { TenantProvider: "TenantProvider" },
     "@/lib/tenant-context": { getTenant: async () => tenant }, "next/navigation": { notFound() { throw new Error("404"); } },
