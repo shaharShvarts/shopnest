@@ -383,9 +383,7 @@ test("custom Host resolves one trusted Tenant and keeps public URLs slug-free", 
     "./lib/domain-registry/server": {
       resolveTrustedDomain: async hostname => {
         if (hostname === "error.example") throw new Error("db unavailable");
-        return hostname === "store.example"
-          ? { hostname, tenant }
-          : null;
+        return hostname === "store.example" ? { hostname, tenant } : null;
       },
     },
   });
