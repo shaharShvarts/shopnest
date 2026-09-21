@@ -85,11 +85,16 @@ type CachedTenant = {
 
 export class TenantRegistryService {
   private readonly cache = new Map<string, CachedTenant>();
+  private readonly repository: TenantRegistryRepository;
+  private readonly ttlMs: number;
 
   constructor(
-    private readonly repository: TenantRegistryRepository,
-    private readonly ttlMs = TENANT_REGISTRY_CACHE_TTL_MS
-  ) {}
+    repository: TenantRegistryRepository,
+    ttlMs = TENANT_REGISTRY_CACHE_TTL_MS
+  ) {
+    this.repository = repository;
+    this.ttlMs = ttlMs;
+  }
 
   async resolve(
     value: unknown,
