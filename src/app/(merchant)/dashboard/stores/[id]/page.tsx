@@ -166,7 +166,11 @@ export default async function MerchantStoreDetailPage({
             role="alert"
             className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
           >
-            {tSubscription("selectionUnavailable")}
+            {tSubscription(
+              store.tenantId === null
+                ? "inactivePlanBlocksActivation"
+                : "inactivePlanGrandfathered"
+            )}
           </p>
         ) : null}
 
