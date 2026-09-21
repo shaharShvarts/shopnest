@@ -10,6 +10,7 @@ import {
   TENANT_HEADER,
   TENANT_ROUTE_MODE_HEADER,
   TENANT_SCHEMA_HEADER,
+  type Tenant,
   type TenantRouteMode,
 } from "./lib/tenant-routing/core";
 import {
@@ -33,7 +34,7 @@ export async function middleware(req: NextRequest) {
 
   let tenantRoute:
     | {
-        tenant: Awaited<ReturnType<typeof resolveTrustedTenant>>;
+        tenant: Tenant;
         internalPath: string;
       }
     | null = null;
