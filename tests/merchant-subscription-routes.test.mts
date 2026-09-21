@@ -62,6 +62,7 @@ test("merchant subscription translations stay aligned", async () => {
     "pending",
     "selectionHelp",
     "selectionSaved",
+    "unavailable",
   ]) {
     assert.equal(typeof en.MerchantSubscription[key], "string");
     assert.equal(typeof he.MerchantSubscription[key], "string");
