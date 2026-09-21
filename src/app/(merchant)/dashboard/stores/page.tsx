@@ -39,7 +39,7 @@ export default async function MerchantStoresPage() {
           <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             ShopNest
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight">
             {t("myStores")}
           </h1>
         </div>
