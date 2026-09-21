@@ -77,33 +77,7 @@ export const stores = pgTable(
     ),
     check(
       "stores_provisioning_error_code_format",
-      sql`${table.lastProvisioningErrorCode} IS NULL OR ${table.lastProvisioningErrorCode} ~ '^[A-Z0-9_]{1,64}
-    check(
-      "stores_delete_window_consistency",
-      sql`(
-        (${table.deletedAt} IS NULL AND ${table.deleteFinalizesAt} IS NULL)
-        OR
-        (${table.deletedAt} IS NOT NULL AND ${table.deleteFinalizesAt} IS NOT NULL)
-      )`
-    ),
-    check(
-      "stores_slug_release_requires_delete",
-      sql`${table.slugReleasedAt} IS NULL OR ${table.deletedAt} IS NOT NULL`
-    ),
-    check(
-      "stores_delete_finalizes_after_delete",
-      sql`${table.deleteFinalizesAt} IS NULL OR ${table.deleteFinalizesAt} >= ${table.deletedAt}`
-    ),
-    uniqueIndex("stores_slug_reserved_unique")
-      .on(table.slug)
-      .where(sql`${table.slugReleasedAt} IS NULL`),
-    uniqueIndex("stores_tenant_id_unique")
-      .on(table.tenantId)
-      .where(sql`${table.tenantId} IS NOT NULL`),
-    index("stores_organization_id_idx").on(table.organizationId),
-  ]
-);
-`
+      sql`${table.lastProvisioningErrorCode} IS NULL OR ${table.lastProvisioningErrorCode} ~ '^[A-Z0-9_]{1,64}$'`
     ),
     check(
       "stores_delete_window_consistency",
