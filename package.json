@@ -44,7 +44,8 @@
     "merchant-subscription:test": "npx --yes tsx --test tests/merchant-subscription.test.mts tests/merchant-subscription-routes.test.mts",
     "store-readiness:test": "npx --yes tsx --test tests/store-readiness.test.mts tests/store-readiness-routes.test.mts",
     "store-lifecycle:test": "npx --yes tsx --test tests/store-lifecycle.test.mts",
-    "tenant-registry:test": "npx --yes tsx --test tests/tenant-registry.test.mts"
+    "tenant-registry:test": "npx --yes tsx --test tests/tenant-registry.test.mts",
+    "domain-registry:test": "npx --yes tsx --test tests/domain-registry.test.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
