@@ -161,6 +161,15 @@ export default async function MerchantStoreDetailPage({
           </p>
         ) : null}
 
+        {subscription?.plan.status === "inactive" ? (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
+          >
+            {tSubscription("selectionUnavailable")}
+          </p>
+        ) : null}
+
         <dl className="mt-5 grid gap-5 sm:grid-cols-2">
           <div>
             <dt className="text-sm font-medium text-muted-foreground">
@@ -205,6 +214,14 @@ export default async function MerchantStoreDetailPage({
                 <option value="" disabled>
                   {tSubscription("choosePlan")}
                 </option>
+                {subscription?.plan.status === "inactive" ? (
+                  <option value={subscription.plan.code} disabled>
+                    {planDisplayName(
+                      subscription.plan.code,
+                      subscription.plan.name
+                    )}
+                  </option>
+                ) : null}
                 {activePlans.map((plan) => (
                   <option key={plan.id} value={plan.code}>
                     {planDisplayName(plan.code, plan.name)}
