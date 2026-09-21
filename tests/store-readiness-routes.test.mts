@@ -58,12 +58,38 @@ test("policy page is an authenticated merchant Store surface", async () => {
 
   assert.match(page, /requireMerchantPage\(\)/);
   assert.match(page, /getWorkspaceForOwnedStore/);
-  assert.match(page, /savePolicyDraftAction/);
-  assert.match(page, /publishPolicyAction/);
-  assert.match(page, /name="policyType"/);
+  assert.match(page, /PolicyDocumentForm/);
+  assert.match(page, /policyType=\{policyType\}/);
   assert.doesNotMatch(
     page,
     /getDbForTenant|getTenant\(|TENANT_SCHEMA_HEADER|search_path/
+  );
+});
+
+test("policy form avoids per-keystroke native validation popups", async () => {
+  const form = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/policies/PolicyDocumentForm.tsx",
+    "utf8"
+  );
+
+  assert.match(form, /noValidate/);
+  assert.match(form, /MIN_POLICY_CONTENT_LENGTH = 80/);
+  assert.match(form, /trimmedContentLength/);
+  assert.match(form, /disabled=\{!canSubmit\}/);
+  assert.match(form, /characterCount/);
+  assert.doesNotMatch(form, /minLength=\{80\}/);
+});
+
+test("invalid policy content returns to the policy workspace", async () => {
+  const actions = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/policies/_actions.ts",
+    "utf8"
+  );
+
+  assert.match(actions, /parsePolicyFormForStore/);
+  assert.match(
+    actions,
+    /\/dashboard\/stores\/" \+ storeId \+ "\/policies\?policy=invalid/
   );
 });
 
