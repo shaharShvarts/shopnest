@@ -560,6 +560,7 @@
     "planFree": "Free",
     "planSmall": "Small",
     "planMedium": "Medium",
-    "planLarge": "Large"
+    "planLarge": "Large",
+    "unavailable": "Unavailable"
   }
 }
