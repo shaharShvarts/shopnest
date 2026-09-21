@@ -62,6 +62,7 @@ jobs:
           npm run merchant-dashboard:test
           npm run merchant-subscription:test
           npm run store-readiness:test
+          npm run store-lifecycle:test
 
       - name: Build production application
         run: npm run build
