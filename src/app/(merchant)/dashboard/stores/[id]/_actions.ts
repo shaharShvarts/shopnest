@@ -13,7 +13,8 @@ import { getMerchantSubscriptionRepository } from "@/lib/merchant-subscriptions/
 function redirectForPlanError(storeId: number, error: unknown): never {
   const reason =
     error instanceof MerchantSubscriptionError &&
-    error.code === "STORE_PROVISIONED"
+    (error.code === "STORE_PROVISIONED" ||
+      error.code === "SUBSCRIPTION_LOCKED")
       ? "locked"
       : "unavailable";
 
