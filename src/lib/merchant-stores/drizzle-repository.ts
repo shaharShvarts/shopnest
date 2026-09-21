@@ -37,7 +37,19 @@ const storeSelection = {
   updatedAt: stores.updatedAt,
 };
 
-function mapStore(row: typeof stores.$inferSelect): MerchantStore {
+function mapStore(row: {
+  id: number;
+  organizationId: number;
+  displayName: string;
+  slug: string;
+  status: MerchantStore["status"];
+  tenantId: number | null;
+  deletedAt: Date | null;
+  deleteFinalizesAt: Date | null;
+  slugReleasedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): MerchantStore {
   return {
     id: row.id,
     organizationId: row.organizationId,
