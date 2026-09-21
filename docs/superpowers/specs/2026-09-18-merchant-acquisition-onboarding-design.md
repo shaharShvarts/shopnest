@@ -623,11 +623,11 @@ PR #42 — Dynamic Trusted Tenant Registry Resolution
 PR #43 — Activation Orchestration
 PR #44 — Domain Model and Trusted Host Resolution
 PR #45 — Cloudflare / Custom-Domain Automation
-PR #46 — Accessibility / WCAG Hardening
+PR #46 — Accessibility for People with Disabilities / WCAG Hardening
 
 Each PR must remain single-purpose and begin from current master.
 
-PR #46 accessibility scope should include a platform-wide audit of the public marketing site, merchant dashboard, storefront, tenant admin, and control-plane surfaces. It should cover semantic HTML, keyboard navigation, visible focus, form labels and errors, ARIA only where needed, screen-reader behavior, contrast, touch targets, responsive zoom/reflow, image alternative text, reduced-motion behavior, and Hebrew RTL accessibility. Automated accessibility checks should be added where practical, with manual keyboard and screen-reader acceptance before READY TO MERGE.
+PR #46 is specifically about accessibility for people with disabilities across the public marketing site, merchant dashboard, storefront, tenant admin, and control-plane surfaces. The audit and implementation should address visual, motor, hearing, and cognitive accessibility needs, including semantic HTML, full keyboard-only operation, visible focus, form labels and error association, ARIA only where needed, screen-reader behavior and live/status announcements, contrast, touch-target sizing, zoom/reflow, image alternative text, captions/transcripts for media where applicable, reduced-motion support, and Hebrew RTL accessibility. Automated accessibility checks should be added where practical, with manual keyboard and screen-reader acceptance before READY TO MERGE.
 
 ## 21. PR #34 approved scope
 
