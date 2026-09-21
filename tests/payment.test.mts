@@ -1007,10 +1007,12 @@ test("middleware overwrites forged tenant headers on payment admin routes", asyn
 
   const fixtureRouting = {
     ...tenantRouting,
-    resolveTenantRoute: (pathname: string) =>
-      tenantRouting.resolveTenantRoute(
-        pathname,
-        resolvePaymentFixtureTenant
+    resolveTenantRouteAsync: (pathname: string) =>
+      Promise.resolve(
+        tenantRouting.resolveTenantRoute(
+          pathname,
+          resolvePaymentFixtureTenant
+        )
       ),
   };
 
@@ -1020,6 +1022,10 @@ test("middleware overwrites forged tenant headers on payment admin routes", asyn
     nanoid: { nanoid: () => "synthetic-session" },
     "next/server": { NextResponse: TestNextResponse },
     "./lib/tenant-routing/core": fixtureRouting,
+    "./lib/tenant-registry/server": {
+      resolveTrustedTenant: async (value: unknown) =>
+        resolvePaymentFixtureTenant(value),
+    },
   });
   for (const slug of ["gift-shop", "panda-pop", "dvorik-collection"]) {
     const headers = await middleware({
