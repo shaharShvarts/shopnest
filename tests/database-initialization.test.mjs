@@ -33,20 +33,38 @@ function database(environment = {}, withTenant = true) {
   const pools = [];
   const clients = [];
   const tenant = { slug: "gift-shop", schema: "tenant_gift_shop", basePath: "/gift-shop" };
+  const drizzleModule = {
+    drizzle(connection, options) {
+      const client = { connection, options };
+      clients.push(client);
+      return client;
+    },
+  };
+  const pgModule = {
+    Pool: class {
+      constructor(options) {
+        this.options = options;
+        pools.push(this);
+      }
+    },
+  };
+  const controlDb = loadModule("../src/drizzle/control-db.ts", {
+    "@/data/env/server": { env },
+    "@/drizzle/control-plane-schema": {},
+    "drizzle-orm/node-postgres": drizzleModule,
+    pg: pgModule,
+  }, environment);
   const exports = loadModule("../src/drizzle/db.ts", {
     "@/data/env/server": { env },
-    "drizzle-orm/node-postgres": {
-      drizzle(connection, options) {
-        const client = { connection, options };
-        clients.push(client);
-        return client;
-      },
-    },
+    "drizzle-orm/node-postgres": drizzleModule,
     "@/drizzle/schema": {},
-    "@/drizzle/control-plane-schema": {},
-    pg: { Pool: class { constructor(options) { this.options = options; pools.push(this); } } },
+    pg: pgModule,
+    "@/drizzle/control-db": controlDb,
     "@/lib/tenant-context": { getTenant: async () => withTenant ? tenant : null },
-    "@/lib/tenant": { resolveConfiguredTenant: slug => slug === tenant.slug ? tenant : null },
+    "@/lib/tenant": {},
+    "@/lib/tenant-registry/core": {
+      isTrustedTenant: candidate => candidate === tenant,
+    },
   }, environment);
   return { ...exports, pools, clients, tenant };
 }
