@@ -16,7 +16,7 @@ class FakeRepository implements StoreDomainClaimRepository {
   verifiedCalls = 0;
   expiredCalls = 0;
 
-  async createPendingForOwnedProvisionedStore(input: {
+  async createPendingForOwnedStore(input: {
     merchantId: number;
     storeId: number;
     hostname: string;
@@ -210,4 +210,25 @@ test("expired claims cannot verify", async () => {
   assert.equal(repository.expiredCalls, 1);
   assert.equal(repository.verifiedCalls, 0);
   assert.equal(dnsCalls, 0);
+});
+
+
+test("ownership proof does not require Store provisioning state in the claim service contract", async () => {
+  const repository = new FakeRepository();
+  const token = "e".repeat(43);
+  const service = new DomainOwnershipClaimService(
+    repository,
+    { async resolveTxt() { return []; } },
+    () => token
+  );
+
+  const result = await service.startClaim(
+    10,
+    20,
+    "draft-store.customer.example",
+    new Date("2026-09-22T16:00:00Z")
+  );
+
+  assert.equal(result.hostname, "draft-store.customer.example");
+  assert.equal(repository.createCalls, 1);
 });
