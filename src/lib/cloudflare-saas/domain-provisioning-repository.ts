@@ -13,9 +13,11 @@ import { getControlPlaneDb } from "@/drizzle/control-db";
 import {
   controlPlaneTenants,
   organizationMemberships,
+  plans,
   storeDomainClaims,
   storeDomains,
   stores,
+  subscriptions,
 } from "@/drizzle/control-plane-schema";
 import {
   CloudflareDomainProvisioningError,
@@ -53,6 +55,14 @@ export class DrizzleCloudflareDomainProvisioningRepository
         controlPlaneTenants,
         eq(controlPlaneTenants.id, stores.tenantId)
       )
+      .innerJoin(
+        subscriptions,
+        and(
+          eq(subscriptions.storeId, stores.id),
+          eq(subscriptions.organizationId, stores.organizationId)
+        )
+      )
+      .innerJoin(plans, eq(plans.id, subscriptions.planId))
       .where(
         and(
           eq(storeDomainClaims.storeId, input.storeId),
@@ -119,6 +129,9 @@ export class DrizzleCloudflareDomainProvisioningRepository
           tenantId: stores.tenantId,
           storeStatus: stores.status,
           tenantStatus: controlPlaneTenants.status,
+          subscriptionStatus: subscriptions.status,
+          planCode: plans.code,
+          planStatus: plans.status,
         })
         .from(storeDomainClaims)
         .innerJoin(stores, eq(stores.id, storeDomainClaims.storeId))
@@ -133,6 +146,14 @@ export class DrizzleCloudflareDomainProvisioningRepository
           controlPlaneTenants,
           eq(controlPlaneTenants.id, stores.tenantId)
         )
+        .innerJoin(
+          subscriptions,
+          and(
+            eq(subscriptions.storeId, stores.id),
+            eq(subscriptions.organizationId, stores.organizationId)
+          )
+        )
+        .innerJoin(plans, eq(plans.id, subscriptions.planId))
         .where(
           and(
             eq(storeDomainClaims.storeId, input.storeId),
@@ -157,6 +178,18 @@ export class DrizzleCloudflareDomainProvisioningRepository
         throw new CloudflareDomainProvisioningError(
           "CLAIM_NOT_VERIFIED",
           "Verified domain claim not found"
+        );
+      }
+
+
+      if (
+        claim.planStatus !== "active" ||
+        (claim.planCode !== "medium" && claim.planCode !== "large") ||
+        !["pending", "trialing", "active"].includes(claim.subscriptionStatus)
+      ) {
+        throw new CloudflareDomainProvisioningError(
+          "CUSTOM_DOMAIN_PLAN_REQUIRED",
+          "Custom domains require an active Medium or Large plan"
         );
       }
 
