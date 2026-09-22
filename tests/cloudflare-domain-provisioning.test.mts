@@ -356,3 +356,43 @@ test("unverified or unprovisioned local state blocks all Cloudflare API calls", 
   assert.equal(provider.createCalls, 0);
   assert.equal(repository.finalized, null);
 });
+
+
+test("ineligible plan blocks all Cloudflare API calls", async () => {
+  const repository = new FakeRepository();
+  const provider = new FakeProvider();
+
+  let findCalls = 0;
+  let listCalls = 0;
+  provider.findCustomHostnameByHostname = async () => {
+    findCalls += 1;
+    return [];
+  };
+  provider.listCustomHostnames = async () => {
+    listCalls += 1;
+    return [];
+  };
+
+  repository.preflightError = new CloudflareDomainProvisioningError(
+    "CUSTOM_DOMAIN_PLAN_REQUIRED",
+    "Custom domains require an active Medium or Large plan"
+  );
+
+  await assert.rejects(
+    () =>
+      service(repository, provider).provisionVerifiedClaim(
+        10,
+        20,
+        "shop.customer.example"
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareDomainProvisioningError &&
+      error.code === "CUSTOM_DOMAIN_PLAN_REQUIRED"
+  );
+
+  assert.equal(repository.preflightCalls, 1);
+  assert.equal(findCalls, 0);
+  assert.equal(listCalls, 0);
+  assert.equal(provider.createCalls, 0);
+  assert.equal(repository.finalized, null);
+});
