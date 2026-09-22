@@ -82,17 +82,7 @@ export const storeDomains = pgTable(
     ),
     check(
       "store_domains_hostname_canonical_check",
-      sql`${table.hostname} = lower(${table.hostname}) AND ${table.hostname} !~ '\\.      .on(table.tenantId)
-      .where(sql`${table.isPrimary} AND ${table.status} <> 'removed'`),
-    index("store_domains_tenant_id_idx").on(table.tenantId),
-    index("store_domains_status_idx").on(table.status),
-    uniqueIndex("store_domains_provider_hostname_id_unique")
-      .on(table.providerHostnameId)
-      .where(sql`${table.providerHostnameId} IS NOT NULL`),
-    index("store_domains_provider_idx").on(table.provider),
-  ]
-);
-`
+      sql`${table.hostname} = lower(${table.hostname}) AND ${table.hostname} !~ '\\.$'`
     ),
     check(
       "store_domains_provider_check",
@@ -107,5 +97,9 @@ export const storeDomains = pgTable(
       .where(sql`${table.isPrimary} AND ${table.status} <> 'removed'`),
     index("store_domains_tenant_id_idx").on(table.tenantId),
     index("store_domains_status_idx").on(table.status),
+    uniqueIndex("store_domains_provider_hostname_id_unique")
+      .on(table.providerHostnameId)
+      .where(sql`${table.providerHostnameId} IS NOT NULL`),
+    index("store_domains_provider_idx").on(table.provider),
   ]
 );
