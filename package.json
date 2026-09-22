@@ -47,7 +47,8 @@
     "tenant-registry:test": "npx --yes tsx --test tests/tenant-registry.test.mts",
     "domain-registry:test": "npx --yes tsx --test tests/domain-registry.test.mts",
     "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts tests/cloudflare-domain-sync.test.mts",
-    "cloudflare-saas:smoke": "npx --yes tsx scripts/cloudflare-saas-smoke.mts"
+    "cloudflare-saas:smoke": "npx --yes tsx scripts/cloudflare-saas-smoke.mts",
+    "cloudflare-domain-sync:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-sync-smoke.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
