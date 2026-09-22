@@ -4,7 +4,6 @@ import {
   and,
   desc,
   eq,
-  isNotNull,
   isNull,
   lte,
 } from "drizzle-orm";
@@ -45,14 +44,12 @@ function mapClaim(row: ClaimSelectionRow): StoreDomainClaimRecord {
   return row;
 }
 
-function ownedProvisionedStoreWhere(
+function ownedStoreWhere(
   merchantId: number,
   storeId: number
 ) {
   return and(
     eq(stores.id, storeId),
-    eq(stores.status, "provisioned"),
-    isNotNull(stores.tenantId),
     isNull(stores.deletedAt),
     eq(
       organizationMemberships.organizationId,
@@ -69,7 +66,7 @@ function ownedProvisionedStoreWhere(
 export class DrizzleStoreDomainClaimRepository
   implements StoreDomainClaimRepository
 {
-  async createPendingForOwnedProvisionedStore(input: {
+  async createPendingForOwnedStore(input: {
     merchantId: number;
     storeId: number;
     hostname: string;
@@ -89,7 +86,7 @@ export class DrizzleStoreDomainClaimRepository
           )
         )
         .where(
-          ownedProvisionedStoreWhere(
+          ownedStoreWhere(
             input.merchantId,
             input.storeId
           )
@@ -166,7 +163,7 @@ export class DrizzleStoreDomainClaimRepository
       )
       .where(
         and(
-          ownedProvisionedStoreWhere(
+          ownedStoreWhere(
             input.merchantId,
             input.storeId
           ),
