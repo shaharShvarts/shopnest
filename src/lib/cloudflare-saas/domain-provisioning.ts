@@ -29,6 +29,12 @@ export type DomainProvisioningFinalizeResult = {
 };
 
 export interface CloudflareDomainProvisioningRepository {
+  preflightVerifiedClaim(input: {
+    merchantId: number;
+    storeId: number;
+    hostname: string;
+  }): Promise<void>;
+
   reserveVerifiedClaim(input: {
     merchantId: number;
     storeId: number;
@@ -139,6 +145,12 @@ export class CloudflareDomainProvisioningService {
     now = new Date()
   ): Promise<CloudflareDomainProvisioningResult> {
     const hostname = validateClaimHostname(value);
+
+    await this.repository.preflightVerifiedClaim({
+      merchantId,
+      storeId,
+      hostname,
+    });
 
     const initialMatches =
       await this.provider.findCustomHostnameByHostname(hostname);
