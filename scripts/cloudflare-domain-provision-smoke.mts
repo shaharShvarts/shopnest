@@ -1,6 +1,4 @@
 import { getCloudflareDomainProvisioningService } from "../src/lib/cloudflare-saas/domain-provisioning-server.ts";
-import { CloudflareDomainProvisioningError } from "../src/lib/cloudflare-saas/domain-provisioning.ts";
-
 const merchantId = Number(process.argv[2]);
 const storeId = Number(process.argv[3]);
 const hostname = process.argv[4];
@@ -42,7 +40,12 @@ try {
     console.log("cname_target:", result.cnameTarget);
   }
 } catch (error) {
-  if (error instanceof CloudflareDomainProvisioningError) {
+  if (
+    error instanceof Error &&
+    error.name === "CloudflareDomainProvisioningError" &&
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
     console.log("blocked: true");
     console.log("code:", error.code);
     console.log("message:", error.message);
