@@ -27,6 +27,72 @@ import {
 export class DrizzleCloudflareDomainProvisioningRepository
   implements CloudflareDomainProvisioningRepository
 {
+  async preflightVerifiedClaim(input: {
+    merchantId: number;
+    storeId: number;
+    hostname: string;
+  }): Promise<void> {
+    const [claim] = await getControlPlaneDb()
+      .select({
+        claimStatus: storeDomainClaims.status,
+        verifiedAt: storeDomainClaims.verifiedAt,
+        tenantId: stores.tenantId,
+        storeStatus: stores.status,
+        tenantStatus: controlPlaneTenants.status,
+      })
+      .from(storeDomainClaims)
+      .innerJoin(stores, eq(stores.id, storeDomainClaims.storeId))
+      .innerJoin(
+        organizationMemberships,
+        eq(
+          organizationMemberships.organizationId,
+          stores.organizationId
+        )
+      )
+      .leftJoin(
+        controlPlaneTenants,
+        eq(controlPlaneTenants.id, stores.tenantId)
+      )
+      .where(
+        and(
+          eq(storeDomainClaims.storeId, input.storeId),
+          eq(storeDomainClaims.hostname, input.hostname),
+          eq(
+            organizationMemberships.merchantAccountId,
+            input.merchantId
+          ),
+          eq(organizationMemberships.role, "owner"),
+          isNull(stores.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (
+      !claim ||
+      (claim.claimStatus !== "verified" &&
+        claim.claimStatus !== "consumed") ||
+      !claim.verifiedAt
+    ) {
+      throw new CloudflareDomainProvisioningError(
+        "CLAIM_NOT_VERIFIED",
+        "Verified domain claim not found"
+      );
+    }
+
+    if (claim.storeStatus !== "provisioned" || claim.tenantId === null) {
+      throw new CloudflareDomainProvisioningError(
+        "STORE_NOT_PROVISIONED",
+        "Store must be provisioned before custom-domain provisioning"
+      );
+    }
+
+    if (claim.tenantStatus !== "active") {
+      throw new CloudflareDomainProvisioningError(
+        "TENANT_NOT_ACTIVE",
+        "Tenant must be active before custom-domain provisioning"
+      );
+    }
+  }
   async reserveVerifiedClaim(input: {
     merchantId: number;
     storeId: number;
