@@ -29,7 +29,7 @@ export type StoreDomainClaimRecord = {
 };
 
 export interface StoreDomainClaimRepository {
-  createPendingForOwnedProvisionedStore(input: {
+  createPendingForOwnedStore(input: {
     merchantId: number;
     storeId: number;
     hostname: string;
@@ -125,7 +125,7 @@ export class DomainOwnershipClaimService {
     const expiresAt = new Date(now.getTime() + DOMAIN_CLAIM_TTL_MS);
     const verificationTokenHash = sha256Hex(token);
 
-    const claim = await this.repository.createPendingForOwnedProvisionedStore({
+    const claim = await this.repository.createPendingForOwnedStore({
       merchantId,
       storeId,
       hostname,
@@ -135,7 +135,7 @@ export class DomainOwnershipClaimService {
     });
 
     if (!claim) {
-      throw new Error("Provisioned Store not found");
+      throw new Error("Owned Store not found");
     }
 
     return {
