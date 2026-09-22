@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   CLOUDFLARE_SAAS_DEFAULT_FREE_HOSTNAME_LIMIT,
@@ -186,4 +187,46 @@ test("malformed successful provider responses fail closed", async () => {
       error instanceof CloudflareSaasError &&
       error.kind === "malformed_response"
   );
+});
+
+
+test("Cloudflare provider metadata migration is additive and journaled", async () => {
+  const [schema, migration, journal] = await Promise.all([
+    readFile("src/drizzle/control-schema/storeDomain.ts", "utf8"),
+    readFile(
+      "src/drizzle/control-migrations/0013_store_domain_provider_metadata.sql",
+      "utf8"
+    ),
+    readFile("src/drizzle/control-migrations/meta/_journal.json", "utf8"),
+  ]);
+
+  for (const column of [
+    "provider",
+    "provider_hostname_id",
+    "provider_hostname_status",
+    "provider_ssl_status",
+    "provider_last_synced_at",
+    "provider_last_error_code",
+    "provider_last_error_at",
+    "activation_requested_at",
+  ]) {
+    assert.match(migration, new RegExp(column));
+  }
+
+  assert.match(schema, /providerHostnameId/);
+  assert.match(schema, /providerSslStatus/);
+  assert.match(schema, /providerLastSyncedAt/);
+  assert.match(migration, /store_domains_provider_hostname_id_unique/);
+  assert.doesNotMatch(
+    migration,
+    /DROP TABLE|DROP SCHEMA|DELETE FROM|TRUNCATE|ALTER COLUMN .* NOT NULL/
+  );
+
+  const parsedJournal = JSON.parse(journal);
+  const entry = parsedJournal.entries.find(
+    (candidate: { tag?: string }) =>
+      candidate.tag === "0013_store_domain_provider_metadata"
+  );
+  assert.ok(entry);
+  assert.equal(entry.idx, 13);
 });
