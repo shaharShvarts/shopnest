@@ -30,10 +30,19 @@ const selection = {
   consumedAt: storeDomainClaims.consumedAt,
 };
 
-function mapClaim(
-  row: typeof selection extends infer _T ? any : never
-): StoreDomainClaimRecord {
-  return row as StoreDomainClaimRecord;
+type ClaimSelectionRow = {
+  id: number;
+  storeId: number;
+  hostname: string;
+  status: StoreDomainClaimRecord["status"];
+  verificationTokenHash: string;
+  expiresAt: Date;
+  verifiedAt: Date | null;
+  consumedAt: Date | null;
+};
+
+function mapClaim(row: ClaimSelectionRow): StoreDomainClaimRecord {
+  return row;
 }
 
 function ownedProvisionedStoreWhere(
