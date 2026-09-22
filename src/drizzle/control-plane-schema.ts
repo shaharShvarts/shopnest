@@ -19,3 +19,5 @@ export * from "@/drizzle/control-schema/plan";
 export * from "@/drizzle/control-schema/subscription";
 export * from "@/drizzle/control-schema/storePolicyDocument";
 export * from "@/drizzle/control-schema/storeDomain";
+
+export * from "@/drizzle/control-schema/storeDomainClaim";
