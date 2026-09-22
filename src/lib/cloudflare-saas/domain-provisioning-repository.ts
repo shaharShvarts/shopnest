@@ -54,7 +54,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
           stores.organizationId
         )
       )
-      .leftJoin(
+      .innerJoin(
         controlPlaneTenants,
         eq(controlPlaneTenants.id, stores.tenantId)
       )
@@ -156,7 +156,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
             stores.organizationId
           )
         )
-        .leftJoin(
+        .innerJoin(
           controlPlaneTenants,
           eq(controlPlaneTenants.id, stores.tenantId)
         )
