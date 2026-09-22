@@ -48,7 +48,9 @@
     "domain-registry:test": "npx --yes tsx --test tests/domain-registry.test.mts",
     "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts tests/cloudflare-domain-sync.test.mts tests/domain-claims.test.mts",
     "cloudflare-saas:smoke": "npx --yes tsx scripts/cloudflare-saas-smoke.mts",
-    "cloudflare-domain-sync:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-sync-smoke.mts"
+    "cloudflare-domain-sync:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-sync-smoke.mts",
+    "domain-claim:start": "npx --yes tsx --conditions=react-server scripts/domain-claim-start.mts",
+    "domain-claim:verify": "npx --yes tsx --conditions=react-server scripts/domain-claim-verify.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
