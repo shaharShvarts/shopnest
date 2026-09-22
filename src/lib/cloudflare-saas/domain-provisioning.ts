@@ -96,7 +96,8 @@ export class CloudflareDomainProvisioningError extends Error {
       | "CLAIM_NOT_VERIFIED"
       | "STORE_NOT_PROVISIONED"
       | "TENANT_NOT_ACTIVE"
-      | "DOMAIN_CONFLICT",
+      | "DOMAIN_CONFLICT"
+      | "CUSTOM_DOMAIN_PLAN_REQUIRED",
     message: string
   ) {
     super(message);
