@@ -99,6 +99,13 @@
       "when": 1790091840000,
       "tag": "0013_store_domain_provider_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790095500000,
+      "tag": "0014_store_domain_claims",
+      "breakpoints": true
     }
   ]
 }
