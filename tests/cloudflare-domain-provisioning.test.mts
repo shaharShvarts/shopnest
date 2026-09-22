@@ -10,6 +10,8 @@ import {
 import type { CloudflareCustomHostname } from "../src/lib/cloudflare-saas/core.ts";
 
 class FakeRepository implements CloudflareDomainProvisioningRepository {
+  preflightError: Error | null = null;
+  preflightCalls = 0;
   reservation: DomainProvisioningReservation = {
     kind: "ready",
     claimId: 1,
@@ -22,6 +24,11 @@ class FakeRepository implements CloudflareDomainProvisioningRepository {
   reserveInputs: Array<Record<string, unknown>> = [];
   finalized: DomainProvisioningFinalizeResult | null = null;
   errors: string[] = [];
+
+  async preflightVerifiedClaim() {
+    this.preflightCalls += 1;
+    if (this.preflightError) throw this.preflightError;
+  }
 
   async reserveVerifiedClaim(input: {
     merchantId: number;
@@ -307,5 +314,45 @@ test("provider mismatch fails closed and records a bounded error code", async ()
   assert.deepEqual(repository.errors, [
     "PROVIDER_HOSTNAME_MISMATCH",
   ]);
+  assert.equal(repository.finalized, null);
+});
+
+
+test("unverified or unprovisioned local state blocks all Cloudflare API calls", async () => {
+  const repository = new FakeRepository();
+  const provider = new FakeProvider();
+
+  let findCalls = 0;
+  let listCalls = 0;
+  provider.findCustomHostnameByHostname = async () => {
+    findCalls += 1;
+    return [];
+  };
+  provider.listCustomHostnames = async () => {
+    listCalls += 1;
+    return [];
+  };
+
+  repository.preflightError = new CloudflareDomainProvisioningError(
+    "STORE_NOT_PROVISIONED",
+    "Store must be provisioned"
+  );
+
+  await assert.rejects(
+    () =>
+      service(repository, provider).provisionVerifiedClaim(
+        10,
+        20,
+        "shop.customer.example"
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareDomainProvisioningError &&
+      error.code === "STORE_NOT_PROVISIONED"
+  );
+
+  assert.equal(repository.preflightCalls, 1);
+  assert.equal(findCalls, 0);
+  assert.equal(listCalls, 0);
+  assert.equal(provider.createCalls, 0);
   assert.equal(repository.finalized, null);
 });
