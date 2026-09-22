@@ -46,7 +46,8 @@
     "store-lifecycle:test": "npx --yes tsx --test tests/store-lifecycle.test.mts",
     "tenant-registry:test": "npx --yes tsx --test tests/tenant-registry.test.mts",
     "domain-registry:test": "npx --yes tsx --test tests/domain-registry.test.mts",
-    "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts"
+    "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts",
+    "cloudflare-saas:smoke": "npx --yes tsx scripts/cloudflare-saas-smoke.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
