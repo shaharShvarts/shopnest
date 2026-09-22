@@ -52,5 +52,18 @@ try {
     process.exit(3);
   }
 
-  throw error;
+  console.log("failed: true");
+  console.log(
+    "code:",
+    error instanceof Error && error.name === "DrizzleQueryError"
+      ? "DATABASE_QUERY_ERROR"
+      : "UNEXPECTED_ERROR"
+  );
+  console.log(
+    "message:",
+    error instanceof Error && error.name === "DrizzleQueryError"
+      ? "Domain provisioning database operation failed"
+      : "Domain provisioning failed unexpectedly"
+  );
+  process.exit(4);
 }
