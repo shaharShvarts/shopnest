@@ -6,12 +6,15 @@ import {
   eq,
   isNull,
   lte,
+  sql,
 } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/control-db";
 import {
   organizationMemberships,
+  plans,
   storeDomainClaims,
   stores,
+  subscriptions,
 } from "@/drizzle/control-plane-schema";
 import type {
   StoreDomainClaimRecord,
@@ -44,13 +47,16 @@ function mapClaim(row: ClaimSelectionRow): StoreDomainClaimRecord {
   return row;
 }
 
-function ownedStoreWhere(
+function entitledOwnedStoreWhere(
   merchantId: number,
   storeId: number
 ) {
   return and(
     eq(stores.id, storeId),
     isNull(stores.deletedAt),
+    eq(plans.status, "active"),
+    sql`${plans.code} IN ('medium', 'large')`,
+    sql`${subscriptions.status} IN ('pending', 'trialing', 'active')`,
     eq(
       organizationMemberships.organizationId,
       stores.organizationId
@@ -85,8 +91,16 @@ export class DrizzleStoreDomainClaimRepository
             stores.organizationId
           )
         )
+        .innerJoin(
+          subscriptions,
+          and(
+            eq(subscriptions.storeId, stores.id),
+            eq(subscriptions.organizationId, stores.organizationId)
+          )
+        )
+        .innerJoin(plans, eq(plans.id, subscriptions.planId))
         .where(
-          ownedStoreWhere(
+          entitledOwnedStoreWhere(
             input.merchantId,
             input.storeId
           )
@@ -161,9 +175,17 @@ export class DrizzleStoreDomainClaimRepository
           stores.organizationId
         )
       )
+      .innerJoin(
+        subscriptions,
+        and(
+          eq(subscriptions.storeId, stores.id),
+          eq(subscriptions.organizationId, stores.organizationId)
+        )
+      )
+      .innerJoin(plans, eq(plans.id, subscriptions.planId))
       .where(
         and(
-          ownedStoreWhere(
+          entitledOwnedStoreWhere(
             input.merchantId,
             input.storeId
           ),
