@@ -9,6 +9,16 @@ import {
 import { isPlatformHostname } from "../domain-registry/core.ts";
 
 export const DOMAIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
+export const CUSTOM_DOMAIN_PLAN_CODES = ["medium", "large"] as const;
+export type CustomDomainPlanCode =
+  (typeof CUSTOM_DOMAIN_PLAN_CODES)[number];
+
+export function planAllowsCustomDomain(value: unknown): value is CustomDomainPlanCode {
+  return (
+    typeof value === "string" &&
+    (CUSTOM_DOMAIN_PLAN_CODES as readonly string[]).includes(value)
+  );
+}
 export const DOMAIN_CLAIM_TXT_PREFIX = "_shopnest-verification";
 export const DOMAIN_CLAIM_VALUE_PREFIX = "shopnest-verification=";
 
