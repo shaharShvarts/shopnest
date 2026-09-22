@@ -472,3 +472,14 @@ Do not merge until:
 - security review confirms token/tenant boundaries
 - Free-plan cap is enforced
 - user explicitly approves merge
+
+
+## Merchant DNS cleanup guidance
+
+After a custom domain has completed the full activation flow and ShopNest has confirmed both the Cloudflare custom hostname and SSL are active, the merchant UI should explicitly tell the store owner that the temporary ShopNest ownership-verification TXT record is no longer required.
+
+Suggested merchant-facing copy:
+
+> Ownership verification is complete. You can now remove the ShopNest TXT verification record from your DNS.
+
+This guidance must not be shown immediately after TXT ownership verification. It should only appear after the custom domain is fully active. ShopNest does not attempt to delete the merchant's DNS record itself.
