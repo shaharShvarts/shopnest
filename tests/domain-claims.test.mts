@@ -59,6 +59,11 @@ class FakeRepository implements StoreDomainClaimRepository {
 
   async reserveTxtCheck(input: { now: Date }) {
     if (!this.claim) return { kind: "not_found" as const };
+    if (this.claim.expiresAt.getTime() <= input.now.getTime()) {
+      this.claim = { ...this.claim, status: "expired" };
+      this.expiredCalls += 1;
+      return { kind: "expired" as const, claim: this.claim };
+    }
     const last = this.claim.lastTxtCheckAt;
     if (
       last &&
@@ -79,6 +84,11 @@ class FakeRepository implements StoreDomainClaimRepository {
   async reserveCnameCheck(input: { now: Date }) {
     if (!this.claim || this.claim.status !== "verified") {
       return { kind: "not_found" as const };
+    }
+    if (this.claim.expiresAt.getTime() <= input.now.getTime()) {
+      this.claim = { ...this.claim, status: "expired" };
+      this.expiredCalls += 1;
+      return { kind: "expired" as const, claim: this.claim };
     }
     const last = this.claim.lastCnameCheckAt;
     if (
