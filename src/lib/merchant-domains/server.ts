@@ -1,6 +1,7 @@
 import "server-only";
 
 import { CloudflareSaasError } from "@/lib/cloudflare-saas/client";
+import { CloudflareSaasDisabledError } from "@/lib/cloudflare-saas/core";
 import { getCustomDomainLifecycleService } from "@/lib/custom-domain-lifecycle/server";
 import {
   merchantDomainViewFromRecord,
@@ -19,7 +20,9 @@ export async function getMerchantDomainView(
     await getCustomDomainLifecycleService()
       .cleanupExpiredRetiringForOwnedStore(merchantId, storeId, now);
   } catch (error) {
-    if (!(error instanceof CloudflareSaasError)) throw error;
+    if (!(error instanceof CloudflareSaasError || error instanceof CloudflareSaasDisabledError)) {
+      throw error;
+    }
   }
 
   const record = await repository.findForOwnedStore(

@@ -29,6 +29,25 @@ export type MerchantDomainView = {
   } | null;
 };
 
+export function merchantDomainProgress(view: MerchantDomainView) {
+  const setupHostname =
+    view.claim?.hostname ?? view.candidate?.hostname ?? view.currentPrimary?.hostname;
+  return {
+    ownershipVerified: view.claim
+      ? Boolean(view.claim.verifiedAt)
+      : Boolean(view.candidate || view.currentPrimary),
+    cnameVerified: view.claim
+      ? Boolean(view.claim.cnameVerifiedAt ||
+          view.candidate?.hostname === view.claim.hostname)
+      : Boolean(view.candidate || view.currentPrimary),
+    active: Boolean(
+      view.currentPrimary &&
+      view.currentPrimary.hostname === setupHostname &&
+      !view.claim && !view.candidate
+    ),
+  };
+}
+
 export type MerchantDomainRecord = {
   storeId: number;
   storeSlug: string;

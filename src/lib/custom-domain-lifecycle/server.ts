@@ -1,6 +1,7 @@
 import "server-only";
 
 import { CloudflareSaasError } from "@/lib/cloudflare-saas/client";
+import { CloudflareSaasDisabledError } from "@/lib/cloudflare-saas/core";
 import { getCloudflareDomainRemovalService } from "@/lib/cloudflare-saas/domain-removal-server";
 import { getCloudflareDomainSyncService } from "@/lib/cloudflare-saas/domain-sync-server";
 import { getDomainRegistryService } from "@/lib/domain-registry/server";
@@ -31,7 +32,9 @@ export async function getCustomDomainAdminSummary(
     await getCustomDomainLifecycleService()
       .cleanupExpiredRetiringForTenantSlug(tenantSlug, now);
   } catch (error) {
-    if (!(error instanceof CloudflareSaasError)) throw error;
+    if (!(error instanceof CloudflareSaasError || error instanceof CloudflareSaasDisabledError)) {
+      throw error;
+    }
   }
 
   return repository.findAdminSummary(tenantSlug);

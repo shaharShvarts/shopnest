@@ -683,9 +683,11 @@
     "txtValue": "TXT value",
     "copy": "Copy",
     "tokenExpires": "Verification code expires at {time}.",
+    "tokenExpiresIn": "Verification code expires in {seconds}s.",
     "tokenNotStored": "For security, ShopNest does not store the verification code. Create a new code to display the TXT value again.",
     "txtCleanup": "Ownership verification is complete. You can now remove the ShopNest TXT verification record from your DNS.",
     "keepCname": "Keep the CNAME record in place for the custom domain to continue working.",
-    "removeDomain": "Remove custom domain"
+    "removeDomain": "Remove custom domain",
+    "removeConfirm": "Remove this custom domain? Your ShopNest address will remain available."
   }
 }

@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
+import { CloudflareSaasError } from "../src/lib/cloudflare-saas/client.ts";
+import {
+  CloudflareSaasDisabledError,
+  readCloudflareSaasConfig,
+} from "../src/lib/cloudflare-saas/core.ts";
 
 async function source(path: string) {
   try {
@@ -125,16 +132,85 @@ test("provisioned Store detail links to its domain manager", async () => {
 });
 
 
-test("domain pages remain readable when Cloudflare SaaS is disabled", async () => {
-  const [merchantServer, lifecycleServer] = await Promise.all([
-    source("src/lib/merchant-domains/server.ts"),
-    source("src/lib/custom-domain-lifecycle/server.ts"),
-  ]);
+test("domain read models remain available when Cloudflare cleanup fails", async () => {
+  async function loadServer(path: string, dependencies: Record<string, unknown>) {
+    const { outputText } = ts.transpileModule(await readFile(path, "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS },
+    });
+    const exports: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
+    runInNewContext(outputText, {
+      exports,
+      require(id: string) {
+        if (id === "server-only") return {};
+        if (Object.hasOwn(dependencies, id)) return dependencies[id];
+        throw new Error(`Unexpected dependency: ${id}`);
+      },
+    });
+    return exports;
+  }
 
-  assert.match(merchantServer, /readCloudflareSaasConfig/);
-  assert.match(merchantServer, /readCloudflareSaasConfig\(\)\.enabled/);
-  assert.match(lifecycleServer, /readCloudflareSaasConfig/);
-  assert.match(lifecycleServer, /readCloudflareSaasConfig\(\)\.enabled/);
+  let cleanupError: Error = new CloudflareSaasError("network_error");
+  const runtime = await loadServer("src/lib/cloudflare-saas/server.ts", {
+    "./core": {
+      CloudflareSaasDisabledError,
+      readCloudflareSaasConfig: () =>
+        readCloudflareSaasConfig({ CLOUDFLARE_SAAS_ENABLED: "false" }),
+    },
+    "./client": { CloudflareSaasClient: class {} },
+  });
+  assert.throws(runtime.getCloudflareSaasRuntime, CloudflareSaasDisabledError);
+
+  const merchantRecord = { storeId: 42 };
+  const adminSummary = { tenantSlug: "shop" };
+  const merchantServer = await loadServer("src/lib/merchant-domains/server.ts", {
+    "@/lib/cloudflare-saas/client": { CloudflareSaasError },
+    "@/lib/cloudflare-saas/core": { CloudflareSaasDisabledError },
+    "@/lib/custom-domain-lifecycle/server": {
+      getCustomDomainLifecycleService: () => ({
+        cleanupExpiredRetiringForOwnedStore: async () => { throw cleanupError; },
+      }),
+    },
+    "./core": { merchantDomainViewFromRecord: (record: unknown) => record },
+    "./drizzle-repository": {
+      DrizzleMerchantDomainRepository: class {
+        async findForOwnedStore() { return merchantRecord; }
+      },
+    },
+  });
+  const adminServer = await loadServer("src/lib/custom-domain-lifecycle/server.ts", {
+    "@/lib/cloudflare-saas/client": { CloudflareSaasError },
+    "@/lib/cloudflare-saas/core": { CloudflareSaasDisabledError },
+    "@/lib/cloudflare-saas/domain-removal-server": {
+      getCloudflareDomainRemovalService: () => ({}),
+    },
+    "@/lib/cloudflare-saas/domain-sync-server": {
+      getCloudflareDomainSyncService: () => ({}),
+    },
+    "@/lib/domain-registry/server": {
+      getDomainRegistryService: () => ({ clear() {} }),
+    },
+    "./core": {
+      CustomDomainLifecycleService: class {
+        async cleanupExpiredRetiringForTenantSlug() { throw cleanupError; }
+      },
+    },
+    "./drizzle-repository": {
+      DrizzleCustomDomainLifecycleRepository: class {
+        async findAdminSummary() { return adminSummary; }
+      },
+    },
+  });
+
+  assert.equal(await merchantServer.getMerchantDomainView(7, 42), merchantRecord);
+  assert.equal(await adminServer.getCustomDomainAdminSummary("shop"), adminSummary);
+
+  cleanupError = new CloudflareSaasDisabledError();
+  assert.equal(await merchantServer.getMerchantDomainView(7, 42), merchantRecord);
+  assert.equal(await adminServer.getCustomDomainAdminSummary("shop"), adminSummary);
+
+  cleanupError = new Error("database unavailable");
+  await assert.rejects(merchantServer.getMerchantDomainView(7, 42), cleanupError);
+  await assert.rejects(adminServer.getCustomDomainAdminSummary("shop"), cleanupError);
 });
 
 test("merchant domain progress follows the domain being configured, not an older primary", async () => {

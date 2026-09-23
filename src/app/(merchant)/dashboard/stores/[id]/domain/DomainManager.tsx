@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type {
-  MerchantDomainActionState,
-  MerchantDomainView,
+import {
+  merchantDomainProgress,
+  type MerchantDomainActionState,
+  type MerchantDomainView,
 } from "@/lib/merchant-domains/core";
 import {
   checkDomainCnameAction,
@@ -117,15 +118,12 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
 
   const setupHostname =
     view.claim?.hostname ?? view.candidate?.hostname ?? token?.hostname ?? null;
-  const ownershipVerified = Boolean(view.claim?.verifiedAt);
-  const cnameVerified = Boolean(
-    view.claim?.cnameVerifiedAt || view.candidate
-  );
-  const providerReady = Boolean(
-    view.currentPrimary &&
-      (!view.candidate ||
-        view.currentPrimary.hostname === view.candidate.hostname)
-  );
+  const {
+    ownershipVerified,
+    cnameVerified,
+    active: providerReady,
+  } = merchantDomainProgress(view);
+  const claimRemaining = remainingSeconds(view.claim?.expiresAt ?? null, now);
 
   return (
     <div className="space-y-6">
@@ -202,6 +200,13 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
         {view.claim ? (
           <div className="mt-6 space-y-5">
             <h3 className="font-bold">{t("verifyOwnership")}</h3>
+            {view.claim.status === "pending_verification" ? (
+              <p className="text-sm text-muted-foreground">
+                {claimRemaining > 0
+                  ? t("tokenExpiresIn", { seconds: claimRemaining })
+                  : t("claimExpired")}
+              </p>
+            ) : null}
 
             {token ? (
               <div className="space-y-3">
@@ -348,6 +353,7 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
                 className="mt-4"
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (!window.confirm(t("removeConfirm"))) return;
                   const formData = new FormData(event.currentTarget);
                   formData.set("hostname", view.currentPrimary!.hostname);
                   submit(removeDomainAction, formData);
