@@ -110,6 +110,7 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     cookies = { set() {} };
     static next(options) { return Object.assign(new Response(), { kind: "next", headers: options.request.headers }); }
     static rewrite(url, options) { return Object.assign(new Response(), { kind: "rewrite", url, headers: options.request.headers }); }
+    static redirect(url, status = 307) { return Object.assign(new Response(null, { status }), { kind: "redirect", url }); }
   }
   const fixtureRouting = {
     ...routing,
@@ -188,6 +189,7 @@ test("custom Host resolves one trusted Tenant and keeps public URLs slug-free", 
     cookies = { set() {} };
     static next(options) { return Object.assign(new Response(), { kind: "next", headers: options.request.headers }); }
     static rewrite(url, options) { return Object.assign(new Response(), { kind: "rewrite", url, headers: options.request.headers }); }
+    static redirect(url, status = 307) { return Object.assign(new Response(null, { status }), { kind: "redirect", url }); }
   }
 
   const tenant = resolveFixtureTenant("panda-pop");
@@ -205,8 +207,18 @@ test("custom Host resolves one trusted Tenant and keeps public URLs slug-free", 
     "./lib/domain-registry/server": {
       resolveTrustedDomain: async hostname => {
         if (hostname === "error.example") throw new Error("db unavailable");
-        return hostname === "store.example" ? { hostname, tenant } : null;
+        if (hostname === "old.example") {
+          return {
+            kind: "redirect",
+            hostname,
+            targetHostname: "store.example",
+          };
+        }
+        return hostname === "store.example"
+          ? { kind: "tenant", hostname, tenant }
+          : null;
       },
+      resolvePrimaryDomainForTenantSlug: async () => null,
     },
   });
 
@@ -354,4 +366,103 @@ test("route inventory covers every physical page and handler", () => {
   const patterns = routes(new URL("../src/app/", import.meta.url));
   assert.equal(patterns.length, new Set(patterns).size);
   for (const route of patterns) assert.ok(inventory.includes(`\`${route}\``), `Missing inventory: ${route}`);
+});
+
+
+test("platform storefront GET redirects to primary custom domain without redirecting POST or handlers", async () => {
+  class Response {
+    constructor(body, options = {}) { this.body = body; this.status = options.status; }
+    cookies = { set() {} };
+    static next(options) { return Object.assign(new Response(), { kind: "next", headers: options.request.headers }); }
+    static rewrite(url, options) { return Object.assign(new Response(), { kind: "rewrite", url, headers: options.request.headers }); }
+    static redirect(url, status = 307) { return Object.assign(new Response(null, { status }), { kind: "redirect", url }); }
+  }
+
+  const fixtureRouting = {
+    ...routing,
+    resolveTenantRouteAsync: pathname =>
+      Promise.resolve(routing.resolveTenantRoute(pathname, resolveFixtureTenant)),
+  };
+  const { middleware } = load("../src/middleware.ts", {
+    nanoid: { nanoid: () => "redirect-session" },
+    "next/server": { NextResponse: Response },
+    "./lib/tenant-routing/core": fixtureRouting,
+    "./lib/tenant-registry/server": {
+      resolveTrustedTenant: async value => resolveFixtureTenant(value),
+    },
+    "./lib/domain-registry/core": {
+      normalizeRequestHostname: value => String(value || "").toLowerCase().replace(/:\\d+$/, ""),
+      isPlatformHostname: hostname => hostname === "shopnest.co.il",
+    },
+    "./lib/domain-registry/server": {
+      resolveTrustedDomain: async () => null,
+      resolvePrimaryDomainForTenantSlug: async slug =>
+        slug === "panda-pop" ? "store.example" : null,
+    },
+  });
+
+  const page = await middleware({
+    method: "GET",
+    nextUrl: new URL("https://shopnest.co.il/panda-pop/categories?q=gift"),
+    headers: new Headers({ host: "shopnest.co.il" }),
+    cookies: { has: () => false },
+  });
+  assert.equal(page.kind, "redirect");
+  assert.equal(page.status, 302);
+  assert.equal(page.url.toString(), "https://store.example/categories?q=gift");
+
+  const post = await middleware({
+    method: "POST",
+    nextUrl: new URL("https://shopnest.co.il/panda-pop/categories?q=gift"),
+    headers: new Headers({ host: "shopnest.co.il" }),
+    cookies: { has: () => false },
+  });
+  assert.notEqual(post.kind, "redirect");
+
+  const handler = await middleware({
+    method: "GET",
+    nextUrl: new URL("https://shopnest.co.il/panda-pop/api/cart/add?q=gift"),
+    headers: new Headers({ host: "shopnest.co.il" }),
+    cookies: { has: () => false },
+  });
+  assert.equal(handler.kind, "rewrite");
+});
+
+test("retiring custom host redirects to trusted primary preserving path and query", async () => {
+  class Response {
+    constructor(body, options = {}) { this.body = body; this.status = options.status; }
+    cookies = { set() {} };
+    static next(options) { return Object.assign(new Response(), { kind: "next", headers: options.request.headers }); }
+    static rewrite(url, options) { return Object.assign(new Response(), { kind: "rewrite", url, headers: options.request.headers }); }
+    static redirect(url, status = 307) { return Object.assign(new Response(null, { status }), { kind: "redirect", url }); }
+  }
+
+  const { middleware } = load("../src/middleware.ts", {
+    nanoid: { nanoid: () => "retiring-session" },
+    "next/server": { NextResponse: Response },
+    "./lib/tenant-routing/core": routing,
+    "./lib/tenant-registry/server": { resolveTrustedTenant: async () => null },
+    "./lib/domain-registry/core": {
+      normalizeRequestHostname: value => String(value || "").toLowerCase().replace(/:\\d+$/, ""),
+      isPlatformHostname: hostname => hostname === "shopnest.co.il",
+    },
+    "./lib/domain-registry/server": {
+      resolveTrustedDomain: async hostname =>
+        hostname === "old.example"
+          ? { kind: "redirect", hostname, targetHostname: "new.example" }
+          : null,
+      resolvePrimaryDomainForTenantSlug: async () => null,
+    },
+  });
+
+  const response = await middleware({
+    method: "GET",
+    nextUrl: new URL("https://old.example/products/7?q=gift"),
+    headers: new Headers({ host: "old.example" }),
+    cookies: { has: () => false },
+  });
+
+  assert.equal(response.kind, "redirect");
+  assert.equal(response.status, 302);
+  assert.equal(response.url.toString(), "https://new.example/products/7?q=gift");
 });
