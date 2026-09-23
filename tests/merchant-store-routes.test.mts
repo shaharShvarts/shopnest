@@ -55,6 +55,7 @@ test("merchant Store pages are global protected and tenant-independent", async (
     "src/app/(merchant)/dashboard/stores/new/page.tsx",
     "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
     "src/app/(merchant)/dashboard/stores/[id]/edit/page.tsx",
+    "src/app/(merchant)/dashboard/stores/[id]/domain/page.tsx",
   ];
   const sources = await Promise.all(paths.map((path) => readFile(path, "utf8")));
 
