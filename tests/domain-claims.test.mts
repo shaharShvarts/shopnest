@@ -255,3 +255,77 @@ test("domain claim rejects unsupported apex domains", () => {
     "shop.excelapp.co.il"
   );
 });
+
+
+test("starting a claim rejects a DNS zone apex before creating ownership proof", async () => {
+  const repository = new FakeRepository();
+  let soaCalls = 0;
+  const resolver = {
+    async resolveTxt() {
+      return [];
+    },
+    async resolveSoa(name: string) {
+      soaCalls += 1;
+      assert.equal(name, "customer.uk.com");
+      return {
+        nsname: "ns1.example.test",
+        hostmaster: "hostmaster.example.test",
+        serial: 1,
+        refresh: 3600,
+        retry: 600,
+        expire: 86400,
+        minttl: 300,
+      };
+    },
+  } as any;
+
+  const service = new DomainOwnershipClaimService(
+    repository,
+    resolver,
+    () => "f".repeat(43)
+  );
+
+  await assert.rejects(
+    () =>
+      service.startClaim(
+        10,
+        20,
+        "customer.uk.com",
+        new Date("2026-09-23T13:30:00Z")
+      ),
+    /apex/
+  );
+
+  assert.equal(soaCalls, 1);
+  assert.equal(repository.createCalls, 0);
+});
+
+test("starting a claim allows a real subdomain when no SOA exists at that hostname", async () => {
+  const repository = new FakeRepository();
+  const resolver = {
+    async resolveTxt() {
+      return [];
+    },
+    async resolveSoa() {
+      const error = new Error("no SOA record") as Error & { code?: string };
+      error.code = "ENODATA";
+      throw error;
+    },
+  } as any;
+
+  const service = new DomainOwnershipClaimService(
+    repository,
+    resolver,
+    () => "g".repeat(43)
+  );
+
+  const result = await service.startClaim(
+    10,
+    20,
+    "shop.customer.uk.com",
+    new Date("2026-09-23T13:30:00Z")
+  );
+
+  assert.equal(result.hostname, "shop.customer.uk.com");
+  assert.equal(repository.createCalls, 1);
+});
