@@ -499,7 +499,7 @@ Use a per-Tenant advisory transaction lock:
 
 ```ts
 await tx.execute(
-  sql$SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${tenantId})$
+  sql`SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${tenantId})`
 );
 ```
 
