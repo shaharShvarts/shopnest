@@ -22,6 +22,27 @@ export type DomainCutoverResult = {
   replacedHostname: string | null;
 };
 
+export type RetirementCleanupReservation =
+  | { kind: "none" }
+  | {
+      kind: "ready";
+      domainId: number;
+      hostname: string;
+      providerHostnameId: string | null;
+    };
+
+export type DomainRollbackResult = {
+  restoredHostname: string;
+  retiringHostname: string;
+};
+
+export interface DomainCleanupService {
+  cleanupReservation(
+    reservation: Extract<RetirementCleanupReservation, { kind: "ready" }>,
+    now?: Date
+  ): Promise<void>;
+}
+
 export interface CustomDomainLifecycleRepository {
   reserveOwnedCandidateCheck(input: {
     merchantId: number;
@@ -37,6 +58,24 @@ export interface CustomDomainLifecycleRepository {
     now: Date;
     retirementMs: number;
   }): Promise<DomainCutoverResult>;
+
+  reserveExpiredRetiringForOwnedStore(input: {
+    merchantId: number;
+    storeId: number;
+    now: Date;
+  }): Promise<RetirementCleanupReservation>;
+
+  reserveExpiredRetiringForTenantSlug(input: {
+    tenantSlug: string;
+    now: Date;
+  }): Promise<RetirementCleanupReservation>;
+
+  rollbackRetiringDomain(input: {
+    tenantSlug: string;
+    restoreHostname: string;
+    now: Date;
+    retirementMs: number;
+  }): Promise<DomainRollbackResult>;
 }
 
 export interface DomainSyncService {
@@ -68,7 +107,8 @@ export class CustomDomainLifecycleError extends Error {
       | "ELIGIBILITY_CHANGED"
       | "CANDIDATE_CONFLICT"
       | "CANDIDATE_NOT_MANAGED"
-      | "LIFECYCLE_BUSY",
+      | "LIFECYCLE_BUSY"
+      | "ROLLBACK_NOT_AVAILABLE",
     message: string
   ) {
     super(message);
@@ -80,7 +120,8 @@ export class CustomDomainLifecycleService {
   constructor(
     private readonly repository: CustomDomainLifecycleRepository,
     private readonly syncService: DomainSyncService,
-    private readonly clearDomainCache: () => void
+    private readonly clearDomainCache: () => void,
+    private readonly cleanupService?: DomainCleanupService
   ) {}
 
   async checkOwnedCandidate(
@@ -145,4 +186,71 @@ export class CustomDomainLifecycleService {
       replacedHostname: cutover.replacedHostname,
     };
   }
+
+  async cleanupExpiredRetiringForOwnedStore(
+    merchantId: number,
+    storeId: number,
+    now = new Date()
+  ) {
+    const reservation =
+      await this.repository.reserveExpiredRetiringForOwnedStore({
+        merchantId,
+        storeId,
+        now,
+      });
+
+    return this.cleanupRetirementReservation(reservation, now);
+  }
+
+  async cleanupExpiredRetiringForTenantSlug(
+    tenantSlug: string,
+    now = new Date()
+  ) {
+    const reservation =
+      await this.repository.reserveExpiredRetiringForTenantSlug({
+        tenantSlug,
+        now,
+      });
+
+    return this.cleanupRetirementReservation(reservation, now);
+  }
+
+  async rollbackRetiringDomainForAdmin(
+    tenantSlug: string,
+    restoreHostname: string,
+    now = new Date()
+  ): Promise<DomainRollbackResult> {
+    const result = await this.repository.rollbackRetiringDomain({
+      tenantSlug,
+      restoreHostname,
+      now,
+      retirementMs: CUSTOM_DOMAIN_RETIREMENT_MS,
+    });
+    this.clearDomainCache();
+    return result;
+  }
+
+  private async cleanupRetirementReservation(
+    reservation: RetirementCleanupReservation,
+    now: Date
+  ) {
+    if (reservation.kind === "none") {
+      return { kind: "none" as const };
+    }
+
+    if (!this.cleanupService) {
+      throw new Error("Custom-domain cleanup service is unavailable");
+    }
+
+    // The repository has already made the domain locally non-routable.
+    // Clear all cached host/tenant-domain decisions before external cleanup.
+    this.clearDomainCache();
+    await this.cleanupService.cleanupReservation(reservation, now);
+
+    return {
+      kind: "cleaned" as const,
+      hostname: reservation.hostname,
+    };
+  }
+
 }
