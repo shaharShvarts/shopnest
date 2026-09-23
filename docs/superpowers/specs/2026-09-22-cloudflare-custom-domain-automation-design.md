@@ -13,12 +13,12 @@ Automate the lifecycle between ShopNest `public.store_domains` and Cloudflare fo
 
 The first release is intentionally constrained to Cloudflare Free-compatible capabilities.
 
-This PR owns:
+This PR is the backend/provider foundation for custom domains. It owns:
 - Cloudflare for SaaS custom-hostname API integration
-- merchant-owned custom-domain request lifecycle
+- merchant ownership-claim services
 - Cloudflare custom-hostname creation
 - Cloudflare status synchronization
-- customer DNS instructions
+- server-side DNS instruction data
 - activation only after Cloudflare hostname and SSL readiness
 - removal/deactivation synchronization
 - Free-plan quota guard
@@ -26,7 +26,7 @@ This PR owns:
 - DEV/STAGING provider tests with mocked Cloudflare by default
 - optional manual sandbox acceptance against the real Cloudflare account
 
-This PR does not purchase domains, change registrar nameservers, or depend on paid Cloudflare features.
+The merchant dashboard/API surface is intentionally deferred to a follow-up PR. This PR does not purchase domains, change registrar nameservers, or depend on paid Cloudflare features.
 
 ## 2. Cloudflare Free constraints
 
@@ -321,14 +321,14 @@ Business/service layer responsibilities:
 - idempotency
 - cache invalidation
 
-## 13. Merchant UI
+## 13. Merchant UI / API follow-up
 
-Use the existing merchant dashboard route family.
+Merchant-facing routes are intentionally out of scope for this PR and will be implemented in a follow-up PR using the backend/provider services established here.
 
-Initial page:
+Planned route family:
 - `/dashboard/domain`
 
-States:
+Planned states:
 - no domain
 - pending DNS setup
 - provisioning
@@ -336,18 +336,18 @@ States:
 - failed/retryable
 - removed
 
-UI must not claim the domain is live based only on browser DNS checks.
+The future UI must not claim the domain is live based only on browser DNS checks. Server/provider status remains authoritative.
 
-Server/provider status is authoritative.
-
-The page shows:
+The follow-up page/API should expose:
 - requested hostname
+- ownership TXT instructions
 - CNAME target
 - hostname status
 - SSL status
-- retry/check button
+- retry/check action
 - remove action
-- clear explanation that initial Free-compatible release supports subdomains, not apex domains
+- TXT cleanup guidance only after full activation
+- clear explanation that the Free-compatible release supports subdomains, not apex domains
 
 ## 14. Free-plan guard
 
@@ -460,6 +460,7 @@ Before real Cloudflare acceptance:
 - per-merchant custom origins
 - automated DNS changes in customer-owned zones
 - automatic billing
+- merchant dashboard/API routes for custom-domain onboarding and management
 - production rollout before DEV/STAGING acceptance
 
 ## 20. Acceptance gate
@@ -476,7 +477,7 @@ Do not merge until:
 
 ## Merchant DNS cleanup guidance
 
-After a custom domain has completed the full activation flow and ShopNest has confirmed both the Cloudflare custom hostname and SSL are active, the merchant UI should explicitly tell the store owner that the temporary ShopNest ownership-verification TXT record is no longer required.
+After a custom domain has completed the full activation flow and ShopNest has confirmed both the Cloudflare custom hostname and SSL are active, the follow-up merchant UI should explicitly tell the store owner that the temporary ShopNest ownership-verification TXT record is no longer required.
 
 Suggested merchant-facing copy:
 
