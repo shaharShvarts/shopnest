@@ -91,6 +91,10 @@ export class DrizzleCloudflareDomainRemovalRepository
         .update(storeDomains)
         .set({
           status: "removed",
+          lifecycleRole: null,
+          isPrimary: false,
+          retireAt: null,
+          redirectToDomainId: null,
           providerLastErrorCode: null,
           providerLastErrorAt: null,
           updatedAt: input.now,
