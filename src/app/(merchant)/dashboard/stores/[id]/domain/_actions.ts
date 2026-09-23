@@ -1,126 +1,134 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireMerchantPage } from "@/lib/merchant-auth/server";
-import { parseStoreId } from "@/lib/merchant-stores/core";
-import { getDomainOwnershipClaimService } from "@/lib/domain-claims/server";
 import { getCloudflareDomainProvisioningService } from "@/lib/cloudflare-saas/domain-provisioning-server";
-import { getCustomDomainLifecycleService } from "@/lib/custom-domain-lifecycle/server";
 import { getCloudflareDomainRemovalService } from "@/lib/cloudflare-saas/domain-removal-server";
+import { getCustomDomainLifecycleService } from "@/lib/custom-domain-lifecycle/server";
+import { getDomainOwnershipClaimService } from "@/lib/domain-claims/server";
+import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import type { MerchantDomainActionState } from "@/lib/merchant-domains/core";
+import { getMerchantDomainView } from "@/lib/merchant-domains/server";
+import { parseStoreId } from "@/lib/merchant-stores/core";
+
+function storeIdFrom(formData: FormData) {
+  return parseStoreId(formData.get("storeId"));
+}
+
+function hostnameFrom(formData: FormData) {
+  const value = formData.get("hostname");
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("invalid_custom_domain_hostname");
+  }
+  return value;
+}
 
 function pathFor(storeId: number) {
   return "/dashboard/stores/" + storeId + "/domain";
 }
 
-function hostnameFrom(formData: FormData) {
-  const value = formData.get("hostname");
-  if (typeof value !== "string") {
-    throw new Error("invalid_hostname");
-  }
-  return value;
-}
-
-function failure(): MerchantDomainActionState {
-  return { kind: "failed" };
+function cooldown(nextAllowedAt: Date): MerchantDomainActionState {
+  return {
+    kind: "cooldown",
+    nextAllowedAt: nextAllowedAt.toISOString(),
+  };
 }
 
 export async function startDomainClaimAction(
+  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
 
-  let storeId: number;
   try {
-    storeId = parseStoreId(formData.get("storeId"));
-    const started = await getDomainOwnershipClaimService().startClaim(
+    const storeId = storeIdFrom(formData);
+    const result = await getDomainOwnershipClaimService().startClaim(
       merchant.id,
       storeId,
       hostnameFrom(formData)
     );
+
     revalidatePath(pathFor(storeId));
     return {
       kind: "claim_started",
       token: {
-        hostname: started.hostname,
-        dnsName: started.dnsName,
-        dnsValue: started.dnsValue,
-        expiresAt: started.expiresAt.toISOString(),
+        hostname: result.hostname,
+        dnsName: result.dnsName,
+        dnsValue: result.dnsValue,
+        expiresAt: result.expiresAt.toISOString(),
       },
     };
   } catch {
-    return failure();
+    return { kind: "failed" };
   }
 }
 
 export async function checkDomainTxtAction(
+  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
 
   try {
-    const storeId = parseStoreId(formData.get("storeId"));
+    const storeId = storeIdFrom(formData);
     const result = await getDomainOwnershipClaimService().verifyClaim(
       merchant.id,
       storeId,
       hostnameFrom(formData)
     );
+
     revalidatePath(pathFor(storeId));
 
-    if (result.kind === "cooldown") {
-      return {
-        kind: "cooldown",
-        nextAllowedAt: result.nextAllowedAt.toISOString(),
-      };
-    }
-    if (result.kind === "expired") {
-      return { kind: "claim_expired" };
-    }
-    if (result.kind === "verified") {
-      return { kind: "txt_verified" };
-    }
-    if (result.kind === "not_found") {
-      return { kind: "not_found" };
-    }
+    if (result.kind === "cooldown") return cooldown(result.nextAllowedAt);
+    if (result.kind === "expired") return { kind: "claim_expired" };
+    if (result.kind === "verified") return { kind: "txt_verified" };
+    if (result.kind === "not_found") return { kind: "not_found" };
     return { kind: "txt_pending" };
   } catch {
-    return failure();
+    return { kind: "failed" };
   }
 }
 
 export async function checkDomainCnameAction(
+  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
 
   try {
-    const storeId = parseStoreId(formData.get("storeId"));
+    const storeId = storeIdFrom(formData);
     const hostname = hostnameFrom(formData);
-    const verified = await getDomainOwnershipClaimService().verifyCname(
+    const result = await getDomainOwnershipClaimService().verifyCname(
       merchant.id,
       storeId,
       hostname
     );
 
-    if (verified.kind === "cooldown") {
-      return {
-        kind: "cooldown",
-        nextAllowedAt: verified.nextAllowedAt.toISOString(),
-      };
+    if (result.kind === "cooldown") {
+      revalidatePath(pathFor(storeId));
+      return cooldown(result.nextAllowedAt);
     }
-    if (verified.kind === "expired") {
+    if (result.kind === "expired") {
+      revalidatePath(pathFor(storeId));
       return { kind: "claim_expired" };
     }
-    if (verified.kind === "not_found") {
+    if (result.kind === "not_found" || result.kind === "not_verified") {
+      revalidatePath(pathFor(storeId));
       return { kind: "not_found" };
     }
-    if (verified.kind !== "verified") {
-      return { kind: "cname_pending" };
+    if (result.kind === "pending") {
+      revalidatePath(pathFor(storeId));
+      return {
+        kind: "cname_pending",
+        nextAllowedAt: result.nextAllowedAt.toISOString(),
+      };
     }
 
     const provisioned =
-      await getCloudflareDomainProvisioningService()
-        .provisionVerifiedClaim(merchant.id, storeId, hostname);
+      await getCloudflareDomainProvisioningService().provisionVerifiedClaim(
+        merchant.id,
+        storeId,
+        hostname
+      );
 
     revalidatePath(pathFor(storeId));
 
@@ -130,22 +138,22 @@ export async function checkDomainCnameAction(
 
     return {
       kind: "provisioning",
-      providerHostnameStatus:
-        provisioned.providerHostnameStatus,
+      providerHostnameStatus: provisioned.providerHostnameStatus,
       providerSslStatus: provisioned.providerSslStatus,
     };
   } catch {
-    return failure();
+    return { kind: "failed" };
   }
 }
 
 export async function checkDomainProviderAction(
+  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
 
   try {
-    const storeId = parseStoreId(formData.get("storeId"));
+    const storeId = storeIdFrom(formData);
     const result =
       await getCustomDomainLifecycleService().checkOwnedCandidate(
         merchant.id,
@@ -154,46 +162,44 @@ export async function checkDomainProviderAction(
 
     revalidatePath(pathFor(storeId));
 
-    if (result.kind === "cooldown") {
-      return {
-        kind: "cooldown",
-        nextAllowedAt: result.nextAllowedAt.toISOString(),
-      };
-    }
-    if (result.kind === "not_found") {
-      return { kind: "not_found" };
-    }
-    if (result.kind === "pending") {
-      return {
-        kind: "provider_pending",
-        nextAllowedAt: result.nextAllowedAt.toISOString(),
-        providerHostnameStatus:
-          result.providerHostnameStatus,
-        providerSslStatus: result.providerSslStatus,
-      };
-    }
-    return { kind: "activated" };
+    if (result.kind === "cooldown") return cooldown(result.nextAllowedAt);
+    if (result.kind === "not_found") return { kind: "not_found" };
+    if (result.kind === "activated") return { kind: "activated" };
+
+    return {
+      kind: "provider_pending",
+      nextAllowedAt: result.nextAllowedAt.toISOString(),
+      providerHostnameStatus: result.providerHostnameStatus,
+      providerSslStatus: result.providerSslStatus,
+    };
   } catch {
-    return failure();
+    return { kind: "failed" };
   }
 }
 
 export async function removeDomainAction(
+  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
 
   try {
-    const storeId = parseStoreId(formData.get("storeId"));
+    const storeId = storeIdFrom(formData);
+    const view = await getMerchantDomainView(merchant.id, storeId);
+    const hostname = view?.currentPrimary?.hostname;
+
+    if (!hostname) return { kind: "not_found" };
+
     await getCloudflareDomainRemovalService().removeOwnedDomain(
       merchant.id,
       storeId,
-      hostnameFrom(formData)
+      hostname
     );
+
     revalidatePath(pathFor(storeId));
     revalidatePath("/dashboard/stores/" + storeId);
     return { kind: "removed" };
   } catch {
-    return failure();
+    return { kind: "failed" };
   }
 }
