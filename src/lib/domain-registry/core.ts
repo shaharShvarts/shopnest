@@ -3,6 +3,7 @@ import {
   type TenantRegistryRecord,
   type TrustedTenant,
 } from "../tenant-registry/core.ts";
+import { normalizeTenantSlug } from "../tenant-validation.mjs";
 
 export const DOMAIN_REGISTRY_CACHE_TTL_MS = 5_000;
 
@@ -14,16 +15,31 @@ export type DomainRegistryRecord = {
     | "active"
     | "failed"
     | "removed";
+  lifecycleRole: "candidate" | "primary" | "retiring" | null;
+  providerHostnameStatus: string | null;
+  providerSslStatus: string | null;
+  retireAt: Date | null;
+  redirectTargetHostname: string | null;
   tenant: TenantRegistryRecord;
 };
 
-export type TrustedDomainResolution = {
-  hostname: string;
-  tenant: TrustedTenant;
-};
+export type TrustedDomainResolution =
+  | {
+      kind: "tenant";
+      hostname: string;
+      tenant: TrustedTenant;
+    }
+  | {
+      kind: "redirect";
+      hostname: string;
+      targetHostname: string;
+    };
 
 export interface DomainRegistryRepository {
   findActiveByHostname(hostname: string): Promise<DomainRegistryRecord | null>;
+  findPrimaryByTenantSlug(
+    tenantSlug: string
+  ): Promise<{ hostname: string } | null>;
 }
 
 function validIpv4(hostname: string) {
@@ -107,13 +123,16 @@ export function isPlatformHostname(value: unknown) {
 }
 
 export function trustedDomainFromRegistryRecord(
-  record: DomainRegistryRecord
+  record: DomainRegistryRecord,
+  now = Date.now()
 ): TrustedDomainResolution | null {
   const hostname = normalizeCustomDomainHostname(record.hostname);
   if (
     !hostname ||
     hostname !== record.hostname ||
-    record.domainStatus !== "active"
+    record.domainStatus !== "active" ||
+    record.providerHostnameStatus !== "active" ||
+    record.providerSslStatus !== "active"
   ) {
     return null;
   }
@@ -121,7 +140,38 @@ export function trustedDomainFromRegistryRecord(
   const tenant = trustedTenantFromRegistryRecord(record.tenant);
   if (!tenant) return null;
 
-  return Object.freeze({ hostname, tenant });
+  if (record.lifecycleRole === "primary") {
+    return Object.freeze({
+      kind: "tenant" as const,
+      hostname,
+      tenant,
+    });
+  }
+
+  if (
+    record.lifecycleRole !== "retiring" ||
+    !record.retireAt ||
+    record.retireAt.getTime() <= now
+  ) {
+    return null;
+  }
+
+  const targetHostname = normalizeCustomDomainHostname(
+    record.redirectTargetHostname
+  );
+  if (
+    !targetHostname ||
+    targetHostname !== record.redirectTargetHostname ||
+    targetHostname === hostname
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    kind: "redirect" as const,
+    hostname,
+    targetHostname,
+  });
 }
 
 type CachedDomain = {
@@ -129,8 +179,14 @@ type CachedDomain = {
   value: TrustedDomainResolution | null;
 };
 
+type CachedPrimaryDomain = {
+  expiresAt: number;
+  value: string | null;
+};
+
 export class DomainRegistryService {
   private readonly cache = new Map<string, CachedDomain>();
+  private readonly primaryCache = new Map<string, CachedPrimaryDomain>();
   private readonly repository: DomainRegistryRepository;
   private readonly ttlMs: number;
 
@@ -155,7 +211,7 @@ export class DomainRegistryService {
 
     const record = await this.repository.findActiveByHostname(hostname);
     const resolution = record
-      ? trustedDomainFromRegistryRecord(record)
+      ? trustedDomainFromRegistryRecord(record, now)
       : null;
 
     this.cache.set(hostname, {
@@ -166,12 +222,40 @@ export class DomainRegistryService {
     return resolution;
   }
 
+  async resolvePrimaryDomainForTenantSlug(
+    value: unknown,
+    now = Date.now()
+  ): Promise<string | null> {
+    const tenant = normalizeTenantSlug(value);
+    if (!tenant) return null;
+
+    const cached = this.primaryCache.get(tenant.slug);
+    if (cached && cached.expiresAt > now) return cached.value;
+    if (cached) this.primaryCache.delete(tenant.slug);
+
+    const record = await this.repository.findPrimaryByTenantSlug(tenant.slug);
+    const hostname = record
+      ? normalizeCustomDomainHostname(record.hostname)
+      : null;
+    const valueToCache =
+      hostname && hostname === record?.hostname ? hostname : null;
+
+    this.primaryCache.set(tenant.slug, {
+      value: valueToCache,
+      expiresAt: now + this.ttlMs,
+    });
+
+    return valueToCache;
+  }
+
   clear(hostname?: string) {
     if (hostname) {
       const normalized = normalizeCustomDomainHostname(hostname);
       if (normalized) this.cache.delete(normalized);
+      this.primaryCache.clear();
       return;
     }
     this.cache.clear();
+    this.primaryCache.clear();
   }
 }
