@@ -103,11 +103,12 @@ A row is created only after:
 
 The legacy `verification_token` field in `store_domains` should be removed from the logical model because ownership tokens belong only to `store_domain_claims`. The implementation plan must choose a migration-safe way to retire it without destructive reset behavior.
 
-Add a lifecycle role/state that distinguishes:
+Add a lifecycle role that distinguishes only non-removed bindings:
 - `candidate` — Cloudflare resource exists or is being provisioned, but it is not yet the Store's active custom domain.
 - `primary` — current active custom domain.
 - `retiring` — previous primary during a 24-hour redirect/rollback window.
-- `removed` — locally non-routable and eligible for provider cleanup/retry.
+
+The existing ShopNest routing status remains separate. In particular, `status='removed'` means the row is locally non-routable and eligible for provider cleanup/retry; `removed` is not a lifecycle role.
 
 Required replacement metadata:
 - `cname_verified_at`
@@ -335,7 +336,7 @@ Expired retirement is cleaned lazily on relevant server-side domain activity, su
 - other server-side domain-management entry points that naturally load lifecycle state
 
 When `retire_at <= now`:
-1. mark the retiring domain locally non-routable first
+1. mark the retiring domain locally non-routable first by setting its routing status to `removed`
 2. clear routing cache
 3. attempt Cloudflare Custom Hostname deletion
 4. if delete succeeds or Cloudflare says it is already absent, finalize provider cleanup
@@ -349,7 +350,7 @@ Cloudflare cleanup failure must never restore routing.
 If the merchant removes the current custom domain without replacing it:
 
 1. authorize Store ownership
-2. mark custom domain locally non-routable first
+2. set the custom domain routing status to `removed` first
 3. clear domain routing cache
 4. immediately stop redirecting the ShopNest slug URL
 5. `shopnest.co.il/<slug>` immediately serves the Store normally
@@ -365,10 +366,10 @@ Existing trusted Host routing remains fail-closed.
 A Host never selects a schema directly.
 
 Routing rules:
-- `primary` + active provider-ready domain -> route to its trusted Tenant
-- `candidate` -> never routable
-- `retiring` inside retirement window -> 302 only to its stored primary target; do not render the Store directly
-- `removed` -> not routable
+- lifecycle `primary` + routing status `active` + provider-ready domain -> route to its trusted Tenant
+- lifecycle `candidate` -> never routable
+- lifecycle `retiring` inside retirement window -> 302 only to its stored primary target; do not render the Store directly
+- routing status `removed` -> not routable regardless of lifecycle role
 - unknown hostname -> existing fail-closed behavior
 - inactive Tenant -> not routable
 
