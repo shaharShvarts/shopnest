@@ -52,7 +52,8 @@
     "cloudflare-domain-provision:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-provision-smoke.mts",
     "domain-claim:start": "npx --yes tsx --conditions=react-server scripts/domain-claim-start.mts",
     "domain-claim:verify": "npx --yes tsx --conditions=react-server scripts/domain-claim-verify.mts",
-    "dev-acceptance:provision-store": "npx --yes tsx --conditions=react-server scripts/dev-acceptance-provision-store.mts"
+    "dev-acceptance:provision-store": "npx --yes tsx --conditions=react-server scripts/dev-acceptance-provision-store.mts",
+    "staging-acceptance:provision-store": "npx --yes tsx --conditions=react-server scripts/staging-acceptance-provision-store.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
