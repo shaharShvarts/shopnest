@@ -21,6 +21,7 @@ import {
 } from "@/drizzle/control-plane-schema";
 import {
   CustomDomainLifecycleError,
+  type CustomDomainAdminSummary,
   type CustomDomainLifecycleRepository,
   type DomainCutoverResult,
   type DomainRollbackResult,
@@ -504,6 +505,62 @@ export class DrizzleCustomDomainLifecycleRepository
         retiringHostname: primary.hostname,
       };
     });
+  }
+
+  async findAdminSummary(
+    tenantSlug: string
+  ): Promise<CustomDomainAdminSummary | null> {
+    const [tenant] = await getControlPlaneDb()
+      .select({ tenantId: controlPlaneTenants.id })
+      .from(controlPlaneTenants)
+      .where(eq(controlPlaneTenants.slug, tenantSlug))
+      .limit(1);
+
+    if (!tenant) return null;
+
+    const rows = await getControlPlaneDb()
+      .select({
+        id: storeDomains.id,
+        hostname: storeDomains.hostname,
+        lifecycleRole: storeDomains.lifecycleRole,
+        redirectToDomainId: storeDomains.redirectToDomainId,
+        retireAt: storeDomains.retireAt,
+      })
+      .from(storeDomains)
+      .where(
+        and(
+          eq(storeDomains.tenantId, tenant.tenantId),
+          ne(storeDomains.status, "removed")
+        )
+      );
+
+    const primary = rows.find(
+      (row) => row.lifecycleRole === "primary"
+    );
+    const retiring = rows.find(
+      (row) => row.lifecycleRole === "retiring"
+    );
+
+    const validRetiring =
+      retiring?.retireAt &&
+      retiring.redirectToDomainId &&
+      primary &&
+      retiring.redirectToDomainId === primary.id
+        ? {
+            id: retiring.id,
+            hostname: retiring.hostname,
+            redirectToDomainId: retiring.redirectToDomainId,
+            redirectToHostname: primary.hostname,
+            retireAt: retiring.retireAt,
+          }
+        : null;
+
+    return {
+      primary: primary
+        ? { id: primary.id, hostname: primary.hostname }
+        : null,
+      retiring: validRetiring,
+    };
   }
 
   private async reserveExpiredRetirementForTenant(
