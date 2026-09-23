@@ -36,6 +36,20 @@ export type DomainRollbackResult = {
   retiringHostname: string;
 };
 
+export type CustomDomainAdminSummary = {
+  primary: {
+    id: number;
+    hostname: string;
+  } | null;
+  retiring: {
+    id: number;
+    hostname: string;
+    redirectToDomainId: number;
+    redirectToHostname: string;
+    retireAt: Date;
+  } | null;
+};
+
 export interface DomainCleanupService {
   cleanupReservation(
     reservation: Extract<RetirementCleanupReservation, { kind: "ready" }>,
