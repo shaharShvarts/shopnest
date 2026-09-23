@@ -232,3 +232,26 @@ test("ownership proof does not require Store provisioning state in the claim ser
   assert.equal(result.hostname, "draft-store.customer.example");
   assert.equal(repository.createCalls, 1);
 });
+
+
+test("domain claim rejects unsupported apex domains", () => {
+  for (const hostname of [
+    "customer.com",
+    "excelapp.co.il",
+    "customer.co.uk",
+  ]) {
+    assert.throws(
+      () => validateClaimHostname(hostname),
+      /subdomain/
+    );
+  }
+
+  assert.equal(
+    validateClaimHostname("shop.customer.com"),
+    "shop.customer.com"
+  );
+  assert.equal(
+    validateClaimHostname("shop.excelapp.co.il"),
+    "shop.excelapp.co.il"
+  );
+});
