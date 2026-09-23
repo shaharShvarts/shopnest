@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   DOMAIN_CLAIM_TTL_MS,
   DOMAIN_CLAIM_VALUE_PREFIX,
+  DOMAIN_MANUAL_CHECK_COOLDOWN_MS,
+  SHOPNEST_CUSTOM_DOMAIN_CNAME_TARGET,
   DomainOwnershipClaimService,
   domainClaimDnsName,
   validateClaimHostname,
@@ -39,12 +41,65 @@ class FakeRepository implements StoreDomainClaimRepository {
       verificationTokenHash: input.verificationTokenHash,
       expiresAt: input.expiresAt,
       verifiedAt: null,
+      cnameVerifiedAt: null,
+      lastTxtCheckAt: null,
+      lastCnameCheckAt: null,
       consumedAt: null,
     };
     return this.claim;
   }
 
   async findPendingForOwnedStore() {
+    return this.claim;
+  }
+
+  async findVerifiedForOwnedStore() {
+    return this.claim?.status === "verified" ? this.claim : null;
+  }
+
+  async reserveTxtCheck(input: { now: Date }) {
+    if (!this.claim) return { kind: "not_found" as const };
+    const last = this.claim.lastTxtCheckAt;
+    if (
+      last &&
+      last.getTime() + DOMAIN_MANUAL_CHECK_COOLDOWN_MS > input.now.getTime()
+    ) {
+      return {
+        kind: "cooldown" as const,
+        claim: this.claim,
+        nextAllowedAt: new Date(
+          last.getTime() + DOMAIN_MANUAL_CHECK_COOLDOWN_MS
+        ),
+      };
+    }
+    this.claim = { ...this.claim, lastTxtCheckAt: input.now };
+    return { kind: "ready" as const, claim: this.claim };
+  }
+
+  async reserveCnameCheck(input: { now: Date }) {
+    if (!this.claim || this.claim.status !== "verified") {
+      return { kind: "not_found" as const };
+    }
+    const last = this.claim.lastCnameCheckAt;
+    if (
+      last &&
+      last.getTime() + DOMAIN_MANUAL_CHECK_COOLDOWN_MS > input.now.getTime()
+    ) {
+      return {
+        kind: "cooldown" as const,
+        claim: this.claim,
+        nextAllowedAt: new Date(
+          last.getTime() + DOMAIN_MANUAL_CHECK_COOLDOWN_MS
+        ),
+      };
+    }
+    this.claim = { ...this.claim, lastCnameCheckAt: input.now };
+    return { kind: "ready" as const, claim: this.claim };
+  }
+
+  async markCnameVerified(input: { id: number; now: Date }) {
+    if (!this.claim || this.claim.id !== input.id) return null;
+    this.claim = { ...this.claim, cnameVerifiedAt: input.now };
     return this.claim;
   }
 
@@ -99,7 +154,7 @@ test("starting a claim returns DNS proof but persists only its hash", async () =
   const token = "a".repeat(43);
   const service = new DomainOwnershipClaimService(
     repository,
-    { async resolveTxt() { return []; }, async resolveSoa() { return noSoaRecord(); } },
+    { async resolveTxt() { return []; }, async resolveCname() { return []; }, async resolveSoa() { return noSoaRecord(); } },
     () => token
   );
   const now = new Date("2026-09-22T16:00:00Z");
@@ -141,6 +196,12 @@ test("matching DNS TXT proof verifies the claim", async () => {
           domainClaimDnsName("shop.customer.example")
         );
         return [[DOMAIN_CLAIM_VALUE_PREFIX, token]];
+      },
+      async resolveCname() {
+        return [];
+      },
+      async resolveCname() {
+        return [];
       },
       async resolveSoa() {
         return noSoaRecord();
@@ -233,7 +294,7 @@ test("ownership proof does not require Store provisioning state in the claim ser
   const token = "e".repeat(43);
   const service = new DomainOwnershipClaimService(
     repository,
-    { async resolveTxt() { return []; }, async resolveSoa() { return noSoaRecord(); } },
+    { async resolveTxt() { return []; }, async resolveCname() { return []; }, async resolveSoa() { return noSoaRecord(); } },
     () => token
   );
 
@@ -321,4 +382,133 @@ test("starting a claim allows a real subdomain when no SOA exists at that hostna
 
   assert.equal(result.hostname, "shop.customer.uk.com");
   assert.equal(repository.createCalls, 1);
+});
+
+
+test("TXT verification reserves a 60-second server cooldown before DNS IO", async () => {
+  const repository = new FakeRepository();
+  const token = "h".repeat(43);
+  let txtLookups = 0;
+  const service = new DomainOwnershipClaimService(
+    repository,
+    {
+      async resolveTxt() {
+        txtLookups += 1;
+        return [];
+      },
+      async resolveCname() {
+        return [];
+      },
+      async resolveSoa() {
+        return noSoaRecord();
+      },
+    },
+    () => token
+  );
+  const now = new Date("2026-09-23T20:00:00Z");
+
+  await service.startClaim(10, 20, "shop.customer.example", now);
+  const first = await service.verifyClaim(
+    10,
+    20,
+    "shop.customer.example",
+    new Date(now.getTime() + 1_000)
+  );
+  const second = await service.verifyClaim(
+    10,
+    20,
+    "shop.customer.example",
+    new Date(now.getTime() + 2_000)
+  );
+
+  assert.equal(first.kind, "pending");
+  assert.equal(second.kind, "cooldown");
+  assert.equal(txtLookups, 1);
+  if (second.kind === "cooldown") {
+    assert.equal(
+      second.nextAllowedAt.getTime(),
+      now.getTime() + 1_000 + DOMAIN_MANUAL_CHECK_COOLDOWN_MS
+    );
+  }
+});
+
+test("CNAME verification accepts only the single direct ShopNest target", async () => {
+  const repository = new FakeRepository();
+  const token = "i".repeat(43);
+  const now = new Date("2026-09-23T20:10:00Z");
+  const service = new DomainOwnershipClaimService(
+    repository,
+    {
+      async resolveTxt() {
+        return [[DOMAIN_CLAIM_VALUE_PREFIX + token]];
+      },
+      async resolveCname() {
+        return [SHOPNEST_CUSTOM_DOMAIN_CNAME_TARGET + "."];
+      },
+      async resolveSoa() {
+        return noSoaRecord();
+      },
+    },
+    () => token
+  );
+
+  await service.startClaim(10, 20, "shop.customer.example", now);
+  await service.verifyClaim(
+    10,
+    20,
+    "shop.customer.example",
+    new Date(now.getTime() + 1_000)
+  );
+  const result = await (service as any).verifyCname(
+    10,
+    20,
+    "shop.customer.example",
+    new Date(now.getTime() + 2_000)
+  );
+
+  assert.equal(result.kind, "verified");
+  assert.ok(repository.claim?.cnameVerifiedAt);
+});
+
+test("CNAME verification rejects wrong or ambiguous direct answers", async () => {
+  for (const answers of [
+    ["edge.customer.example"],
+    [SHOPNEST_CUSTOM_DOMAIN_CNAME_TARGET, "unexpected.example"],
+  ]) {
+    const repository = new FakeRepository();
+    const token = "j".repeat(43);
+    const now = new Date("2026-09-23T20:20:00Z");
+    const service = new DomainOwnershipClaimService(
+      repository,
+      {
+        async resolveTxt() {
+          return [[DOMAIN_CLAIM_VALUE_PREFIX + token]];
+        },
+        async resolveCname() {
+          return answers;
+        },
+        async resolveSoa() {
+          return noSoaRecord();
+        },
+      },
+      () => token
+    );
+
+    await service.startClaim(10, 20, "shop.customer.example", now);
+    await service.verifyClaim(
+      10,
+      20,
+      "shop.customer.example",
+      new Date(now.getTime() + 1_000)
+    );
+    const result = await (service as any).verifyCname(
+      10,
+      20,
+      "shop.customer.example",
+      new Date(now.getTime() + 2_000)
+    );
+
+    assert.equal(result.kind, "pending");
+    assert.equal(repository.claim?.cnameVerifiedAt, null);
+  }
 });
