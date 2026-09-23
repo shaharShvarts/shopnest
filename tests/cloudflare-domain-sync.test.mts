@@ -20,9 +20,34 @@ class FakeRepository implements CloudflareDomainSyncRepository {
   async applySync(_id: number, update: CloudflareDomainSyncUpdate) {
     assert.ok(this.record);
     this.updates.push(update);
+
+    if (
+      this.record.domainStatus === "removed" ||
+      this.record.provider !== "cloudflare" ||
+      !this.record.providerHostnameId
+    ) {
+      return this.record;
+    }
+
+    let domainStatus =
+      update.domainStatus ?? this.record.domainStatus;
+    if (
+      domainStatus === "active" &&
+      this.record.tenantStatus !== "active"
+    ) {
+      domainStatus =
+        this.record.domainStatus === "failed"
+          ? "failed"
+          : "pending_verification";
+    }
+
     this.record = {
       ...this.record,
-      domainStatus: update.domainStatus ?? this.record.domainStatus,
+      domainStatus,
+      verifiedAt:
+        update.verifiedAt && !this.record.verifiedAt
+          ? update.verifiedAt
+          : this.record.verifiedAt,
     };
     return this.record;
   }
@@ -53,6 +78,7 @@ function managedRecord(): CloudflareDomainSyncRecord {
     provider: "cloudflare",
     providerHostnameId: "provider-id",
     tenantStatus: "active",
+    verifiedAt: null,
   };
 }
 
