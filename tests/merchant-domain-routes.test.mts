@@ -123,3 +123,104 @@ test("provisioned Store detail links to its domain manager", async () => {
   assert.match(page, /\/dashboard\/stores\/["']?\s*\+\s*store\.id\s*\+\s*["']\/domain/);
   assert.match(page, /manageDomain/);
 });
+
+
+test("domain pages remain readable when Cloudflare SaaS is disabled", async () => {
+  const [merchantServer, lifecycleServer] = await Promise.all([
+    source("src/lib/merchant-domains/server.ts"),
+    source("src/lib/custom-domain-lifecycle/server.ts"),
+  ]);
+
+  assert.match(merchantServer, /readCloudflareSaasConfig/);
+  assert.match(merchantServer, /readCloudflareSaasConfig\(\)\.enabled/);
+  assert.match(lifecycleServer, /readCloudflareSaasConfig/);
+  assert.match(lifecycleServer, /readCloudflareSaasConfig\(\)\.enabled/);
+});
+
+test("merchant domain progress follows the domain being configured, not an older primary", async () => {
+  const module = await import("../src/lib/merchant-domains/core.ts");
+  const progress = (
+    module as typeof module & {
+      merchantDomainProgress?: (view: unknown) => {
+        ownershipVerified: boolean;
+        cnameVerified: boolean;
+        active: boolean;
+      };
+    }
+  ).merchantDomainProgress;
+
+  assert.equal(typeof progress, "function");
+  if (!progress) return;
+
+  const primary = { hostname: "old.example.com" };
+  const base = {
+    storeId: 1,
+    storeSlug: "store",
+    platformUrl: "https://shopnest.co.il/store",
+    currentPrimary: primary,
+    retiring: null,
+    candidate: null,
+    claim: null,
+  };
+
+  assert.deepEqual(progress(base), {
+    ownershipVerified: true,
+    cnameVerified: true,
+    active: true,
+  });
+
+  assert.deepEqual(
+    progress({
+      ...base,
+      claim: {
+        hostname: "new.example.com",
+        status: "pending_verification",
+        expiresAt: "2026-09-24T12:00:00.000Z",
+        verifiedAt: null,
+        cnameVerifiedAt: null,
+        nextTxtCheckAt: null,
+        nextCnameCheckAt: null,
+      },
+    }),
+    {
+      ownershipVerified: false,
+      cnameVerified: false,
+      active: false,
+    }
+  );
+
+  assert.deepEqual(
+    progress({
+      ...base,
+      candidate: {
+        hostname: "new.example.com",
+        providerHostnameStatus: "pending",
+        providerSslStatus: "pending_validation",
+        nextProviderCheckAt: null,
+      },
+    }),
+    {
+      ownershipVerified: true,
+      cnameVerified: true,
+      active: false,
+    }
+  );
+});
+
+test("merchant removal is explicitly confirmed and claim expiry is visible", async () => {
+  const ui = await source(
+    "src/app/(merchant)/dashboard/stores/[id]/domain/DomainManager.tsx"
+  );
+  const [en, he] = await Promise.all([
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+
+  assert.match(ui, /window\.confirm/);
+  assert.match(ui, /removeConfirm/);
+  assert.match(ui, /claimRemaining|claimExpired/);
+  assert.equal(typeof en.MerchantDomain.removeConfirm, "string");
+  assert.equal(typeof he.MerchantDomain.removeConfirm, "string");
+  assert.equal(typeof en.MerchantDomain.tokenExpiresIn, "string");
+  assert.equal(typeof he.MerchantDomain.tokenExpiresIn, "string");
+});
