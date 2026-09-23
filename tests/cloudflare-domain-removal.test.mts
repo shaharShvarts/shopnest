@@ -5,6 +5,7 @@ import {
   type CloudflareDomainRemovalRepository,
   type DomainRemovalReservation,
 } from "../src/lib/cloudflare-saas/domain-removal.ts";
+import { CloudflareSaasError } from "../src/lib/cloudflare-saas/client.ts";
 
 class FakeRepository implements CloudflareDomainRemovalRepository {
   reservation: DomainRemovalReservation = {
@@ -127,4 +128,31 @@ test("removed domain with no provider id is idempotent", async () => {
   });
   assert.equal(provider.deleteCalls, 0);
   assert.equal(repository.finalized, 0);
+});
+
+
+test("retry finalizes local removal when Cloudflare already deleted the hostname", async () => {
+  const repository = new FakeRepository();
+  const provider = new FakeProvider();
+  provider.deleteCustomHostname = async () => {
+    provider.deleteCalls += 1;
+    throw new CloudflareSaasError("http_error", 404, "1000");
+  };
+
+  const service = new CloudflareDomainRemovalService(
+    repository,
+    provider,
+    () => {}
+  );
+
+  const result = await service.removeOwnedDomain(
+    10,
+    20,
+    "shop.customer.example"
+  );
+
+  assert.equal(result.kind, "removed");
+  assert.equal(provider.deleteCalls, 1);
+  assert.equal(repository.finalized, 1);
+  assert.deepEqual(repository.errors, []);
 });
