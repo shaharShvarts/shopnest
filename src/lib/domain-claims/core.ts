@@ -19,6 +19,34 @@ export function planAllowsCustomDomain(value: unknown): value is CustomDomainPla
     (CUSTOM_DOMAIN_PLAN_CODES as readonly string[]).includes(value)
   );
 }
+
+const COMMON_TWO_LEVEL_PUBLIC_SUFFIX_LABELS = new Set([
+  "ac",
+  "co",
+  "com",
+  "edu",
+  "gov",
+  "net",
+  "org",
+]);
+
+function isSupportedCustomSubdomain(hostname: string) {
+  const labels = hostname.split(".");
+  if (labels.length < 3) return false;
+
+  const tld = labels.at(-1) ?? "";
+  const secondLevel = labels.at(-2) ?? "";
+
+  if (
+    tld.length === 2 &&
+    COMMON_TWO_LEVEL_PUBLIC_SUFFIX_LABELS.has(secondLevel)
+  ) {
+    return labels.length >= 4;
+  }
+
+  return true;
+}
+
 export const DOMAIN_CLAIM_TXT_PREFIX = "_shopnest-verification";
 export const DOMAIN_CLAIM_VALUE_PREFIX = "shopnest-verification=";
 
@@ -103,6 +131,10 @@ export function validateClaimHostname(value: unknown): string {
   const hostname = canonicalCloudflareHostname(value);
   if (!hostname || isPlatformHostname(hostname)) {
     throw new Error("Custom domain hostname is not allowed");
+  }
+
+  if (!isSupportedCustomSubdomain(hostname)) {
+    throw new Error("Custom domain must be a subdomain; apex domains are not supported");
   }
 
   if (domainClaimDnsName(hostname).length > 253) {
