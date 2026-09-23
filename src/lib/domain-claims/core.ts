@@ -20,33 +20,6 @@ export function planAllowsCustomDomain(value: unknown): value is CustomDomainPla
   );
 }
 
-const COMMON_TWO_LEVEL_PUBLIC_SUFFIX_LABELS = new Set([
-  "ac",
-  "co",
-  "com",
-  "edu",
-  "gov",
-  "net",
-  "org",
-]);
-
-function isSupportedCustomSubdomain(hostname: string) {
-  const labels = hostname.split(".");
-  if (labels.length < 3) return false;
-
-  const tld = labels.at(-1) ?? "";
-  const secondLevel = labels.at(-2) ?? "";
-
-  if (
-    tld.length === 2 &&
-    COMMON_TWO_LEVEL_PUBLIC_SUFFIX_LABELS.has(secondLevel)
-  ) {
-    return labels.length >= 4;
-  }
-
-  return true;
-}
-
 export const DOMAIN_CLAIM_TXT_PREFIX = "_shopnest-verification";
 export const DOMAIN_CLAIM_VALUE_PREFIX = "shopnest-verification=";
 
@@ -93,6 +66,7 @@ export interface StoreDomainClaimRepository {
 
 export interface TxtResolver {
   resolveTxt(name: string): Promise<string[][]>;
+  resolveSoa(name: string): Promise<unknown>;
 }
 
 export type DomainClaimStartResult = {
@@ -133,10 +107,6 @@ export function validateClaimHostname(value: unknown): string {
     throw new Error("Custom domain hostname is not allowed");
   }
 
-  if (!isSupportedCustomSubdomain(hostname)) {
-    throw new Error("Custom domain must be a subdomain; apex domains are not supported");
-  }
-
   if (domainClaimDnsName(hostname).length > 253) {
     throw new Error("Custom domain hostname is too long for DNS verification");
   }
@@ -159,6 +129,40 @@ export class DomainOwnershipClaimService {
     now = new Date()
   ): Promise<DomainClaimStartResult> {
     const hostname = validateClaimHostname(value);
+
+    try {
+      await this.resolver.resolveSoa(hostname);
+      throw new Error(
+        "Custom domain must be a subdomain; DNS zone apex domains are not supported"
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          "Custom domain must be a subdomain; DNS zone apex domains are not supported"
+      ) {
+        throw error;
+      }
+
+      const code =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof (error as { code?: unknown }).code === "string"
+          ? (error as { code: string }).code
+          : null;
+
+      if (
+        code !== "ENODATA" &&
+        code !== "ENOTFOUND" &&
+        code !== "NXDOMAIN"
+      ) {
+        throw new Error(
+          "Unable to determine whether custom domain is a DNS zone apex"
+        );
+      }
+    }
+
     const token = this.tokenFactory();
     if (!token || token.length < 32) {
       throw new Error("Domain verification token generation failed");
