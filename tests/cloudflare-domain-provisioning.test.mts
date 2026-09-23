@@ -396,3 +396,45 @@ test("ineligible plan blocks all Cloudflare API calls", async () => {
   assert.equal(provider.createCalls, 0);
   assert.equal(repository.finalized, null);
 });
+
+
+test("quota guard blocks a create when stale provider count is below a newer local finalized binding count", async () => {
+  const module = await import("../src/lib/cloudflare-saas/domain-provisioning.ts");
+  const evaluateCloudflareQuota = (
+    module as typeof module & {
+      evaluateCloudflareQuota?: (input: {
+        providerCount: number;
+        localProviderBoundCount: number;
+        pendingReservationCount: number;
+        freeHostnameLimit: number;
+      }) => boolean;
+    }
+  ).evaluateCloudflareQuota;
+
+  assert.equal(
+    typeof evaluateCloudflareQuota,
+    "function",
+    "quota decision helper must be available to the locked repository path"
+  );
+
+  assert.equal(
+    evaluateCloudflareQuota?.({
+      providerCount: 99,
+      localProviderBoundCount: 100,
+      pendingReservationCount: 0,
+      freeHostnameLimit: 100,
+    }),
+    true
+  );
+});
+
+test("locked quota path uses the local provider-bound count as well as the provider snapshot", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-provisioning-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /localProviderBoundCount/);
+  assert.match(source, /evaluateCloudflareQuota/);
+});
