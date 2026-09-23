@@ -46,7 +46,7 @@
     "store-lifecycle:test": "npx --yes tsx --test tests/store-lifecycle.test.mts",
     "tenant-registry:test": "npx --yes tsx --test tests/tenant-registry.test.mts",
     "domain-registry:test": "npx --yes tsx --test tests/domain-registry.test.mts",
-    "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts tests/cloudflare-domain-sync.test.mts tests/domain-claims.test.mts tests/cloudflare-domain-provisioning.test.mts",
+    "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts tests/cloudflare-domain-sync.test.mts tests/domain-claims.test.mts tests/cloudflare-domain-provisioning.test.mts tests/staging-acceptance-provision-store.test.mts",
     "cloudflare-saas:smoke": "npx --yes tsx scripts/cloudflare-saas-smoke.mts",
     "cloudflare-domain-sync:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-sync-smoke.mts",
     "cloudflare-domain-provision:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-provision-smoke.mts",
