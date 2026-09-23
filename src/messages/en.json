@@ -303,7 +303,14 @@
     "assignedStores": "{count, plural, =0 {No stores} =1 {One store} other {# stores}} assigned",
     "noPlanLimits": "This foundation records tier assignments only. Pricing and enforcement limits are deferred.",
     "unranked": "Unranked",
-    "noFeaturedStores": "No stores are featured yet. Update a store to add it here."
+    "noFeaturedStores": "No stores are featured yet. Update a store to add it here.",
+    "customDomainLifecycle": "Custom domain lifecycle",
+    "customDomainPrimary": "Current primary",
+    "customDomainRetiring": "Retiring domain",
+    "customDomainRetireAt": "Rollback available until",
+    "customDomainRollbackHelp": "Rollback restores the previous domain immediately and retires the current primary for a new 24-hour redirect window.",
+    "customDomainRollback": "Rollback custom domain",
+    "domainRollbackComplete": "Custom-domain rollback completed."
   },
   "Marketing": {
     "nav": {
