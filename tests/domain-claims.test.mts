@@ -233,7 +233,7 @@ test("ownership proof does not require Store provisioning state in the claim ser
   const token = "e".repeat(43);
   const service = new DomainOwnershipClaimService(
     repository,
-    { async resolveTxt() { return []; } },
+    { async resolveTxt() { return []; }, async resolveSoa() { return noSoaRecord(); } },
     () => token
   );
 
