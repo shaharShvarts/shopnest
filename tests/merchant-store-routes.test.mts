@@ -168,3 +168,20 @@ test("Store list optimistically deletes and offers ten-second Undo", async () =>
   assert.match(source, /router\.refresh\(\)/);
   assert.match(source, /deleteBlocked/);
 });
+
+
+test("provisioned Store exposes the merchant custom-domain manager route", async () => {
+  const [detail, domainPage, domainActions] = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/stores/[id]/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/domain/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/domain/_actions.ts", "utf8"),
+  ]);
+
+  assert.match(detail, /\/dashboard\/stores\/["']?\s*\+\s*store\.id\s*\+\s*["']\/domain|\/dashboard\/stores\/.*\/domain/);
+  assert.match(domainPage, /requireMerchantPage\(\)/);
+  assert.match(domainActions, /requireMerchantPage\(\)/);
+  assert.doesNotMatch(
+    domainActions,
+    /tenantId:\s*formData|schemaName:\s*formData|providerHostnameId:\s*formData|lifecycleRole:\s*formData/
+  );
+});
