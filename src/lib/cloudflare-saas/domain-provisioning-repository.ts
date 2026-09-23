@@ -21,6 +21,7 @@ import {
 } from "@/drizzle/control-plane-schema";
 import {
   CloudflareDomainProvisioningError,
+  evaluateCloudflareQuota,
   type CloudflareDomainProvisioningRepository,
   type DomainProvisioningFinalizeResult,
   type DomainProvisioningReservation,
@@ -493,24 +494,46 @@ export class DrizzleCloudflareDomainProvisioningRepository
   ) {
     const leaseCutoff = new Date(now.getTime() - leaseMs);
 
-    const [pending] = await tx
-      .select({
-        count: sql<number>`count(*)::int`,
-      })
-      .from(storeDomains)
-      .where(
-        and(
-          eq(storeDomains.provider, "cloudflare"),
-          isNull(storeDomains.providerHostnameId),
-          ne(storeDomains.status, "removed"),
-          isNotNull(storeDomains.activationRequestedAt),
-          gte(storeDomains.activationRequestedAt, leaseCutoff)
-        )
-      );
+    const [[localProviderBound], [pending]] = await Promise.all([
+      tx
+        .select({
+          count: sql<number>`count(*)::int`,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.provider, "cloudflare"),
+            isNotNull(storeDomains.providerHostnameId),
+            ne(storeDomains.status, "removed")
+          )
+        ),
+      tx
+        .select({
+          count: sql<number>`count(*)::int`,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.provider, "cloudflare"),
+            isNull(storeDomains.providerHostnameId),
+            ne(storeDomains.status, "removed"),
+            isNotNull(storeDomains.activationRequestedAt),
+            gte(storeDomains.activationRequestedAt, leaseCutoff)
+          )
+        ),
+    ]);
 
+    const localProviderBoundCount = localProviderBound?.count ?? 0;
     const pendingCount = pending?.count ?? 0;
 
-    if (providerCount + pendingCount >= freeHostnameLimit) {
+    if (
+      evaluateCloudflareQuota({
+        providerCount,
+        localProviderBoundCount,
+        pendingReservationCount: pendingCount,
+        freeHostnameLimit,
+      })
+    ) {
       throw new CloudflareDomainProvisioningError(
         "PROVIDER_QUOTA_EXHAUSTED",
         "Cloudflare Free custom-hostname allowance is exhausted"
