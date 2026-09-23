@@ -425,7 +425,7 @@ test("Drizzle retirement cleanup disables routing before provider cleanup and ro
     "utf8"
   );
 
-  assert.match(source, /lte\(storeDomains\.retireAt, input\.now\)/);
+  assert.match(source, /lte\(storeDomains\.retireAt, now\)/);
   assert.match(source, /status:\s*"removed"/);
   assert.match(source, /lifecycleRole:\s*null/);
   assert.match(source, /isPrimary:\s*false/);
