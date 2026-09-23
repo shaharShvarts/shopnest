@@ -10,6 +10,12 @@ import {
   type StoreDomainClaimRepository,
 } from "../src/lib/domain-claims/core.ts";
 
+function noSoaRecord() {
+  const error = new Error("no SOA record") as Error & { code?: string };
+  error.code = "ENODATA";
+  throw error;
+}
+
 class FakeRepository implements StoreDomainClaimRepository {
   claim: StoreDomainClaimRecord | null = null;
   createCalls = 0;
@@ -93,7 +99,7 @@ test("starting a claim returns DNS proof but persists only its hash", async () =
   const token = "a".repeat(43);
   const service = new DomainOwnershipClaimService(
     repository,
-    { async resolveTxt() { return []; } },
+    { async resolveTxt() { return []; }, async resolveSoa() { return noSoaRecord(); } },
     () => token
   );
   const now = new Date("2026-09-22T16:00:00Z");
@@ -136,6 +142,9 @@ test("matching DNS TXT proof verifies the claim", async () => {
         );
         return [[DOMAIN_CLAIM_VALUE_PREFIX, token]];
       },
+      async resolveSoa() {
+        return noSoaRecord();
+      },
     },
     () => token
   );
@@ -161,6 +170,9 @@ test("wrong or missing DNS TXT proof remains pending", async () => {
     {
       async resolveTxt() {
         return [["shopnest-verification=wrong-token"]];
+      },
+      async resolveSoa() {
+        return noSoaRecord();
       },
     },
     () => token
@@ -192,6 +204,9 @@ test("expired claims cannot verify", async () => {
       async resolveTxt() {
         dnsCalls += 1;
         return [[DOMAIN_CLAIM_VALUE_PREFIX + token]];
+      },
+      async resolveSoa() {
+        return noSoaRecord();
       },
     },
     () => token
@@ -233,28 +248,6 @@ test("ownership proof does not require Store provisioning state in the claim ser
   assert.equal(repository.createCalls, 1);
 });
 
-
-test("domain claim rejects unsupported apex domains", () => {
-  for (const hostname of [
-    "customer.com",
-    "excelapp.co.il",
-    "customer.co.uk",
-  ]) {
-    assert.throws(
-      () => validateClaimHostname(hostname),
-      /subdomain/
-    );
-  }
-
-  assert.equal(
-    validateClaimHostname("shop.customer.com"),
-    "shop.customer.com"
-  );
-  assert.equal(
-    validateClaimHostname("shop.excelapp.co.il"),
-    "shop.excelapp.co.il"
-  );
-});
 
 
 test("starting a claim rejects a DNS zone apex before creating ownership proof", async () => {
