@@ -15,6 +15,7 @@ export type CloudflareDomainSyncRecord = {
   provider: "cloudflare" | null;
   providerHostnameId: string | null;
   tenantStatus: "active" | "suspended" | "disabled";
+  verifiedAt: Date | null;
 };
 
 export type CloudflareDomainSyncUpdate = {
@@ -97,8 +98,7 @@ export class CloudflareDomainSyncService {
         throw new Error("Cloudflare provider hostname mismatch");
       }
 
-      const ready =
-        record.tenantStatus === "active" &&
+      const providerReady =
         isCloudflareCustomHostnameReady(providerHostname);
 
       const update: CloudflareDomainSyncUpdate = {
@@ -109,9 +109,9 @@ export class CloudflareDomainSyncService {
         providerLastErrorAt: null,
       };
 
-      if (ready) {
+      if (providerReady) {
         update.domainStatus = "active";
-        update.verifiedAt = now;
+        if (!record.verifiedAt) update.verifiedAt = now;
       } else if (record.domainStatus !== "failed") {
         update.domainStatus = "pending_verification";
       }
@@ -121,6 +121,19 @@ export class CloudflareDomainSyncService {
       if (updated.domainStatus !== record.domainStatus) {
         this.clearDomainCache(record.hostname);
       }
+
+      if (
+        updated.domainStatus === "removed" ||
+        updated.provider !== "cloudflare" ||
+        !updated.providerHostnameId
+      ) {
+        return { kind: "not_managed", hostname: updated.hostname };
+      }
+
+      const ready =
+        providerReady &&
+        updated.tenantStatus === "active" &&
+        updated.domainStatus === "active";
 
       return {
         kind: "synced",
