@@ -299,7 +299,14 @@
     "assignedStores": "מספר חנויות משויכות: {count}",
     "noPlanLimits": "גרסה זו שומרת שיוך למסלול בלבד. תמחור ואכיפת מגבלות נדחו.",
     "unranked": "ללא דירוג",
-    "noFeaturedStores": "אין עדיין חנויות מומלצות. אפשר לעדכן חנות ולהוסיף אותה כאן."
+    "noFeaturedStores": "אין עדיין חנויות מומלצות. אפשר לעדכן חנות ולהוסיף אותה כאן.",
+    "customDomainLifecycle": "מחזור חיי דומיין מותאם",
+    "customDomainPrimary": "הדומיין הראשי הנוכחי",
+    "customDomainRetiring": "דומיין בתהליך פרישה",
+    "customDomainRetireAt": "ניתן לבצע שחזור עד",
+    "customDomainRollbackHelp": "השחזור מחזיר מיד את הדומיין הקודם ומעביר את הדומיין הראשי הנוכחי לחלון הפניה חדש של 24 שעות.",
+    "customDomainRollback": "שחזור הדומיין הקודם",
+    "domainRollbackComplete": "שחזור הדומיין המותאם הושלם."
   },
   "Marketing": {
     "nav": {
