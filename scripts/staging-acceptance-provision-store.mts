@@ -11,9 +11,12 @@ function requireStagingAcceptanceEnvironment() {
     process.env.SHOPNEST_STAGING_ACCEPTANCE !== "true" ||
     process.env.DB_HOST !== "db-staging"
   ) {
-    throw new Error(
-      "STAGING acceptance provisioning is disabled outside the explicit db-staging environment"
+    console.log("blocked: true");
+    console.log("code: STAGING_ACCEPTANCE_DISABLED");
+    console.log(
+      "message: STAGING acceptance provisioning is disabled outside the explicit db-staging environment"
     );
+    process.exit(1);
   }
 }
 
