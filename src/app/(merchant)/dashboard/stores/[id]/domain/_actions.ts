@@ -34,7 +34,6 @@ function cooldown(nextAllowedAt: Date): MerchantDomainActionState {
 }
 
 export async function startDomainClaimAction(
-  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
@@ -63,7 +62,6 @@ export async function startDomainClaimAction(
 }
 
 export async function checkDomainTxtAction(
-  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
@@ -89,7 +87,6 @@ export async function checkDomainTxtAction(
 }
 
 export async function checkDomainCnameAction(
-  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
@@ -147,7 +144,6 @@ export async function checkDomainCnameAction(
 }
 
 export async function checkDomainProviderAction(
-  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
@@ -178,7 +174,6 @@ export async function checkDomainProviderAction(
 }
 
 export async function removeDomainAction(
-  _previousState: MerchantDomainActionState,
   formData: FormData
 ): Promise<MerchantDomainActionState> {
   const merchant = await requireMerchantPage();
