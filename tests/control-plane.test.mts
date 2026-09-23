@@ -316,3 +316,45 @@ test("Store migration remains control-plane only and preserves Organization migr
   assert.match(organizationSql, /CREATE TABLE "organizations"/);
   assert.doesNotMatch(organizationSql, /DROP TABLE|DELETE FROM|TRUNCATE|search_path/);
 });
+
+
+test("merchant custom-domain migration adds lifecycle and cooldown state", async () => {
+  const [migration, domainSchema, claimSchema] = await Promise.all([
+    readFile(
+      "src/drizzle/control-migrations/0015_merchant_custom_domain_lifecycle.sql",
+      "utf8"
+    ),
+    readFile("src/drizzle/control-schema/storeDomain.ts", "utf8"),
+    readFile("src/drizzle/control-schema/storeDomainClaim.ts", "utf8"),
+  ]);
+
+  assert.match(migration, /"last_txt_check_at" timestamp with time zone/);
+  assert.match(migration, /"last_cname_check_at" timestamp with time zone/);
+  assert.match(migration, /"cname_verified_at" timestamp with time zone/);
+  assert.match(migration, /"lifecycle_role" varchar\(32\)/);
+  assert.match(migration, /"last_manual_check_at" timestamp with time zone/);
+  assert.match(migration, /"retire_at" timestamp with time zone/);
+  assert.match(migration, /"redirect_to_domain_id" integer/);
+  assert.match(migration, /multiple active custom domains/i);
+  assert.match(domainSchema, /"candidate".*"primary".*"retiring"/s);
+  assert.match(claimSchema, /lastTxtCheckAt/);
+  assert.match(claimSchema, /lastCnameCheckAt/);
+});
+
+test("domain hostname uniqueness is partial so a removed hostname can be reused", async () => {
+  const [migration, schema] = await Promise.all([
+    readFile(
+      "src/drizzle/control-migrations/0015_merchant_custom_domain_lifecycle.sql",
+      "utf8"
+    ),
+    readFile("src/drizzle/control-schema/storeDomain.ts", "utf8"),
+  ]);
+
+  assert.match(
+    migration,
+    /DROP CONSTRAINT IF EXISTS "store_domains_hostname_unique"/
+  );
+  assert.match(migration, /store_domains_hostname_bound_unique/);
+  assert.match(migration, /WHERE "status" <> 'removed'/);
+  assert.doesNotMatch(schema, /hostname:[\s\S]*?\.unique\(\)/);
+});
