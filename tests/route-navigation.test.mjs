@@ -132,6 +132,7 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     },
     "./lib/domain-registry/server": {
       resolveTrustedDomain: async () => null,
+      resolvePrimaryDomainForTenantSlug: async () => null,
     },
   });
   for (const path of [...platform, ...storefront.map(p => `/panda-pop${p}`), ...tenantAdmin.map(p => `/panda-pop${p}`), "/panda-pop/api/cart/add", "/panda-pop/media/products/a.png", "/api/customer-auth/google/callback"]) {
@@ -161,6 +162,7 @@ test("actual middleware preserves physical page routes and replaces spoofed head
     },
     "./lib/domain-registry/server": {
       resolveTrustedDomain: async () => null,
+      resolvePrimaryDomainForTenantSlug: async () => null,
     },
   });
   for (const path of [
