@@ -19,6 +19,7 @@ const selection = {
   provider: storeDomains.provider,
   providerHostnameId: storeDomains.providerHostnameId,
   tenantStatus: controlPlaneTenants.status,
+  verifiedAt: storeDomains.verifiedAt,
 };
 
 export class DrizzleCloudflareDomainSyncRepository
@@ -60,6 +61,25 @@ export class DrizzleCloudflareDomainSyncRepository
         throw new Error("Store domain disappeared during Cloudflare sync");
       }
 
+      if (
+        current.domainStatus === "removed" ||
+        current.provider !== "cloudflare" ||
+        !current.providerHostnameId
+      ) {
+        return current;
+      }
+
+      let nextDomainStatus = update.domainStatus;
+      if (
+        nextDomainStatus === "active" &&
+        current.tenantStatus !== "active"
+      ) {
+        nextDomainStatus =
+          current.domainStatus === "failed"
+            ? "failed"
+            : "pending_verification";
+      }
+
       const values: Partial<typeof storeDomains.$inferInsert> = {
         providerHostnameStatus: update.providerHostnameStatus,
         providerSslStatus: update.providerSslStatus,
@@ -69,8 +89,12 @@ export class DrizzleCloudflareDomainSyncRepository
         updatedAt: update.providerLastSyncedAt,
       };
 
-      if (update.domainStatus) values.status = update.domainStatus;
-      if (update.verifiedAt && !current.domainStatus.startsWith("removed")) {
+      if (nextDomainStatus) values.status = nextDomainStatus;
+      if (
+        update.verifiedAt &&
+        !current.verifiedAt &&
+        nextDomainStatus === "active"
+      ) {
         values.verifiedAt = update.verifiedAt;
       }
 
@@ -84,6 +108,7 @@ export class DrizzleCloudflareDomainSyncRepository
           domainStatus: storeDomains.status,
           provider: storeDomains.provider,
           providerHostnameId: storeDomains.providerHostnameId,
+          verifiedAt: storeDomains.verifiedAt,
         });
 
       return {
