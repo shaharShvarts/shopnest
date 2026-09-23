@@ -4,6 +4,22 @@ import { validateClaimHostname } from "../domain-claims/core.ts";
 
 export const CLOUDFLARE_PROVISIONING_LEASE_MS = 30_000;
 
+export function evaluateCloudflareQuota(input: {
+  providerCount: number;
+  localProviderBoundCount: number;
+  pendingReservationCount: number;
+  freeHostnameLimit: number;
+}) {
+  const observedBoundCount = Math.max(
+    input.providerCount,
+    input.localProviderBoundCount
+  );
+  return (
+    observedBoundCount + input.pendingReservationCount >=
+    input.freeHostnameLimit
+  );
+}
+
 export type DomainProvisioningReservation =
   | {
       kind: "in_progress";
