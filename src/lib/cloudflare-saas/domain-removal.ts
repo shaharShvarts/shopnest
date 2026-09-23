@@ -76,6 +76,18 @@ export class CloudflareDomainRemovalService {
       return reservation;
     }
 
+    await this.cleanupReservation(reservation, now);
+
+    return {
+      kind: "removed",
+      hostname: reservation.hostname,
+    };
+  }
+
+  async cleanupReservation(
+    reservation: Extract<DomainRemovalReservation, { kind: "ready" }>,
+    now = new Date()
+  ): Promise<void> {
     this.clearDomainCache(reservation.hostname);
 
     if (reservation.providerHostnameId) {
@@ -105,10 +117,6 @@ export class CloudflareDomainRemovalService {
       domainId: reservation.domainId,
       now,
     });
-
-    return {
-      kind: "removed",
-      hostname: reservation.hostname,
-    };
   }
+
 }
