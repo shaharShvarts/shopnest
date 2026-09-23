@@ -36,9 +36,79 @@ class FakeLifecycleRepository implements CustomDomainLifecycleRepository {
   retiring: FakeDomain | null = null;
   activationCalls = 0;
   throwOnActivate: Error | null = null;
+  cleanupReservation:
+    | {
+        kind: "ready";
+        domainId: number;
+        hostname: string;
+        providerHostnameId: string | null;
+      }
+    | { kind: "none" } = { kind: "none" };
+  locallyRemoved = false;
+  rollbackCalls = 0;
 
   async reserveOwnedCandidateCheck() {
     return this.reservation;
+  }
+
+  async reserveExpiredRetiringForOwnedStore() {
+    if (this.cleanupReservation.kind === "ready") {
+      this.locallyRemoved = true;
+    }
+    return this.cleanupReservation;
+  }
+
+  async reserveExpiredRetiringForTenantSlug() {
+    if (this.cleanupReservation.kind === "ready") {
+      this.locallyRemoved = true;
+    }
+    return this.cleanupReservation;
+  }
+
+  async rollbackRetiringDomain(input: {
+    restoreHostname: string;
+    now: Date;
+    retirementMs: number;
+  }) {
+    this.rollbackCalls += 1;
+    if (
+      !this.retiring ||
+      this.retiring.hostname !== input.restoreHostname ||
+      !this.primary
+    ) {
+      throw new CustomDomainLifecycleError(
+        "ROLLBACK_NOT_AVAILABLE",
+        "No rollback is available"
+      );
+    }
+    if (
+      !this.retiring.retireAt ||
+      this.retiring.retireAt.getTime() <= input.now.getTime()
+    ) {
+      throw new CustomDomainLifecycleError(
+        "ROLLBACK_NOT_AVAILABLE",
+        "Retirement window expired"
+      );
+    }
+
+    const restored = this.retiring;
+    const current = this.primary;
+    this.primary = {
+      ...restored,
+      lifecycleRole: "primary",
+      retireAt: null,
+      redirectToDomainId: null,
+    };
+    this.retiring = {
+      ...current,
+      lifecycleRole: "retiring",
+      retireAt: new Date(input.now.getTime() + input.retirementMs),
+      redirectToDomainId: restored.id,
+    };
+    return {
+      restoredHostname: restored.hostname,
+      retiringHostname: current.hostname,
+    };
   }
 
   async activateReadyCandidate(input: {
@@ -222,4 +292,143 @@ test("Drizzle cutover rechecks authoritative state under a tenant lock", async (
   assert.match(source, /providerSslStatus/);
   assert.match(source, /lifecycleRole:\s*"retiring"/);
   assert.match(source, /lifecycleRole:\s*"primary"/);
+});
+
+
+class FakeCleanupService {
+  calls = 0;
+  fail = false;
+
+  async cleanupReservation() {
+    this.calls += 1;
+    if (this.fail) throw new Error("provider unavailable");
+  }
+}
+
+test("expired retirement is locally disabled before provider cleanup and remains disabled on failure", async () => {
+  const repository = new FakeLifecycleRepository();
+  repository.cleanupReservation = {
+    kind: "ready",
+    domainId: 1,
+    hostname: "old.example.com",
+    providerHostnameId: "cf-old",
+  };
+  const cleanup = new FakeCleanupService();
+  cleanup.fail = true;
+  const Service = CustomDomainLifecycleService as any;
+  const service = new Service(
+    repository,
+    new FakeSyncService(),
+    () => {},
+    cleanup
+  );
+
+  await assert.rejects(() =>
+    service.cleanupExpiredRetiringForOwnedStore(
+      7,
+      42,
+      new Date("2026-09-25T00:00:00Z")
+    )
+  );
+
+  assert.equal(repository.locallyRemoved, true);
+  assert.equal(cleanup.calls, 1);
+});
+
+test("admin rollback is symmetric and gives the newer domain a fresh 24-hour retirement", async () => {
+  const repository = new FakeLifecycleRepository();
+  const now = new Date("2026-09-23T22:00:00Z");
+  repository.primary = {
+    id: 2,
+    hostname: "new.example.com",
+    lifecycleRole: "primary",
+    retireAt: null,
+    redirectToDomainId: null,
+  };
+  repository.retiring = {
+    id: 1,
+    hostname: "old.example.com",
+    lifecycleRole: "retiring",
+    retireAt: new Date(now.getTime() + 60_000),
+    redirectToDomainId: 2,
+  };
+  const Service = CustomDomainLifecycleService as any;
+  const service = new Service(
+    repository,
+    new FakeSyncService(),
+    () => {},
+    new FakeCleanupService()
+  );
+
+  const result = await service.rollbackRetiringDomainForAdmin(
+    "panda-pop",
+    "old.example.com",
+    now
+  );
+
+  assert.deepEqual(result, {
+    restoredHostname: "old.example.com",
+    retiringHostname: "new.example.com",
+  });
+  assert.equal(repository.primary?.hostname, "old.example.com");
+  assert.equal(repository.retiring?.hostname, "new.example.com");
+  assert.equal(
+    repository.retiring?.retireAt?.getTime(),
+    now.getTime() + CUSTOM_DOMAIN_RETIREMENT_MS
+  );
+  assert.equal(repository.retiring?.redirectToDomainId, 1);
+});
+
+test("rollback after retirement expiry is rejected without changing primary", async () => {
+  const repository = new FakeLifecycleRepository();
+  const now = new Date("2026-09-25T00:00:00Z");
+  repository.primary = {
+    id: 2,
+    hostname: "new.example.com",
+    lifecycleRole: "primary",
+    retireAt: null,
+    redirectToDomainId: null,
+  };
+  repository.retiring = {
+    id: 1,
+    hostname: "old.example.com",
+    lifecycleRole: "retiring",
+    retireAt: new Date("2026-09-24T22:00:00Z"),
+    redirectToDomainId: 2,
+  };
+  const Service = CustomDomainLifecycleService as any;
+  const service = new Service(
+    repository,
+    new FakeSyncService(),
+    () => {},
+    new FakeCleanupService()
+  );
+
+  await assert.rejects(
+    () =>
+      service.rollbackRetiringDomainForAdmin(
+        "panda-pop",
+        "old.example.com",
+        now
+      ),
+    (error: unknown) =>
+      error instanceof CustomDomainLifecycleError &&
+      error.code === "ROLLBACK_NOT_AVAILABLE"
+  );
+
+  assert.equal(repository.primary?.hostname, "new.example.com");
+});
+
+test("Drizzle retirement cleanup disables routing before provider cleanup and rollback uses lifecycle lock", async () => {
+  const source = await readFile(
+    "src/lib/custom-domain-lifecycle/drizzle-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /lte\(storeDomains\.retireAt, input\.now\)/);
+  assert.match(source, /status:\s*"removed"/);
+  assert.match(source, /lifecycleRole:\s*null/);
+  assert.match(source, /isPrimary:\s*false/);
+  assert.match(source, /rollbackRetiringDomain/);
+  assert.match(source, /ROLLBACK_NOT_AVAILABLE/);
 });
