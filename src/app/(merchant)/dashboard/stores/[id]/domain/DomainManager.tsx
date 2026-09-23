@@ -104,11 +104,14 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
   }, [result.kind, t]);
 
   function submit(
-    action: (formData: FormData) => Promise<MerchantDomainActionState>,
+    action: (
+      previousState: MerchantDomainActionState,
+      formData: FormData
+    ) => Promise<MerchantDomainActionState>,
     formData: FormData
   ) {
     startTransition(() => {
-      void action(formData).then((next) => {
+      void action(result, formData).then((next) => {
         setResult(next);
         router.refresh();
       });
