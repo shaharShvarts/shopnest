@@ -40,6 +40,11 @@ class FakeDomainRegistryRepository implements DomainRegistryRepository {
 const ACTIVE_RECORD: DomainRegistryRecord = {
   hostname: "store.example",
   domainStatus: "active",
+  lifecycleRole: "primary",
+  providerHostnameStatus: "active",
+  providerSslStatus: "active",
+  retireAt: null,
+  redirectTargetHostname: null,
   tenant: {
     slug: "panda-pop",
     schemaName: "tenant_42",
@@ -98,6 +103,8 @@ test("custom domains require canonical DNS hostnames and reject platform/local i
 test("only an active exact domain bound to an active safe Tenant becomes trusted", () => {
   const resolved = trustedDomainFromRegistryRecord(ACTIVE_RECORD);
   assert.ok(resolved);
+  assert.equal(resolved.kind, "tenant");
+  if (resolved.kind !== "tenant") throw new Error("expected tenant resolution");
   assert.equal(resolved.hostname, "store.example");
   assert.equal(resolved.tenant.slug, "panda-pop");
   assert.equal(resolved.tenant.schema, "tenant_42");
