@@ -65,6 +65,7 @@ jobs:
           npm run store-lifecycle:test
           npm run tenant-registry:test
           npm run domain-registry:test
+          npm run cloudflare-saas:test
 
       - name: Build production application
         run: npm run build
