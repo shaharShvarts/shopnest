@@ -36,7 +36,10 @@ test("Super Admin store page exposes rollback only through trusted lifecycle sta
   assert.match(page, /rollbackCustomDomainAction/);
   assert.match(page, /retiring/);
   assert.match(page, /retireAt/);
-  assert.doesNotMatch(page, /providerHostnameId.*form|schemaName.*form/s);
+  assert.doesNotMatch(
+    page,
+    /name=["'](?:schemaName|providerHostnameId|providerHostnameStatus|lifecycleRole)["']/
+  );
 });
 
 test("operator rollback accepts only tenant slug and restore hostname", async () => {
