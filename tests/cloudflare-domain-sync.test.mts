@@ -198,3 +198,102 @@ test("removed and unmanaged domains never call Cloudflare", async () => {
   assert.equal(unmanaged.kind, "not_managed");
   assert.equal(providerCalls, 0);
 });
+
+
+test("Cloudflare sync cannot reactivate a domain removed while provider status is in flight", async () => {
+  const repository = new FakeRepository();
+  repository.record = managedRecord();
+
+  const provider = {
+    async getCustomHostname() {
+      assert.ok(repository.record);
+      repository.record = {
+        ...repository.record,
+        domainStatus: "removed",
+      };
+      return {
+        id: "provider-id",
+        hostname: "store.example",
+        status: "active",
+        sslStatus: "active",
+      };
+    },
+  };
+
+  const cleared: string[] = [];
+  const service = new CloudflareDomainSyncService(
+    repository,
+    provider,
+    (hostname) => cleared.push(hostname)
+  );
+
+  const result = await service.syncByHostname("store.example");
+
+  assert.equal(result.kind, "not_managed");
+  assert.equal(repository.record?.domainStatus, "removed");
+  assert.deepEqual(cleared, ["store.example"]);
+});
+
+test("Cloudflare sync rechecks Tenant state before activating after provider status returns", async () => {
+  const repository = new FakeRepository();
+  repository.record = managedRecord();
+
+  const provider = {
+    async getCustomHostname() {
+      assert.ok(repository.record);
+      repository.record = {
+        ...repository.record,
+        tenantStatus: "suspended",
+      };
+      return {
+        id: "provider-id",
+        hostname: "store.example",
+        status: "active",
+        sslStatus: "active",
+      };
+    },
+  };
+
+  const service = new CloudflareDomainSyncService(
+    repository,
+    provider,
+    () => {}
+  );
+
+  const result = await service.syncByHostname("store.example");
+
+  assert.equal(result.kind, "synced");
+  if (result.kind !== "synced") return;
+  assert.equal(result.ready, false);
+  assert.equal(result.domainStatus, "pending_verification");
+});
+
+test("Cloudflare sync preserves the original verified_at after the domain is already verified", async () => {
+  const repository = new FakeRepository();
+  const provider = new FakeProvider();
+  const originalVerifiedAt = new Date("2026-09-22T15:30:00Z");
+  repository.record = {
+    ...managedRecord(),
+    domainStatus: "active",
+    verifiedAt: originalVerifiedAt,
+  } as CloudflareDomainSyncRecord;
+  provider.result = {
+    id: "provider-id",
+    hostname: "store.example",
+    status: "active",
+    sslStatus: "active",
+  };
+
+  const service = new CloudflareDomainSyncService(
+    repository,
+    provider,
+    () => {}
+  );
+
+  await service.syncByHostname(
+    "store.example",
+    new Date("2026-09-22T16:00:00Z")
+  );
+
+  assert.equal(repository.updates[0]?.verifiedAt, undefined);
+});
