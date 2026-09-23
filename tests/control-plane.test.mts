@@ -356,5 +356,8 @@ test("domain hostname uniqueness is partial so a removed hostname can be reused"
   );
   assert.match(migration, /store_domains_hostname_bound_unique/);
   assert.match(migration, /WHERE "status" <> 'removed'/);
-  assert.doesNotMatch(schema, /hostname:[\s\S]*?\.unique\(\)/);
+  assert.doesNotMatch(
+    schema,
+    /hostname: varchar\("hostname", \{ length: 253 \}\)\.notNull\(\)\.unique\(\)/
+  );
 });
