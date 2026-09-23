@@ -4,7 +4,9 @@ import {
   and,
   eq,
   gt,
+  isNotNull,
   isNull,
+  lte,
   ne,
   sql,
 } from "drizzle-orm";
@@ -21,7 +23,9 @@ import {
   CustomDomainLifecycleError,
   type CustomDomainLifecycleRepository,
   type DomainCutoverResult,
+  type DomainRollbackResult,
   type OwnedCandidateCheckReservation,
+  type RetirementCleanupReservation,
 } from "./core";
 
 function eligibleOwnerWhere(merchantId: number, storeId: number) {
@@ -309,4 +313,269 @@ export class DrizzleCustomDomainLifecycleRepository
       };
     });
   }
+
+  async reserveExpiredRetiringForOwnedStore(input: {
+    merchantId: number;
+    storeId: number;
+    now: Date;
+  }): Promise<RetirementCleanupReservation> {
+    return getControlPlaneDb().transaction(async (tx) => {
+      const [owned] = await tx
+        .select({ tenantId: stores.tenantId })
+        .from(stores)
+        .innerJoin(
+          organizationMemberships,
+          eq(
+            organizationMemberships.organizationId,
+            stores.organizationId
+          )
+        )
+        .where(
+          and(
+            eq(stores.id, input.storeId),
+            isNull(stores.deletedAt),
+            eq(
+              organizationMemberships.merchantAccountId,
+              input.merchantId
+            ),
+            eq(organizationMemberships.role, "owner")
+          )
+        )
+        .limit(1)
+        .for("update");
+
+      if (!owned?.tenantId) return { kind: "none" };
+
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${owned.tenantId})`
+      );
+
+      return this.reserveExpiredRetirementForTenant(
+        tx,
+        owned.tenantId,
+        input.now
+      );
+    });
+  }
+
+  async reserveExpiredRetiringForTenantSlug(input: {
+    tenantSlug: string;
+    now: Date;
+  }): Promise<RetirementCleanupReservation> {
+    return getControlPlaneDb().transaction(async (tx) => {
+      const [tenant] = await tx
+        .select({ tenantId: controlPlaneTenants.id })
+        .from(controlPlaneTenants)
+        .where(eq(controlPlaneTenants.slug, input.tenantSlug))
+        .limit(1)
+        .for("update");
+
+      if (!tenant) return { kind: "none" };
+
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${tenant.tenantId})`
+      );
+
+      return this.reserveExpiredRetirementForTenant(
+        tx,
+        tenant.tenantId,
+        input.now
+      );
+    });
+  }
+
+  async rollbackRetiringDomain(input: {
+    tenantSlug: string;
+    restoreHostname: string;
+    now: Date;
+    retirementMs: number;
+  }): Promise<DomainRollbackResult> {
+    return getControlPlaneDb().transaction(async (tx) => {
+      const [tenant] = await tx
+        .select({
+          tenantId: controlPlaneTenants.id,
+          tenantStatus: controlPlaneTenants.status,
+        })
+        .from(controlPlaneTenants)
+        .where(eq(controlPlaneTenants.slug, input.tenantSlug))
+        .limit(1)
+        .for("update");
+
+      if (!tenant || tenant.tenantStatus !== "active") {
+        throw new CustomDomainLifecycleError(
+          "ROLLBACK_NOT_AVAILABLE",
+          "Rollback Tenant is not active"
+        );
+      }
+
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${tenant.tenantId})`
+      );
+
+      const [restoring] = await tx
+        .select({
+          id: storeDomains.id,
+          hostname: storeDomains.hostname,
+          retireAt: storeDomains.retireAt,
+          redirectToDomainId: storeDomains.redirectToDomainId,
+          providerHostnameStatus: storeDomains.providerHostnameStatus,
+          providerSslStatus: storeDomains.providerSslStatus,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.tenantId, tenant.tenantId),
+            eq(storeDomains.hostname, input.restoreHostname),
+            eq(storeDomains.lifecycleRole, "retiring"),
+            eq(storeDomains.status, "active"),
+            gt(storeDomains.retireAt, input.now)
+          )
+        )
+        .limit(1)
+        .for("update");
+
+      if (
+        !restoring ||
+        restoring.providerHostnameStatus !== "active" ||
+        restoring.providerSslStatus !== "active"
+      ) {
+        throw new CustomDomainLifecycleError(
+          "ROLLBACK_NOT_AVAILABLE",
+          "Retiring domain is no longer eligible for rollback"
+        );
+      }
+
+      const [primary] = await tx
+        .select({
+          id: storeDomains.id,
+          hostname: storeDomains.hostname,
+          providerHostnameStatus: storeDomains.providerHostnameStatus,
+          providerSslStatus: storeDomains.providerSslStatus,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.tenantId, tenant.tenantId),
+            eq(storeDomains.lifecycleRole, "primary"),
+            eq(storeDomains.status, "active")
+          )
+        )
+        .limit(1)
+        .for("update");
+
+      if (
+        !primary ||
+        restoring.redirectToDomainId !== primary.id
+      ) {
+        throw new CustomDomainLifecycleError(
+          "ROLLBACK_NOT_AVAILABLE",
+          "Retiring domain does not point to the current primary"
+        );
+      }
+
+      await tx
+        .update(storeDomains)
+        .set({
+          lifecycleRole: "retiring",
+          isPrimary: false,
+          retireAt: new Date(input.now.getTime() + input.retirementMs),
+          redirectToDomainId: restoring.id,
+          providerLastErrorCode: null,
+          providerLastErrorAt: null,
+          updatedAt: input.now,
+        })
+        .where(eq(storeDomains.id, primary.id));
+
+      await tx
+        .update(storeDomains)
+        .set({
+          lifecycleRole: "primary",
+          isPrimary: true,
+          retireAt: null,
+          redirectToDomainId: null,
+          providerLastErrorCode: null,
+          providerLastErrorAt: null,
+          updatedAt: input.now,
+        })
+        .where(eq(storeDomains.id, restoring.id));
+
+      return {
+        restoredHostname: restoring.hostname,
+        retiringHostname: primary.hostname,
+      };
+    });
+  }
+
+  private async reserveExpiredRetirementForTenant(
+    tx: Parameters<
+      Parameters<ReturnType<typeof getControlPlaneDb>["transaction"]>[0]
+    >[0],
+    tenantId: number,
+    now: Date
+  ): Promise<RetirementCleanupReservation> {
+    let [row] = await tx
+      .select({
+        domainId: storeDomains.id,
+        hostname: storeDomains.hostname,
+        providerHostnameId: storeDomains.providerHostnameId,
+        status: storeDomains.status,
+      })
+      .from(storeDomains)
+      .where(
+        and(
+          eq(storeDomains.tenantId, tenantId),
+          eq(storeDomains.lifecycleRole, "retiring"),
+          ne(storeDomains.status, "removed"),
+          lte(storeDomains.retireAt, now)
+        )
+      )
+      .limit(1)
+      .for("update");
+
+    if (!row) {
+      [row] = await tx
+        .select({
+          domainId: storeDomains.id,
+          hostname: storeDomains.hostname,
+          providerHostnameId: storeDomains.providerHostnameId,
+          status: storeDomains.status,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.tenantId, tenantId),
+            eq(storeDomains.status, "removed"),
+            isNotNull(storeDomains.providerHostnameId)
+          )
+        )
+        .limit(1)
+        .for("update");
+    }
+
+    if (!row) return { kind: "none" };
+
+    if (row.status !== "removed") {
+      await tx
+        .update(storeDomains)
+        .set({
+          status: "removed",
+          lifecycleRole: null,
+          isPrimary: false,
+          retireAt: null,
+          redirectToDomainId: null,
+          providerLastErrorCode: null,
+          providerLastErrorAt: null,
+          updatedAt: now,
+        })
+        .where(eq(storeDomains.id, row.domainId));
+    }
+
+    return {
+      kind: "ready",
+      domainId: row.domainId,
+      hostname: row.hostname,
+      providerHostnameId: row.providerHostnameId,
+    };
+  }
+
 }
