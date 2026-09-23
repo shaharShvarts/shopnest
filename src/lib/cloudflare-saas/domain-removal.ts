@@ -1,4 +1,5 @@
 import { validateClaimHostname } from "../domain-claims/core.ts";
+import { CloudflareSaasError } from "./client.ts";
 
 export type DomainRemovalReservation =
   | {
@@ -83,12 +84,20 @@ export class CloudflareDomainRemovalService {
           reservation.providerHostnameId
         );
       } catch (error) {
-        await this.repository.recordRemovalError({
-          domainId: reservation.domainId,
-          errorCode: "CLOUDFLARE_DELETE_ERROR",
-          now,
-        });
-        throw error;
+        if (
+          !(
+            error instanceof CloudflareSaasError &&
+            error.kind === "http_error" &&
+            error.status === 404
+          )
+        ) {
+          await this.repository.recordRemovalError({
+            domainId: reservation.domainId,
+            errorCode: "CLOUDFLARE_DELETE_ERROR",
+            now,
+          });
+          throw error;
+        }
       }
     }
 
