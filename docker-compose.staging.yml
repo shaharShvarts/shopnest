@@ -2,6 +2,7 @@ name: shopnest-staging
 
 services:
   web-staging:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
@@ -30,6 +31,7 @@ services:
       - shopnest-staging-net
 
   db-staging:
+    restart: unless-stopped
     image: postgres:17.0
     environment:
       POSTGRES_USER: shopnest_staging
@@ -46,6 +48,7 @@ services:
       - shopnest-staging-net
 
   nginx-staging:
+    restart: unless-stopped
     image: nginx:stable-alpine
     volumes:
       - type: bind
