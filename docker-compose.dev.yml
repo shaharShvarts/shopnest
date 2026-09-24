@@ -1,5 +1,6 @@
 services:
   web-dev:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
@@ -23,6 +24,7 @@ services:
       - shopnest-dev-net
 
   db-dev:
+    restart: unless-stopped
     image: postgres:17.0
     ports:
       - "5432:5432"
@@ -36,6 +38,7 @@ services:
       - shopnest-dev-net
 
   nginx-dev:
+    restart: unless-stopped
     image: nginx:latest
     volumes:
       - type: bind
