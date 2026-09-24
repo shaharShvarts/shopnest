@@ -60,6 +60,7 @@ Store readiness is also control-plane only. The merchant Store detail computes a
 | `/dashboard/stores/[id]` | Platform | Active merchant owning the Store through Organization | 200 owned active Store with control-plane plan/subscription selection for pre-provisioning Stores; invalid, cross-Organization, or deleted Store is 404 |
 | `/dashboard/stores/[id]/edit` | Platform | Active merchant owner | 200 Store edit; slug is read-only after Tenant linkage |
 | `/dashboard/stores/[id]/policies` | Platform | Active merchant owning the Store through Organization | 200 versioned Store policy workspace; save/publish actions remain control-plane only and cross-Organization access is 404 |
+| `/dashboard/stores/[id]/domain` | Platform | Active merchant owning a provisioned Store through Organization | 200 custom-domain workspace; TXT/CNAME/provider checks are user-triggered and tenant/provider authority remains server-side; invalid, unprovisioned, cross-Organization, or deleted Store is 404 |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |

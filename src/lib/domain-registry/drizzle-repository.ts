@@ -17,8 +17,15 @@ export class DrizzleDomainRegistryRepository
   ): Promise<DomainRegistryRecord | null> {
     const [row] = await getControlPlaneDb()
       .select({
+        id: storeDomains.id,
+        tenantId: storeDomains.tenantId,
         hostname: storeDomains.hostname,
         domainStatus: storeDomains.status,
+        lifecycleRole: storeDomains.lifecycleRole,
+        providerHostnameStatus: storeDomains.providerHostnameStatus,
+        providerSslStatus: storeDomains.providerSslStatus,
+        retireAt: storeDomains.retireAt,
+        redirectToDomainId: storeDomains.redirectToDomainId,
         tenantSlug: controlPlaneTenants.slug,
         tenantSchemaName: controlPlaneTenants.schemaName,
         tenantStatus: controlPlaneTenants.status,
@@ -39,14 +46,71 @@ export class DrizzleDomainRegistryRepository
 
     if (!row) return null;
 
+    let redirectTargetHostname: string | null = null;
+    if (row.lifecycleRole === "retiring") {
+      if (!row.redirectToDomainId) return null;
+
+      const [target] = await getControlPlaneDb()
+        .select({
+          hostname: storeDomains.hostname,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.id, row.redirectToDomainId),
+            eq(storeDomains.tenantId, row.tenantId),
+            eq(storeDomains.status, "active"),
+            eq(storeDomains.lifecycleRole, "primary"),
+            eq(storeDomains.providerHostnameStatus, "active"),
+            eq(storeDomains.providerSslStatus, "active")
+          )
+        )
+        .limit(1);
+
+      if (!target) return null;
+      redirectTargetHostname = target.hostname;
+    }
+
     return {
       hostname: row.hostname,
       domainStatus: row.domainStatus,
+      lifecycleRole: row.lifecycleRole,
+      providerHostnameStatus: row.providerHostnameStatus,
+      providerSslStatus: row.providerSslStatus,
+      retireAt: row.retireAt,
+      redirectTargetHostname,
       tenant: {
         slug: row.tenantSlug,
         schemaName: row.tenantSchemaName,
         status: row.tenantStatus,
       },
     };
+  }
+
+  async findPrimaryByTenantSlug(
+    tenantSlug: string
+  ): Promise<{ hostname: string } | null> {
+    const [row] = await getControlPlaneDb()
+      .select({
+        hostname: storeDomains.hostname,
+      })
+      .from(storeDomains)
+      .innerJoin(
+        controlPlaneTenants,
+        eq(controlPlaneTenants.id, storeDomains.tenantId)
+      )
+      .where(
+        and(
+          eq(controlPlaneTenants.slug, tenantSlug),
+          eq(controlPlaneTenants.status, "active"),
+          eq(storeDomains.status, "active"),
+          eq(storeDomains.lifecycleRole, "primary"),
+          eq(storeDomains.providerHostnameStatus, "active"),
+          eq(storeDomains.providerSslStatus, "active")
+        )
+      )
+      .limit(1);
+
+    return row ?? null;
   }
 }

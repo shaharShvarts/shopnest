@@ -299,7 +299,14 @@
     "assignedStores": "מספר חנויות משויכות: {count}",
     "noPlanLimits": "גרסה זו שומרת שיוך למסלול בלבד. תמחור ואכיפת מגבלות נדחו.",
     "unranked": "ללא דירוג",
-    "noFeaturedStores": "אין עדיין חנויות מומלצות. אפשר לעדכן חנות ולהוסיף אותה כאן."
+    "noFeaturedStores": "אין עדיין חנויות מומלצות. אפשר לעדכן חנות ולהוסיף אותה כאן.",
+    "customDomainLifecycle": "מחזור חיי דומיין מותאם",
+    "customDomainPrimary": "הדומיין הראשי הנוכחי",
+    "customDomainRetiring": "דומיין בתהליך פרישה",
+    "customDomainRetireAt": "ניתן לבצע שחזור עד",
+    "customDomainRollbackHelp": "השחזור מחזיר מיד את הדומיין הקודם ומעביר את הדומיין הראשי הנוכחי לחלון הפניה חדש של 24 שעות.",
+    "customDomainRollback": "שחזור הדומיין הקודם",
+    "domainRollbackComplete": "שחזור הדומיין המותאם הושלם."
   },
   "Marketing": {
     "nav": {
@@ -528,7 +535,8 @@
     "manageStores": "ניהול חנויות",
     "activation_requested": "הפעלה התבקשה",
     "provisioning": "בתהליך הקמה",
-    "provisioning_failed": "ההקמה נכשלה"
+    "provisioning_failed": "ההקמה נכשלה",
+    "manageDomain": "ניהול דומיין מותאם"
   },
   "MerchantDashboard": {
     "workspace": "סביבת עבודה לסוחר",
@@ -631,5 +639,51 @@
     "planNotProvisionable": "לא ניתן עדיין להקים Tenant עבור המסלול שנבחר. יש לבחור מסלול קטן, בינוני או גדול.",
     "provisioned": "החנות הוקמה בהצלחה.",
     "openStore": "פתיחת החנות"
+  },
+  "MerchantDomain": {
+    "title": "דומיין מותאם",
+    "backToStore": "חזרה לחנות",
+    "currentAddress": "כתובת החנות הפעילה",
+    "setupIntro": "חברו דומיין שכבר נמצא בבעלותכם. כתובת החנות הנוכחית ממשיכה לעבוד עד להשלמת התהליך.",
+    "dnsProviderHelp": "את רשומות ה-DNS יוצרים אצל רשם הדומיין או ספק ה-DNS שלכם. עדכון DNS יכול לקחת דקות או שעות.",
+    "dnsFieldHelp": "שמות השדות משתנים בין ספקי DNS. אצל חלקם מזינים את שם ה-host המלא ואצל אחרים רק את החלק שלפני הדומיין.",
+    "abandonSafe": "אם לא תשלימו את התהליך מכל סיבה, אין צורך לעשות דבר. הדומיין הנוכחי ממשיך לעבוד.",
+    "retiringNotice": "הדומיין {hostname} מפנה זמנית אל {target} במהלך חלון הפרישה של 24 שעות.",
+    "verifyOwnership": "אימות בעלות",
+    "verifyCname": "חיבור הדומיין",
+    "provisionSsl": "הפעלת SSL",
+    "checkNow": "בדוק עכשיו",
+    "checkCname": "בדוק CNAME",
+    "checkStatus": "בדוק סטטוס",
+    "checkCountdown": "ניתן לבדוק שוב בעוד {seconds} שניות",
+    "createNewCode": "צור קוד אימות חדש",
+    "txtNotReady": "הרשומה טרם עודכנה. נא לנסות שוב מאוחר יותר.",
+    "txtVerified": "הבעלות אומתה. אפשר להמשיך לשלב ה-CNAME.",
+    "cnameNotReady": "רשומת ה-CNAME עדיין אינה מצביעה ישירות ל-ShopNest. נסו שוב מאוחר יותר.",
+    "cnameTarget": "יעד CNAME",
+    "cnameHelp": "צרו רשומת CNAME ישירה עבור הדומיין המותאם אל היעד של ShopNest שמופיע למטה.",
+    "statusActive": "פעיל",
+    "statusPending": "ממתין",
+    "hostnameStatus": "סטטוס דומיין",
+    "sslStatus": "סטטוס SSL",
+    "provisioning": "הדומיין התקבל ותהליך ההקמה ב-Cloudflare התחיל.",
+    "providerPending": "הדומיין או תעודת ה-SSL עדיין בתהליך הקמה. נסו שוב מאוחר יותר.",
+    "activated": "הדומיין המותאם פעיל.",
+    "removed": "הדומיין המותאם הוסר. כתובת ShopNest של החנות פעילה שוב.",
+    "claimExpired": "תוקף קוד האימות פג. יש ליצור קוד אימות חדש.",
+    "failed": "לא ניתן היה להשלים את הפעולה באופן בטוח. נסו שוב מאוחר יותר.",
+    "notFound": "תהליך חיבור הדומיין אינו זמין עוד.",
+    "domainLabel": "שם הדומיין המותאם",
+    "startSetup": "התחלת חיבור הדומיין",
+    "txtName": "שם רשומת TXT",
+    "txtValue": "ערך רשומת TXT",
+    "copy": "העתק",
+    "tokenExpires": "קוד האימות יפוג בתאריך {time}.",
+    "tokenExpiresIn": "תוקף קוד האימות יפוג בעוד {seconds} שניות.",
+    "tokenNotStored": "מטעמי אבטחה ShopNest אינו שומר את קוד האימות. צור קוד חדש כדי להציג שוב את ערך ה-TXT.",
+    "txtCleanup": "אימות הבעלות הושלם. ניתן להסיר כעת את רשומת ה-TXT הזמנית של ShopNest מה-DNS.",
+    "keepCname": "יש להשאיר את רשומת ה-CNAME כדי שהדומיין המותאם ימשיך לעבוד.",
+    "removeDomain": "הסרת הדומיין המותאם",
+    "removeConfirm": "להסיר את הדומיין המותאם? כתובת ShopNest של החנות תישאר זמינה."
   }
 }

@@ -9,6 +9,9 @@ import {
 import { isPlatformHostname } from "../domain-registry/core.ts";
 
 export const DOMAIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
+export const DOMAIN_MANUAL_CHECK_COOLDOWN_MS = 60_000;
+export const SHOPNEST_CUSTOM_DOMAIN_CNAME_TARGET =
+  "customers.shopnest.co.il";
 export const CUSTOM_DOMAIN_PLAN_CODES = ["medium", "large"] as const;
 export type CustomDomainPlanCode =
   (typeof CUSTOM_DOMAIN_PLAN_CODES)[number];
@@ -36,8 +39,22 @@ export type StoreDomainClaimRecord = {
   verificationTokenHash: string;
   expiresAt: Date;
   verifiedAt: Date | null;
+  cnameVerifiedAt: Date | null;
+  lastTxtCheckAt: Date | null;
+  lastCnameCheckAt: Date | null;
   consumedAt: Date | null;
 };
+
+export type ClaimCheckReservation =
+  | { kind: "not_found" }
+  | { kind: "expired"; claim: StoreDomainClaimRecord }
+  | { kind: "not_verified"; claim: StoreDomainClaimRecord }
+  | {
+      kind: "cooldown";
+      claim: StoreDomainClaimRecord;
+      nextAllowedAt: Date;
+    }
+  | { kind: "ready"; claim: StoreDomainClaimRecord };
 
 export interface StoreDomainClaimRepository {
   createPendingForOwnedStore(input: {
@@ -55,6 +72,22 @@ export interface StoreDomainClaimRepository {
     hostname: string;
   }): Promise<StoreDomainClaimRecord | null>;
 
+  reserveTxtCheck(input: {
+    merchantId: number;
+    storeId: number;
+    hostname: string;
+    now: Date;
+    cooldownMs: number;
+  }): Promise<ClaimCheckReservation>;
+
+  reserveCnameCheck(input: {
+    merchantId: number;
+    storeId: number;
+    hostname: string;
+    now: Date;
+    cooldownMs: number;
+  }): Promise<ClaimCheckReservation>;
+
   markExpired(id: number, now: Date): Promise<void>;
 
   markVerified(input: {
@@ -62,10 +95,16 @@ export interface StoreDomainClaimRepository {
     expectedTokenHash: string;
     now: Date;
   }): Promise<StoreDomainClaimRecord | null>;
+
+  markCnameVerified(input: {
+    id: number;
+    now: Date;
+  }): Promise<StoreDomainClaimRecord | null>;
 }
 
 export interface TxtResolver {
   resolveTxt(name: string): Promise<string[][]>;
+  resolveCname(name: string): Promise<string[]>;
   resolveSoa(name: string): Promise<unknown>;
 }
 
@@ -81,6 +120,15 @@ export type DomainClaimVerifyResult =
   | { kind: "not_found" }
   | { kind: "expired"; hostname: string }
   | { kind: "pending"; hostname: string }
+  | { kind: "cooldown"; hostname: string; nextAllowedAt: Date }
+  | { kind: "verified"; hostname: string; verifiedAt: Date };
+
+export type DomainCnameVerifyResult =
+  | { kind: "not_found" }
+  | { kind: "expired"; hostname: string }
+  | { kind: "not_verified"; hostname: string }
+  | { kind: "pending"; hostname: string; nextAllowedAt: Date }
+  | { kind: "cooldown"; hostname: string; nextAllowedAt: Date }
   | { kind: "verified"; hostname: string; verifiedAt: Date };
 
 export function domainClaimDnsName(hostname: string) {
@@ -99,6 +147,10 @@ function safeHashEquals(leftHex: string, rightHex: string) {
     Buffer.from(leftHex, "hex"),
     Buffer.from(rightHex, "hex")
   );
+}
+
+function canonicalDnsTarget(value: string) {
+  return value.trim().toLowerCase().replace(/\.$/, "");
 }
 
 export function validateClaimHostname(value: unknown): string {
@@ -200,19 +252,26 @@ export class DomainOwnershipClaimService {
     now = new Date()
   ): Promise<DomainClaimVerifyResult> {
     const hostname = validateClaimHostname(value);
-    const claim = await this.repository.findPendingForOwnedStore({
+    const reservation = await this.repository.reserveTxtCheck({
       merchantId,
       storeId,
       hostname,
+      now,
+      cooldownMs: DOMAIN_MANUAL_CHECK_COOLDOWN_MS,
     });
 
-    if (!claim) return { kind: "not_found" };
-
-    if (claim.expiresAt.getTime() <= now.getTime()) {
-      await this.repository.markExpired(claim.id, now);
-      return { kind: "expired", hostname };
+    if (reservation.kind === "not_found") return { kind: "not_found" };
+    if (reservation.kind === "expired") return { kind: "expired", hostname };
+    if (reservation.kind === "cooldown") {
+      return {
+        kind: "cooldown",
+        hostname,
+        nextAllowedAt: reservation.nextAllowedAt,
+      };
     }
+    if (reservation.kind !== "ready") return { kind: "not_found" };
 
+    const claim = reservation.claim;
     let records: string[][];
     try {
       records = await this.resolver.resolveTxt(domainClaimDnsName(hostname));
@@ -221,9 +280,9 @@ export class DomainOwnershipClaimService {
     }
 
     const matched = records.some((chunks) => {
-      const value = chunks.join("");
-      if (!value.startsWith(DOMAIN_CLAIM_VALUE_PREFIX)) return false;
-      const token = value.slice(DOMAIN_CLAIM_VALUE_PREFIX.length);
+      const dnsValue = chunks.join("");
+      if (!dnsValue.startsWith(DOMAIN_CLAIM_VALUE_PREFIX)) return false;
+      const token = dnsValue.slice(DOMAIN_CLAIM_VALUE_PREFIX.length);
       return safeHashEquals(sha256Hex(token), claim.verificationTokenHash);
     });
 
@@ -241,6 +300,66 @@ export class DomainOwnershipClaimService {
       kind: "verified",
       hostname,
       verifiedAt: verified.verifiedAt ?? now,
+    };
+  }
+
+  async verifyCname(
+    merchantId: number,
+    storeId: number,
+    value: unknown,
+    now = new Date()
+  ): Promise<DomainCnameVerifyResult> {
+    const hostname = validateClaimHostname(value);
+    const reservation = await this.repository.reserveCnameCheck({
+      merchantId,
+      storeId,
+      hostname,
+      now,
+      cooldownMs: DOMAIN_MANUAL_CHECK_COOLDOWN_MS,
+    });
+
+    if (reservation.kind === "not_found") return { kind: "not_found" };
+    if (reservation.kind === "expired") return { kind: "expired", hostname };
+    if (reservation.kind === "not_verified") {
+      return { kind: "not_verified", hostname };
+    }
+    if (reservation.kind === "cooldown") {
+      return {
+        kind: "cooldown",
+        hostname,
+        nextAllowedAt: reservation.nextAllowedAt,
+      };
+    }
+
+    const nextAllowedAt = new Date(
+      now.getTime() + DOMAIN_MANUAL_CHECK_COOLDOWN_MS
+    );
+
+    let answers: string[];
+    try {
+      answers = await this.resolver.resolveCname(hostname);
+    } catch {
+      return { kind: "pending", hostname, nextAllowedAt };
+    }
+
+    const directTarget =
+      answers.length === 1 ? canonicalDnsTarget(answers[0] ?? "") : "";
+    if (directTarget !== SHOPNEST_CUSTOM_DOMAIN_CNAME_TARGET) {
+      return { kind: "pending", hostname, nextAllowedAt };
+    }
+
+    const verified = await this.repository.markCnameVerified({
+      id: reservation.claim.id,
+      now,
+    });
+    if (!verified?.cnameVerifiedAt) {
+      return { kind: "pending", hostname, nextAllowedAt };
+    }
+
+    return {
+      kind: "verified",
+      hostname,
+      verifiedAt: verified.cnameVerifiedAt,
     };
   }
 }

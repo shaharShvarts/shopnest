@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { CloudflareCustomHostname } from "./core.ts";
 import { validateClaimHostname } from "../domain-claims/core.ts";
 
@@ -55,7 +54,6 @@ export interface CloudflareDomainProvisioningRepository {
     merchantId: number;
     storeId: number;
     hostname: string;
-    verificationToken: string;
     providerCount: number;
     freeHostnameLimit: number;
     needsProviderCreate: boolean;
@@ -110,6 +108,7 @@ export class CloudflareDomainProvisioningError extends Error {
       | "PROVIDER_HOSTNAME_MISMATCH"
       | "PROVIDER_QUOTA_EXHAUSTED"
       | "CLAIM_NOT_VERIFIED"
+      | "CNAME_NOT_VERIFIED"
       | "STORE_NOT_PROVISIONED"
       | "TENANT_NOT_ACTIVE"
       | "DOMAIN_CONFLICT"
@@ -150,9 +149,7 @@ export class CloudflareDomainProvisioningService {
     private readonly repository: CloudflareDomainProvisioningRepository,
     private readonly provider: CloudflareDomainProvisioningProvider,
     private readonly freeHostnameLimit: number,
-    private readonly cnameTarget: string,
-    private readonly verificationTokenFactory: () => string = () =>
-      `claim-${randomUUID()}`
+    private readonly cnameTarget: string
   ) {}
 
   async provisionVerifiedClaim(
@@ -181,16 +178,10 @@ export class CloudflareDomainProvisioningService {
       providerCount = providerHostnames.length;
     }
 
-    const verificationToken = this.verificationTokenFactory();
-    if (!verificationToken || verificationToken.length > 128) {
-      throw new Error("Store domain verification token generation failed");
-    }
-
     const reservation = await this.repository.reserveVerifiedClaim({
       merchantId,
       storeId,
       hostname,
-      verificationToken,
       providerCount,
       freeHostnameLimit: this.freeHostnameLimit,
       needsProviderCreate,

@@ -46,7 +46,7 @@
     "store-lifecycle:test": "npx --yes tsx --test tests/store-lifecycle.test.mts",
     "tenant-registry:test": "npx --yes tsx --test tests/tenant-registry.test.mts",
     "domain-registry:test": "npx --yes tsx --test tests/domain-registry.test.mts",
-    "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts tests/cloudflare-domain-sync.test.mts tests/cloudflare-domain-removal.test.mts tests/domain-claims.test.mts tests/cloudflare-domain-provisioning.test.mts tests/staging-acceptance-provision-store.test.mts",
+    "cloudflare-saas:test": "npx --yes tsx --test tests/cloudflare-saas.test.mts tests/cloudflare-domain-sync.test.mts tests/cloudflare-domain-removal.test.mts tests/domain-claims.test.mts tests/cloudflare-domain-provisioning.test.mts tests/custom-domain-lifecycle.test.mts tests/staging-acceptance-provision-store.test.mts",
     "cloudflare-saas:smoke": "npx --yes tsx scripts/cloudflare-saas-smoke.mts",
     "cloudflare-domain-sync:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-sync-smoke.mts",
     "cloudflare-domain-remove:smoke": "npx --yes tsx --conditions=react-server scripts/cloudflare-domain-remove-smoke.mts",
@@ -54,7 +54,10 @@
     "domain-claim:start": "npx --yes tsx --conditions=react-server scripts/domain-claim-start.mts",
     "domain-claim:verify": "npx --yes tsx --conditions=react-server scripts/domain-claim-verify.mts",
     "dev-acceptance:provision-store": "npx --yes tsx --conditions=react-server scripts/dev-acceptance-provision-store.mts",
-    "staging-acceptance:provision-store": "npx --yes tsx --conditions=react-server scripts/staging-acceptance-provision-store.mts"
+    "staging-acceptance:provision-store": "npx --yes tsx --conditions=react-server scripts/staging-acceptance-provision-store.mts",
+    "domain:rollback": "npx --yes tsx --conditions=react-server scripts/domain-rollback.mts",
+    "domain-lifecycle:smoke": "npx --yes tsx --conditions=react-server scripts/domain-lifecycle-smoke.mts",
+    "merchant-domain:test": "npx --yes tsx --test tests/domain-claims.test.mts tests/cloudflare-domain-provisioning.test.mts tests/cloudflare-domain-sync.test.mts tests/cloudflare-domain-removal.test.mts tests/custom-domain-lifecycle.test.mts tests/domain-registry.test.mts tests/merchant-domain-routes.test.mts tests/custom-domain-admin.test.mts tests/domain-lifecycle-smoke.test.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

@@ -34,7 +34,6 @@ class FakeRepository implements CloudflareDomainProvisioningRepository {
     merchantId: number;
     storeId: number;
     hostname: string;
-    verificationToken: string;
     providerCount: number;
     freeHostnameLimit: number;
     needsProviderCreate: boolean;
@@ -127,8 +126,7 @@ function service(
     repository,
     provider,
     limit,
-    "customers.shopnest.co.il",
-    () => "claim-test-verification-token"
+    "customers.shopnest.co.il"
   );
 }
 
@@ -437,4 +435,78 @@ test("locked quota path uses the local provider-bound count as well as the provi
 
   assert.match(source, /localProviderBoundCount/);
   assert.match(source, /evaluateCloudflareQuota/);
+});
+
+
+test("verified ownership without verified direct CNAME blocks all Cloudflare calls", async () => {
+  const repository = new FakeRepository();
+  const provider = new FakeProvider();
+  let findCalls = 0;
+  let listCalls = 0;
+
+  provider.findCustomHostnameByHostname = async () => {
+    findCalls += 1;
+    return [];
+  };
+  provider.listCustomHostnames = async () => {
+    listCalls += 1;
+    return [];
+  };
+
+  repository.preflightError = new CloudflareDomainProvisioningError(
+    "CNAME_NOT_VERIFIED",
+    "Direct ShopNest CNAME verification is required"
+  );
+
+  await assert.rejects(
+    () =>
+      service(repository, provider).provisionVerifiedClaim(
+        10,
+        20,
+        "shop.customer.example"
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareDomainProvisioningError &&
+      error.code === "CNAME_NOT_VERIFIED"
+  );
+
+  assert.equal(findCalls, 0);
+  assert.equal(listCalls, 0);
+  assert.equal(provider.createCalls, 0);
+  assert.equal(repository.reserveInputs.length, 0);
+});
+
+test("provisioning does not create a second plaintext verification secret", async () => {
+  const repository = new FakeRepository();
+  const provider = new FakeProvider();
+
+  await service(repository, provider).provisionVerifiedClaim(
+    10,
+    20,
+    "shop.customer.example"
+  );
+
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      repository.reserveInputs[0] ?? {},
+      "verificationToken"
+    ),
+    false
+  );
+});
+
+test("new ShopNest provider bindings are inserted only as non-primary candidates", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-provisioning-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /lifecycleRole:\s*"candidate"/);
+  assert.match(source, /isPrimary:\s*false/);
+  assert.match(source, /cnameVerifiedAt:\s*claim\.cnameVerifiedAt/);
+  assert.match(
+    source,
+    /ne\(storeDomains\.status,\s*"removed"\)/
+  );
 });

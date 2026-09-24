@@ -39,6 +39,9 @@ export const storeDomainClaims = pgTable(
     }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    cnameVerifiedAt: timestamp("cname_verified_at", { withTimezone: true }),
+    lastTxtCheckAt: timestamp("last_txt_check_at", { withTimezone: true }),
+    lastCnameCheckAt: timestamp("last_cname_check_at", { withTimezone: true }),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

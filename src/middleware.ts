@@ -5,6 +5,7 @@ import {
   buildTenantRewriteUrl,
   INTERNAL_PATH_HEADER,
   isGlobalApiPath,
+  isTenantAdminPath,
   isTenantHandlerPath,
   resolveTenantRouteAsync,
   TENANT_HEADER,
@@ -17,7 +18,10 @@ import {
   isPlatformHostname,
   normalizeRequestHostname,
 } from "./lib/domain-registry/core";
-import { resolveTrustedDomain } from "./lib/domain-registry/server";
+import {
+  resolvePrimaryDomainForTenantSlug,
+  resolveTrustedDomain,
+} from "./lib/domain-registry/server";
 import { resolveTrustedTenant } from "./lib/tenant-registry/server";
 
 export async function middleware(req: NextRequest) {
@@ -74,6 +78,14 @@ export async function middleware(req: NextRequest) {
       return new NextResponse("Not Found", { status: 404 });
     }
 
+    if (domain.kind === "redirect") {
+      const redirectUrl = new URL(
+        req.nextUrl.pathname + req.nextUrl.search,
+        "https://" + domain.targetHostname
+      );
+      return NextResponse.redirect(redirectUrl, 302);
+    }
+
     tenantRoute = {
       tenant: domain.tenant,
       internalPath: req.nextUrl.pathname,
@@ -82,6 +94,32 @@ export async function middleware(req: NextRequest) {
   }
 
   const internalPath = tenantRoute?.internalPath ?? req.nextUrl.pathname;
+
+  if (
+    tenantRoute?.tenant &&
+    routeMode === "path" &&
+    ((req.method ?? "GET") === "GET" || (req.method ?? "GET") === "HEAD") &&
+    !isTenantHandlerPath(internalPath) &&
+    !isTenantAdminPath(internalPath)
+  ) {
+    let primaryHostname: string | null;
+    try {
+      primaryHostname = await resolvePrimaryDomainForTenantSlug(
+        tenantRoute.tenant.slug
+      );
+    } catch {
+      return new NextResponse("Service Unavailable", { status: 503 });
+    }
+
+    if (primaryHostname) {
+      const redirectUrl = new URL(
+        internalPath + req.nextUrl.search,
+        "https://" + primaryHostname
+      );
+      return NextResponse.redirect(redirectUrl, 302);
+    }
+  }
+
   const requestHeaders = new Headers(incomingHeaders);
   requestHeaders.set(INTERNAL_PATH_HEADER, internalPath);
 
