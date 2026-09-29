@@ -4,8 +4,10 @@ import {
   and,
   desc,
   eq,
+  inArray,
   isNull,
   lte,
+  ne,
   sql,
 } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/control-db";
@@ -13,6 +15,7 @@ import {
   organizationMemberships,
   plans,
   storeDomainClaims,
+  storeDomains,
   stores,
   subscriptions,
 } from "@/drizzle/control-plane-schema";
@@ -89,7 +92,10 @@ export class DrizzleStoreDomainClaimRepository
   }): Promise<StoreDomainClaimRecord | null> {
     return getControlPlaneDb().transaction(async (tx) => {
       const [ownedStore] = await tx
-        .select({ id: stores.id })
+        .select({
+          id: stores.id,
+          tenantId: stores.tenantId,
+        })
         .from(stores)
         .innerJoin(
           organizationMemberships,
@@ -116,6 +122,29 @@ export class DrizzleStoreDomainClaimRepository
         .for("update");
 
       if (!ownedStore) return null;
+
+      if (ownedStore.tenantId !== null) {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${ownedStore.tenantId})`
+        );
+
+        const [busyDomain] = await tx
+          .select({ id: storeDomains.id })
+          .from(storeDomains)
+          .where(
+            and(
+              eq(storeDomains.tenantId, ownedStore.tenantId),
+              ne(storeDomains.status, "removed"),
+              inArray(storeDomains.lifecycleRole, ["candidate", "retiring"])
+            )
+          )
+          .limit(1)
+          .for("update");
+
+        if (busyDomain) {
+          throw new Error("Custom domain lifecycle is busy");
+        }
+      }
 
       await tx
         .update(storeDomainClaims)

@@ -385,6 +385,147 @@ export class DrizzleCustomDomainLifecycleRepository
     });
   }
 
+  async rollbackRetiringDomainForOwnedStore(input: {
+    merchantId: number;
+    storeId: number;
+    now: Date;
+    retirementMs: number;
+  }): Promise<DomainRollbackResult> {
+    return getControlPlaneDb().transaction(async (tx) => {
+      const [store] = await tx
+        .select({
+          tenantId: stores.tenantId,
+          tenantStatus: controlPlaneTenants.status,
+          planCode: plans.code,
+          planStatus: plans.status,
+          subscriptionStatus: subscriptions.status,
+        })
+        .from(stores)
+        .innerJoin(
+          organizationMemberships,
+          eq(
+            organizationMemberships.organizationId,
+            stores.organizationId
+          )
+        )
+        .innerJoin(
+          subscriptions,
+          and(
+            eq(subscriptions.storeId, stores.id),
+            eq(subscriptions.organizationId, stores.organizationId)
+          )
+        )
+        .innerJoin(plans, eq(plans.id, subscriptions.planId))
+        .innerJoin(
+          controlPlaneTenants,
+          eq(controlPlaneTenants.id, stores.tenantId)
+        )
+        .where(
+          eligibleOwnerWhere(input.merchantId, input.storeId)
+        )
+        .limit(1)
+        .for("update");
+
+      if (!store || store.tenantId === null) {
+        throw new CustomDomainLifecycleError(
+          "ROLLBACK_NOT_AVAILABLE",
+          "Owned Store is not available for rollback"
+        );
+      }
+
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${store.tenantId})`
+      );
+
+      assertEligibility(store);
+
+      const [restoring] = await tx
+        .select({
+          id: storeDomains.id,
+          hostname: storeDomains.hostname,
+          redirectToDomainId: storeDomains.redirectToDomainId,
+          providerHostnameStatus: storeDomains.providerHostnameStatus,
+          providerSslStatus: storeDomains.providerSslStatus,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.tenantId, store.tenantId),
+            eq(storeDomains.lifecycleRole, "retiring"),
+            eq(storeDomains.status, "active"),
+            gt(storeDomains.retireAt, input.now)
+          )
+        )
+        .limit(1)
+        .for("update");
+
+      if (
+        !restoring ||
+        restoring.providerHostnameStatus !== "active" ||
+        restoring.providerSslStatus !== "active"
+      ) {
+        throw new CustomDomainLifecycleError(
+          "ROLLBACK_NOT_AVAILABLE",
+          "Retiring domain is no longer eligible for rollback"
+        );
+      }
+
+      const [primary] = await tx
+        .select({
+          id: storeDomains.id,
+          hostname: storeDomains.hostname,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.tenantId, store.tenantId),
+            eq(storeDomains.lifecycleRole, "primary"),
+            eq(storeDomains.status, "active")
+          )
+        )
+        .limit(1)
+        .for("update");
+
+      if (!primary || restoring.redirectToDomainId !== primary.id) {
+        throw new CustomDomainLifecycleError(
+          "ROLLBACK_NOT_AVAILABLE",
+          "Retiring domain does not point to the current primary"
+        );
+      }
+
+      await tx
+        .update(storeDomains)
+        .set({
+          lifecycleRole: "retiring",
+          isPrimary: false,
+          retireAt: new Date(input.now.getTime() + input.retirementMs),
+          redirectToDomainId: restoring.id,
+          providerLastErrorCode: null,
+          providerLastErrorAt: null,
+          updatedAt: input.now,
+        })
+        .where(eq(storeDomains.id, primary.id));
+
+      await tx
+        .update(storeDomains)
+        .set({
+          lifecycleRole: "primary",
+          isPrimary: true,
+          retireAt: null,
+          redirectToDomainId: null,
+          providerLastErrorCode: null,
+          providerLastErrorAt: null,
+          updatedAt: input.now,
+        })
+        .where(eq(storeDomains.id, restoring.id));
+
+      return {
+        restoredHostname: restoring.hostname,
+        retiringHostname: primary.hostname,
+      };
+    });
+  }
+
   async rollbackRetiringDomain(input: {
     tenantSlug: string;
     restoreHostname: string;

@@ -209,9 +209,16 @@ export class DomainOwnershipClaimService {
         code !== "ENOTFOUND" &&
         code !== "NXDOMAIN"
       ) {
-        throw new Error(
-          "Unable to determine whether custom domain is a DNS zone apex"
-        );
+        try {
+          const cname = await this.resolver.resolveCname(hostname);
+          if (cname.length === 0) {
+            throw new Error("No CNAME record found");
+          }
+        } catch {
+          throw new Error(
+            "Unable to determine whether custom domain is a DNS zone apex"
+          );
+        }
       }
     }
 

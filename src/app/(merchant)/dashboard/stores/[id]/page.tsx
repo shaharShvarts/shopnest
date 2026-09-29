@@ -261,12 +261,12 @@ export default async function MerchantStoreDetailPage({
         ) : null}
 
         {store.tenantId !== null ? (
-          <Link
+          <a
             href={"/" + store.slug}
             className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
           >
             {tActivation("openStore")}
-          </Link>
+          </a>
         ) : store.status === "activation_requested" ||
           store.status === "provisioning" ? (
           <p className="mt-5 rounded-xl bg-muted px-4 py-3 text-sm">

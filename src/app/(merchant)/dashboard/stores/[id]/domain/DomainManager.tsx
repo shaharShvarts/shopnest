@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Copy } from "lucide-react";
 import {
+  MERCHANT_DOMAIN_CHECK_COOLDOWN_MS,
   merchantDomainProgress,
   type MerchantDomainActionState,
   type MerchantDomainView,
@@ -24,16 +26,18 @@ function remainingSeconds(value: string | null, now: number) {
 function CopyValue({ value }: { value: string }) {
   const t = useTranslations("MerchantDomain");
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <div className="flex items-center gap-2">
       <code className="min-w-0 flex-1 break-all rounded-lg bg-muted px-3 py-2 text-sm">
         {value}
       </code>
       <button
         type="button"
         onClick={() => void navigator.clipboard.writeText(value)}
-        className="min-h-10 rounded-lg border border-border px-3 text-sm font-semibold"
+        aria-label={t("copy")}
+        title={t("copy")}
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border"
       >
-        {t("copy")}
+        <Copy className="size-4" aria-hidden="true" />
       </button>
     </div>
   );
@@ -53,8 +57,8 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
     return () => clearInterval(timer);
   }, []);
 
-  const token =
-    result.kind === "claim_started" ? result.token ?? null : null;
+  const [token, setToken] =
+    useState<MerchantDomainActionState["token"]>(undefined);
 
   const txtNext =
     result.kind === "cooldown" && result.nextAllowedAt
@@ -69,13 +73,40 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
       ? result.nextAllowedAt
       : view.candidate?.nextProviderCheckAt ?? null;
 
-  const txtRemaining = remainingSeconds(txtNext, now);
-  const cnameRemaining = remainingSeconds(cnameNext, now);
-  const providerRemaining = remainingSeconds(providerNext, now);
+  const cooldownSeconds = MERCHANT_DOMAIN_CHECK_COOLDOWN_MS / 1000;
+  const txtRemaining = Math.min(
+    cooldownSeconds,
+    remainingSeconds(txtNext, now)
+  );
+  const cnameRemaining = Math.min(
+    cooldownSeconds,
+    remainingSeconds(cnameNext, now)
+  );
+  const providerRemaining = Math.min(
+    cooldownSeconds,
+    remainingSeconds(providerNext, now)
+  );
 
   const activeAddress = view.currentPrimary
     ? "https://" + view.currentPrimary.hostname
     : view.platformUrl;
+
+  const claimExpiresAt = view.claim
+    ? new Date(view.claim.expiresAt).getTime()
+    : null;
+  const claimRemainingMinutes =
+    claimExpiresAt === null
+      ? 0
+      : Math.max(0, Math.ceil((claimExpiresAt - now) / 60_000));
+  const claimRemainingHours = Math.floor(claimRemainingMinutes / 60);
+  const claimRemainingMinutePart = claimRemainingMinutes % 60;
+
+  const actionNeedsAttention =
+    result.kind === "txt_pending" ||
+    result.kind === "cname_pending" ||
+    result.kind === "claim_expired" ||
+    result.kind === "failed" ||
+    result.kind === "not_found";
 
   const actionMessage = useMemo(() => {
     switch (result.kind) {
@@ -110,20 +141,27 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
   ) {
     startTransition(() => {
       void action(formData).then((next) => {
+        if (next.kind === "claim_started" && next.token) {
+          setToken(next.token);
+        } else if (
+          next.kind === "txt_verified" ||
+          next.kind === "claim_expired" ||
+          next.kind === "not_found"
+        ) {
+          setToken(undefined);
+        }
+
         setResult(next);
         router.refresh();
       });
     });
   }
 
-  const setupHostname =
-    view.claim?.hostname ?? view.candidate?.hostname ?? token?.hostname ?? null;
   const {
     ownershipVerified,
     cnameVerified,
     active: providerReady,
   } = merchantDomainProgress(view);
-  const claimRemaining = remainingSeconds(view.claim?.expiresAt ?? null, now);
 
   return (
     <div className="space-y-6">
@@ -155,7 +193,8 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
             2. {t("verifyCname")} {cnameVerified ? "✓" : ""}
           </li>
           <li className="rounded-lg border border-border p-3">
-            3. {t("provisionSsl")} {view.candidate ? "…" : ""}
+            3. {t("provisionSsl")}{" "}
+            {providerReady ? "✓" : view.candidate ? "…" : ""}
           </li>
           <li className="rounded-lg border border-border p-3">
             4. {t("statusActive")} {providerReady ? "✓" : ""}
@@ -163,12 +202,20 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
         </ol>
 
         {actionMessage ? (
-          <p role="status" className="mt-5 rounded-xl bg-muted px-4 py-3 text-sm">
+          <p
+            role={actionNeedsAttention ? "alert" : "status"}
+            className={
+              "mt-5 rounded-xl px-4 py-3 text-sm " +
+              (actionNeedsAttention
+                ? "bg-destructive/10 font-semibold text-destructive ring-1 ring-destructive/20"
+                : "bg-muted")
+            }
+          >
             {actionMessage}
           </p>
         ) : null}
 
-        {!view.claim && !view.candidate ? (
+        {!view.claim && !view.candidate && !view.retiring ? (
           <form
             className="mt-6 space-y-3"
             onSubmit={(event) => {
@@ -200,13 +247,27 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
         {view.claim ? (
           <div className="mt-6 space-y-5">
             <h3 className="font-bold">{t("verifyOwnership")}</h3>
-            {view.claim.status === "pending_verification" ? (
-              <p className="text-sm text-muted-foreground">
-                {claimRemaining > 0
-                  ? t("tokenExpiresIn", { seconds: claimRemaining })
-                  : t("claimExpired")}
-              </p>
-            ) : null}
+            <div className="rounded-xl bg-muted px-4 py-3 text-sm">
+              {claimExpiresAt !== null && claimExpiresAt <= now ? (
+                <p className="font-semibold text-destructive">
+                  {t("claimExpired")}
+                </p>
+              ) : (
+                <>
+                  <p className="font-semibold">
+                    {t("claimDeadline", {
+                      time: new Date(view.claim.expiresAt).toLocaleString(),
+                    })}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {t("claimTimeRemaining", {
+                      hours: claimRemainingHours,
+                      minutes: claimRemainingMinutePart,
+                    })}
+                  </p>
+                </>
+              )}
+            </div>
 
             {token ? (
               <div className="space-y-3">
@@ -218,11 +279,7 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
                   <p className="mb-1 text-sm font-semibold">{t("txtValue")}</p>
                   <CopyValue value={token.dnsValue} />
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {t("tokenExpires", {
-                    time: new Date(token.expiresAt).toLocaleString(),
-                  })}
-                </p>
+
               </div>
             ) : view.claim.status === "pending_verification" ? (
               <div className="rounded-xl bg-muted px-4 py-3 text-sm">
@@ -273,15 +330,28 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
               <div className="space-y-3 border-t border-border pt-5">
                 <h3 className="font-bold">{t("verifyCname")}</h3>
                 <p className="text-sm text-muted-foreground">{t("cnameHelp")}</p>
-                <CopyValue
-                  value={
-                    setupHostname +
-                    " CNAME customers.shopnest.co.il"
-                  }
-                />
-                <p className="text-sm text-muted-foreground">
-                  {t("cnameTarget")}: customers.shopnest.co.il
-                </p>
+
+                <div className="grid gap-4">
+                  <div>
+                    <p className="mb-1 text-sm font-semibold">
+                      {t("cnameHostname")}
+                    </p>
+                    <CopyValue value={view.claim.hostname} />
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      {t("cnameHostnameHelp")}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-sm font-semibold">
+                      {t("cnameTargetHostname")}
+                    </p>
+                    <CopyValue value="customers.shopnest.co.il." />
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      {t("cnameTargetHelp")}
+                    </p>
+                  </div>
+                </div>
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -301,6 +371,38 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
                     {cnameRemaining > 0
                       ? t("checkCountdown", { seconds: cnameRemaining })
                       : t("checkCname")}
+                  </button>
+                </form>
+              </div>
+            ) : null}
+
+            {ownershipVerified &&
+            view.claim.cnameVerifiedAt &&
+            !view.candidate ? (
+              <div className="space-y-3 border-t border-border pt-5">
+                <h3 className="font-bold">{t("provisionSsl")}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {t("provisioningRetryHelp")}
+                </p>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    submit(
+                      checkDomainCnameAction,
+                      new FormData(event.currentTarget)
+                    );
+                  }}
+                >
+                  <input type="hidden" name="storeId" value={view.storeId} />
+                  <input type="hidden" name="hostname" value={view.claim.hostname} />
+                  <button
+                    type="submit"
+                    disabled={isPending || cnameRemaining > 0}
+                    className="min-h-11 rounded-lg bg-foreground px-5 font-semibold text-background disabled:opacity-50"
+                  >
+                    {cnameRemaining > 0
+                      ? t("checkCountdown", { seconds: cnameRemaining })
+                      : t("retryProvisioning")}
                   </button>
                 </form>
               </div>

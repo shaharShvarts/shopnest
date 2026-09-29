@@ -40,6 +40,19 @@ export async function getCustomDomainAdminSummary(
   return repository.findAdminSummary(tenantSlug);
 }
 
+export function rollbackRetiringDomainForOwner(
+  merchantId: number,
+  storeId: number,
+  now = new Date()
+) {
+  return getCustomDomainLifecycleService()
+    .rollbackRetiringDomainForOwner(
+      merchantId,
+      storeId,
+      now
+    );
+}
+
 export function rollbackRetiringDomainForAdmin(
   tenantSlug: string,
   restoreHostname: string,

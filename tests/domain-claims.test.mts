@@ -522,3 +522,78 @@ test("CNAME verification rejects wrong or ambiguous direct answers", async () =>
     assert.equal(repository.claim?.cnameVerifiedAt, null);
   }
 });
+
+test("SOA EBADRESP falls back to CNAME and allows a real subdomain", async () => {
+  const repository = new FakeRepository();
+  let cnameCalls = 0;
+
+  const resolver = {
+    async resolveTxt() {
+      return [];
+    },
+    async resolveCname(name: string) {
+      cnameCalls += 1;
+      assert.equal(name, "shop.customer.example");
+      return ["customers.shopnest.co.il"];
+    },
+    async resolveSoa() {
+      const error = new Error("bad DNS response") as Error & { code?: string };
+      error.code = "EBADRESP";
+      throw error;
+    },
+  } as any;
+
+  const service = new DomainOwnershipClaimService(
+    repository,
+    resolver,
+    () => "k".repeat(43)
+  );
+
+  const result = await service.startClaim(
+    10,
+    20,
+    "shop.customer.example",
+    new Date("2026-09-29T08:00:00Z")
+  );
+
+  assert.equal(result.hostname, "shop.customer.example");
+  assert.equal(cnameCalls, 1);
+  assert.equal(repository.createCalls, 1);
+});
+
+test("SOA EBADRESP remains fail-closed when no CNAME can be confirmed", async () => {
+  const repository = new FakeRepository();
+
+  const resolver = {
+    async resolveTxt() {
+      return [];
+    },
+    async resolveCname() {
+      return [];
+    },
+    async resolveSoa() {
+      const error = new Error("bad DNS response") as Error & { code?: string };
+      error.code = "EBADRESP";
+      throw error;
+    },
+  } as any;
+
+  const service = new DomainOwnershipClaimService(
+    repository,
+    resolver,
+    () => "l".repeat(43)
+  );
+
+  await assert.rejects(
+    () =>
+      service.startClaim(
+        10,
+        20,
+        "shop.customer.example",
+        new Date("2026-09-29T08:00:00Z")
+      ),
+    /Unable to determine whether custom domain is a DNS zone apex/
+  );
+
+  assert.equal(repository.createCalls, 0);
+});

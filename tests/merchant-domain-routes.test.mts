@@ -55,7 +55,8 @@ test("merchant custom-domain actions use the approved service boundaries", async
   assert.match(actions, /checkOwnedCandidate/);
   assert.match(actions, /getCloudflareDomainRemovalService/);
   assert.match(actions, /removeOwnedDomain/);
-  assert.doesNotMatch(actions, /rollback/i);
+  assert.match(actions, /rollbackRetiringDomainForOwner/);
+  assert.doesNotMatch(actions, /rollbackRetiringDomainForAdmin/);
 });
 
 test("merchant domain client uses timers only for countdown display and never polls services", async () => {
@@ -299,4 +300,38 @@ test("merchant removal is explicitly confirmed and claim expiry is visible", asy
   assert.equal(typeof he.MerchantDomain.removeConfirm, "string");
   assert.equal(typeof en.MerchantDomain.tokenExpiresIn, "string");
   assert.equal(typeof he.MerchantDomain.tokenExpiresIn, "string");
+});
+
+test("merchant cannot start another replacement while domain lifecycle is busy", async () => {
+  const [ui, claims] = await Promise.all([
+    source("src/app/(merchant)/dashboard/stores/[id]/domain/DomainManager.tsx"),
+    source("src/lib/domain-claims/drizzle-repository.ts"),
+  ]);
+
+  assert.match(
+    ui,
+    /!view\.claim\s*&&\s*!view\.candidate\s*&&\s*!view\.retiring/
+  );
+  assert.match(claims, /shopnest_domain_lifecycle/);
+  assert.match(
+    claims,
+    /inArray\(storeDomains\.lifecycleRole,\s*\["candidate",\s*"retiring"\]\)/
+  );
+});
+
+test("merchant rollback stays server-side and does not trust browser hostname", async () => {
+  const [page, actions] = await Promise.all([
+    source("src/app/(merchant)/dashboard/stores/[id]/domain/page.tsx"),
+    source("src/app/(merchant)/dashboard/stores/[id]/domain/_actions.ts"),
+  ]);
+
+  assert.doesNotMatch(page, /["']use client["']/);
+  assert.match(page, /action=\{rollbackDomainAction\}/);
+  assert.match(page, /name="storeId"/);
+  assert.doesNotMatch(page, /name="hostname"/);
+  assert.doesNotMatch(page, /restoreHostname/);
+
+  assert.match(actions, /rollbackDomainSchema\s*=\s*z\.object/);
+  assert.match(actions, /rollbackRetiringDomainForOwner/);
+  assert.match(actions, /storeId:\s*formData\.get\("storeId"\)/);
 });

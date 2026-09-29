@@ -1,14 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 import { getCloudflareDomainProvisioningService } from "@/lib/cloudflare-saas/domain-provisioning-server";
 import { getCloudflareDomainRemovalService } from "@/lib/cloudflare-saas/domain-removal-server";
-import { getCustomDomainLifecycleService } from "@/lib/custom-domain-lifecycle/server";
+import {
+  getCustomDomainLifecycleService,
+  rollbackRetiringDomainForOwner,
+} from "@/lib/custom-domain-lifecycle/server";
 import { getDomainOwnershipClaimService } from "@/lib/domain-claims/server";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import type { MerchantDomainActionState } from "@/lib/merchant-domains/core";
 import { getMerchantDomainView } from "@/lib/merchant-domains/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
+
+const rollbackDomainSchema = z.object({
+  storeId: z.coerce.number().int().positive(),
+});
 
 function storeIdFrom(formData: FormData) {
   return parseStoreId(formData.get("storeId"));
@@ -139,6 +148,7 @@ export async function checkDomainCnameAction(
       providerSslStatus: provisioned.providerSslStatus,
     };
   } catch {
+
     return { kind: "failed" };
   }
 }
@@ -197,4 +207,24 @@ export async function removeDomainAction(
   } catch {
     return { kind: "failed" };
   }
+}
+
+
+export async function rollbackDomainAction(
+  formData: FormData
+): Promise<void> {
+  const merchant = await requireMerchantPage();
+
+  const parsed = rollbackDomainSchema.parse({
+    storeId: formData.get("storeId"),
+  });
+
+  await rollbackRetiringDomainForOwner(
+    merchant.id,
+    parsed.storeId
+  );
+
+  revalidatePath(pathFor(parsed.storeId));
+  revalidatePath("/dashboard/stores/" + parsed.storeId);
+  redirect(pathFor(parsed.storeId) + "?rollback=1");
 }

@@ -6,13 +6,16 @@ import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 import { getMerchantDomainView } from "@/lib/merchant-domains/server";
 import { DomainManager } from "./DomainManager";
+import { rollbackDomainAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function MerchantStoreDomainPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ rollback?: string }>;
 }) {
   const merchant = await requireMerchantPage();
 
@@ -23,10 +26,11 @@ export default async function MerchantStoreDomainPage({
     notFound();
   }
 
-  const [store, view, t] = await Promise.all([
+  const [store, view, t, query] = await Promise.all([
     getMerchantStoreRepository().findOwnedById(merchant.id, storeId),
     getMerchantDomainView(merchant.id, storeId),
     getTranslations("MerchantDomain"),
+    searchParams,
   ]);
 
   if (!store || !view || store.tenantId === null) {
@@ -49,6 +53,42 @@ export default async function MerchantStoreDomainPage({
           {store.displayName}
         </p>
       </header>
+
+      {query.rollback === "1" ? (
+        <p
+          role="status"
+          className="mb-6 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+        >
+          {t("rollbackComplete")}
+        </p>
+      ) : null}
+
+      {view.retiring ? (
+        <section className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 sm:p-6">
+          <h2 className="font-bold text-amber-950">
+            {t("rollbackTitle")}
+          </h2>
+          <p className="mt-2 text-sm text-amber-950">
+            {t("rollbackHelp", {
+              hostname: view.retiring.hostname,
+            })}
+          </p>
+
+          <form action={rollbackDomainAction} className="mt-4">
+            <input
+              type="hidden"
+              name="storeId"
+              value={store.id}
+            />
+            <button
+              type="submit"
+              className="min-h-11 rounded-lg bg-foreground px-5 font-semibold text-background"
+            >
+              {t("rollbackDomain")}
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       <DomainManager view={view} />
     </main>

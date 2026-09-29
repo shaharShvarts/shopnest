@@ -90,6 +90,13 @@ export interface CustomDomainLifecycleRepository {
     now: Date;
     retirementMs: number;
   }): Promise<DomainRollbackResult>;
+
+  rollbackRetiringDomainForOwnedStore(input: {
+    merchantId: number;
+    storeId: number;
+    now: Date;
+    retirementMs: number;
+  }): Promise<DomainRollbackResult>;
 }
 
 export interface DomainSyncService {
@@ -227,6 +234,23 @@ export class CustomDomainLifecycleService {
       });
 
     return this.cleanupRetirementReservation(reservation, now);
+  }
+
+  async rollbackRetiringDomainForOwner(
+    merchantId: number,
+    storeId: number,
+    now = new Date()
+  ): Promise<DomainRollbackResult> {
+    const result =
+      await this.repository.rollbackRetiringDomainForOwnedStore({
+        merchantId,
+        storeId,
+        now,
+        retirementMs: CUSTOM_DOMAIN_RETIREMENT_MS,
+      });
+
+    this.clearDomainCache();
+    return result;
   }
 
   async rollbackRetiringDomainForAdmin(

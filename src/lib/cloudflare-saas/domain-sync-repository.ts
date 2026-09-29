@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/control-db";
 import {
   controlPlaneTenants,
@@ -35,7 +35,12 @@ export class DrizzleCloudflareDomainSyncRepository
         controlPlaneTenants,
         eq(controlPlaneTenants.id, storeDomains.tenantId)
       )
-      .where(eq(storeDomains.hostname, hostname))
+      .where(
+        and(
+          eq(storeDomains.hostname, hostname),
+          ne(storeDomains.status, "removed")
+        )
+      )
       .limit(1);
 
     return row ?? null;

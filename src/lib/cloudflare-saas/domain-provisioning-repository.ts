@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   and,
+  desc,
   eq,
   gte,
   isNotNull,
@@ -80,6 +81,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
           isNull(stores.deletedAt)
         )
       )
+      .orderBy(desc(storeDomainClaims.createdAt))
       .limit(1);
 
     if (
@@ -189,6 +191,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
             isNull(stores.deletedAt)
           )
         )
+        .orderBy(desc(storeDomainClaims.createdAt))
         .limit(1)
         .for("update");
 

@@ -65,6 +65,21 @@ class FakeLifecycleRepository implements CustomDomainLifecycleRepository {
     return this.cleanupReservation;
   }
 
+  async rollbackRetiringDomainForOwnedStore(input: {
+    merchantId: number;
+    storeId: number;
+    now: Date;
+    retirementMs: number;
+  }) {
+    assert.equal(input.merchantId, 7);
+    assert.equal(input.storeId, 42);
+    return this.rollbackRetiringDomain({
+      restoreHostname: this.retiring?.hostname ?? "",
+      now: input.now,
+      retirementMs: input.retirementMs,
+    });
+  }
+
   async rollbackRetiringDomain(input: {
     restoreHostname: string;
     now: Date;
@@ -431,4 +446,45 @@ test("Drizzle retirement cleanup disables routing before provider cleanup and ro
   assert.match(source, /isPrimary:\s*false/);
   assert.match(source, /rollbackRetiringDomain/);
   assert.match(source, /ROLLBACK_NOT_AVAILABLE/);
+});
+
+
+test("merchant rollback derives the retiring domain from owned store identity", async () => {
+  const repository = new FakeLifecycleRepository();
+  const now = new Date("2026-09-23T22:30:00Z");
+
+  repository.primary = {
+    id: 2,
+    hostname: "new.example.com",
+    lifecycleRole: "primary",
+    retireAt: null,
+    redirectToDomainId: null,
+  };
+  repository.retiring = {
+    id: 1,
+    hostname: "old.example.com",
+    lifecycleRole: "retiring",
+    retireAt: new Date(now.getTime() + 60_000),
+    redirectToDomainId: 2,
+  };
+
+  const service = new CustomDomainLifecycleService(
+    repository,
+    new FakeSyncService(),
+    () => {}
+  );
+
+  const result = await service.rollbackRetiringDomainForOwner(
+    7,
+    42,
+    now
+  );
+
+  assert.deepEqual(result, {
+    restoredHostname: "old.example.com",
+    retiringHostname: "new.example.com",
+  });
+
+  assert.equal(repository.primary?.hostname, "old.example.com");
+  assert.equal(repository.retiring?.hostname, "new.example.com");
 });

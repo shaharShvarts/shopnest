@@ -510,3 +510,22 @@ test("new ShopNest provider bindings are inserted only as non-primary candidates
     /ne\(storeDomains\.status,\s*"removed"\)/
   );
 });
+
+test("provisioning always selects the newest claim for a repeated store hostname", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-provisioning-repository.ts",
+    "utf8"
+  );
+
+  const newestClaimOrder =
+    /\.orderBy\(desc\(storeDomainClaims\.createdAt\)\)/g;
+
+  const matches = source.match(newestClaimOrder) ?? [];
+
+  assert.equal(
+    matches.length,
+    2,
+    "both preflightVerifiedClaim and reserveVerifiedClaim must select the newest claim"
+  );
+});
