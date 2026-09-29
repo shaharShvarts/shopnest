@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/control-db";
 import {
   organizationMemberships,
@@ -23,22 +23,11 @@ export class DrizzleCloudflareDomainRemovalRepository
     now: Date;
   }): Promise<DomainRemovalReservation> {
     return getControlPlaneDb().transaction(async (tx) => {
-      const [row] = await tx
+      const [ownedStore] = await tx
         .select({
-          domainId: storeDomains.id,
-          hostname: storeDomains.hostname,
-          domainStatus: storeDomains.status,
-          provider: storeDomains.provider,
-          providerHostnameId: storeDomains.providerHostnameId,
+          tenantId: stores.tenantId,
         })
-        .from(storeDomains)
-        .innerJoin(
-          stores,
-          and(
-            eq(stores.id, input.storeId),
-            eq(stores.tenantId, storeDomains.tenantId)
-          )
-        )
+        .from(stores)
         .innerJoin(
           organizationMemberships,
           eq(
@@ -48,7 +37,7 @@ export class DrizzleCloudflareDomainRemovalRepository
         )
         .where(
           and(
-            eq(storeDomains.hostname, input.hostname),
+            eq(stores.id, input.storeId),
             eq(
               organizationMemberships.merchantAccountId,
               input.merchantId
@@ -60,11 +49,86 @@ export class DrizzleCloudflareDomainRemovalRepository
         .limit(1)
         .for("update");
 
-      if (!row) {
+      if (!ownedStore?.tenantId) {
         throw new CloudflareDomainRemovalError(
           "DOMAIN_NOT_FOUND",
           "Owned custom domain not found"
         );
+      }
+
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext('shopnest_domain_lifecycle'), ${ownedStore.tenantId})`
+      );
+
+      let [row] = await tx
+        .select({
+          domainId: storeDomains.id,
+          hostname: storeDomains.hostname,
+          domainStatus: storeDomains.status,
+          provider: storeDomains.provider,
+          providerHostnameId: storeDomains.providerHostnameId,
+        })
+        .from(storeDomains)
+        .where(
+          and(
+            eq(storeDomains.tenantId, ownedStore.tenantId),
+            eq(storeDomains.hostname, input.hostname),
+            eq(storeDomains.lifecycleRole, "primary"),
+            eq(storeDomains.status, "active")
+          )
+        )
+        .limit(1)
+        .for("update");
+
+      if (!row) {
+        const [stillBound] = await tx
+          .select({ id: storeDomains.id })
+          .from(storeDomains)
+          .where(
+            and(
+              eq(storeDomains.tenantId, ownedStore.tenantId),
+              eq(storeDomains.hostname, input.hostname),
+              ne(storeDomains.status, "removed")
+            )
+          )
+          .limit(1)
+          .for("update");
+
+        if (stillBound) {
+          throw new CloudflareDomainRemovalError(
+            "DOMAIN_CONFLICT",
+            "Custom domain is no longer the current primary"
+          );
+        }
+
+        const [removed] = await tx
+          .select({
+            domainId: storeDomains.id,
+            hostname: storeDomains.hostname,
+            domainStatus: storeDomains.status,
+            provider: storeDomains.provider,
+            providerHostnameId: storeDomains.providerHostnameId,
+          })
+          .from(storeDomains)
+          .where(
+            and(
+              eq(storeDomains.tenantId, ownedStore.tenantId),
+              eq(storeDomains.hostname, input.hostname),
+              eq(storeDomains.status, "removed"),
+              isNotNull(storeDomains.providerHostnameId)
+            )
+          )
+          .limit(1)
+          .for("update");
+
+        if (!removed) {
+          return {
+            kind: "already_removed",
+            hostname: input.hostname,
+          };
+        }
+
+        row = removed;
       }
 
       if (

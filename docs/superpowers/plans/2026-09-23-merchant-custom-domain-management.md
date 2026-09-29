@@ -22,7 +22,7 @@
 - Cloudflare Free-compatible; retain the configurable hostname cap, default 100.
 - Activation requires Cloudflare hostname `active`, SSL `active`, active Tenant, valid Store binding, and current merchant eligibility.
 - Replacement keeps the old domain active until cutover; old domain then HTTP 302 redirects for exactly 24 hours.
-- Rollback is Super Admin/operator only and is symmetric.
+- Rollback is available to the owning Merchant during the 24-hour retirement window; Super Admin/operator rollback remains available for support and is symmetric.
 - Removing the only custom domain makes `shopnest.co.il/<slug>` serve immediately with no redirect.
 - Tenant, schema, provider ID/status, lifecycle role, redirect target, and retirement timestamps are never browser-authoritative.
 - Host never derives a database schema.
@@ -50,7 +50,7 @@
 - `src/lib/domain-registry/*` and `src/middleware.ts` — primary/retiring routing and 302 redirects.
 - `src/lib/merchant-domains/*` — owned Store domain read model.
 - `src/app/(merchant)/dashboard/stores/[id]/domain/*` — merchant UI/actions.
-- `src/app/admin/stores/[slug]/page.tsx` and `src/app/admin/_actions/stores.ts` — Super Admin rollback.
+- Merchant domain UI/actions provide owner rollback; `src/app/admin/stores/[slug]/page.tsx` and `src/app/admin/_actions/stores.ts` retain Super Admin rollback support.
 - `scripts/domain-rollback.mts` and `scripts/domain-lifecycle-smoke.mts` — operator/acceptance tools.
 
 ---
@@ -556,7 +556,7 @@ git commit -m "feat: add atomic custom domain cutover"
 **Interfaces:**
 - Produces `cleanupExpiredRetiringForOwnedStore`.
 - Produces `cleanupExpiredRetiringForTenantSlug`.
-- Produces `rollbackRetiringDomainForAdmin`.
+- Produces `rollbackRetiringDomainForOwner` and `rollbackRetiringDomainForAdmin`.
 
 - [ ] **Step 1: Write failing tests**
 
@@ -881,7 +881,7 @@ git commit -m "feat: add merchant custom domain manager"
 
 ---
 
-### Task 8: Add Super Admin rollback, operator fallback, and acceptance tooling
+### Task 8: Add Merchant rollback, Super Admin support, operator fallback, and acceptance tooling
 
 **Files:**
 - Modify: `src/app/admin/stores/[slug]/page.tsx`
@@ -895,6 +895,7 @@ git commit -m "feat: add merchant custom domain manager"
 - Modify: `tests/admin-auth.test.mts`
 
 **Interfaces:**
+- Merchant action calls `rollbackRetiringDomainForOwner(merchantId, storeId, now)` after merchant authentication and Store ownership authorization; hostname/redirect target are derived server-side.
 - Admin action calls `rollbackRetiringDomainForAdmin(tenantSlug, restoreHostname, now)` after `requireSuperAdmin()`.
 - CLI: `npm run domain:rollback -- --tenant-slug <slug> --restore-hostname <hostname>`.
 - Smoke: one explicit action per invocation; never polls.
@@ -927,7 +928,7 @@ Smoke test must assert no `setInterval`, infinite loop, or five-minute timer.
 npx --yes tsx --test tests/custom-domain-admin.test.mts tests/domain-lifecycle-smoke.test.mts tests/admin-auth.test.mts
 ```
 
-- [ ] **Step 3: Add Super Admin rollback action/UI**
+- [ ] **Step 3: Add Merchant owner rollback plus Super Admin support action/UI**
 
 Action:
 

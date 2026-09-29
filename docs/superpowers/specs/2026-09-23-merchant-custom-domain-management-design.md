@@ -299,18 +299,21 @@ When the merchant manually checks status and the candidate is fully Cloudflare-r
 During the 24-hour retirement window:
 - new primary serves the Store
 - old custom domain returns HTTP 302 to the new primary
-- rollback is available only to ShopNest Admin/Operator
-- Merchant cannot rollback
+- rollback is available to the owning Merchant during the 24-hour retirement window
+- ShopNest Admin/Operator rollback remains available for support and emergency use
 
-## 11. Admin rollback
+## 11. Merchant and Admin rollback
 
 Rollback is allowed only while the previous primary is still inside its retirement window.
 
 Primary interface:
-- Super Admin UI
+- Merchant Store owner UI
 
-Fallback interface:
+Support interfaces:
+- Super Admin UI
 - operator CLI/server-side command
+
+Merchant rollback re-authorizes Store ownership server-side and derives the retiring and current primary domains from trusted control-plane state. The browser does not submit the hostname or redirect target.
 
 Rollback is symmetric:
 - retiring old domain becomes `primary`
@@ -322,7 +325,7 @@ Rollback is symmetric:
 
 This preserves service for users who may already have visited or bookmarked the newer domain.
 
-Merchant UI does not expose rollback.
+Merchant UI exposes rollback only while an eligible retiring domain exists inside the 24-hour window.
 
 ## 12. Retirement and lazy cleanup
 
@@ -415,7 +418,7 @@ Never expose raw provider responses, secrets, authorization headers, or unbounde
 ## 17. Security invariants
 
 - Store ownership checked on every merchant action
-- Admin rollback uses existing ShopNest admin authorization, not merchant authorization
+- Merchant rollback re-authorizes Store ownership; Admin rollback uses existing ShopNest admin authorization
 - browser does not choose Tenant, schema, provider ID, provider status, lifecycle role, redirect target, or retirement timestamp
 - plaintext ownership token is never persisted
 - hostname canonicalization and uniqueness are server-side
@@ -512,8 +515,9 @@ Removal/retirement:
 - Cloudflare 404 during cleanup finalizes local cleanup
 
 Rollback:
-- Admin-only rollback inside 24-hour window
-- Merchant rollback rejected
+- Merchant Store owner rollback inside the 24-hour window
+- cross-Store Merchant rollback rejected
+- Admin/operator rollback remains available for support
 - rollback swaps primary/retiring roles safely
 - newer domain 302s to restored old primary for a new 24-hour retirement window
 
