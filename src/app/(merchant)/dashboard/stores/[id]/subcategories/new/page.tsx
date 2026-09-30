@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { categories } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
@@ -17,10 +18,10 @@ export default async function NewManagedSubcategoryPage({
     notFound();
   }
 
-  const { db, store } = await requireStoreManagementDb(
-    storeId,
-    "catalog.manage"
-  );
+  const [{ db, store }, t] = await Promise.all([
+    requireStoreManagementDb(storeId, "catalog.manage"),
+    getTranslations("StoreCatalogManagement"),
+  ]);
   const categoryRows = await db.select().from(categories).orderBy(categories.name);
 
   return (
@@ -29,17 +30,14 @@ export default async function NewManagedSubcategoryPage({
         href={`/dashboard/stores/${storeId}/subcategories`}
         className="text-sm font-semibold underline underline-offset-4"
       >
-        Back to subcategories
+        {t("backToSubcategories")}
       </Link>
       <header className="mb-6 mt-4">
         <p className="text-sm text-muted-foreground">{store.displayName}</p>
-        <h1 className="text-3xl font-bold tracking-tight">Add subcategory</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("addSubcategory")}</h1>
       </header>
       <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
-        <ManagedSubcategoryForm
-          storeId={storeId}
-          categories={categoryRows}
-        />
+        <ManagedSubcategoryForm storeId={storeId} categories={categoryRows} />
       </section>
     </main>
   );
