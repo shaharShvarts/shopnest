@@ -18,7 +18,7 @@ export default async function NewManagedProductPage({
     notFound();
   }
 
-  const [{ db, store }, t] = await Promise.all([
+  const [{ db, store, tenant }, t] = await Promise.all([
     requireStoreManagementDb(storeId, "catalog.manage"),
     getTranslations("StoreCatalogManagement"),
   ]);
@@ -28,7 +28,7 @@ export default async function NewManagedProductPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <Link
         href={`/dashboard/stores/${storeId}/products`}
         className="text-sm font-semibold underline underline-offset-4"
@@ -42,6 +42,7 @@ export default async function NewManagedProductPage({
       <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
         <ManagedProductForm
           storeId={storeId}
+          tenantSlug={tenant.slug}
           categories={categoryRows}
           subcategories={subcategoryRows}
         />
