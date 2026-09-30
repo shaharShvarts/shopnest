@@ -86,7 +86,11 @@
     "stockFew": "Only a few left in stock",
     "stockExact": "Only {count} left in stock",
     "stockLast": "Last one in stock",
-    "stockOut": "Out of stock"
+    "stockOut": "Out of stock",
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "showImage": "Show image {number}",
+    "imageThumbnail": "Product image {number}"
   },
   "CatalogUX": {
     "catalog": "Catalog",
