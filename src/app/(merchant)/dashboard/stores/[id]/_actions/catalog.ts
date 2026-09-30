@@ -249,6 +249,7 @@ export async function editManagedCategory(
       tenantSlug: tenant.slug,
       kind: "categories",
       file: image,
+      resolveTenant,
     });
     imageUrl = uploaded.imageUrl;
   }
@@ -430,6 +431,7 @@ export async function editManagedSubcategory(
       tenantSlug: tenant.slug,
       kind: "subcategories",
       file: image,
+      resolveTenant,
     });
     imageUrl = uploaded.imageUrl;
   }
@@ -639,6 +641,7 @@ export async function editManagedProduct(
       tenantSlug: tenant.slug,
       kind: "products",
       file: image,
+      resolveTenant,
     });
     imageUrl = uploaded.imageUrl;
   }
