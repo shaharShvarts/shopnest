@@ -375,3 +375,27 @@ test("Storefront cards resolve media from the active tenant context", async () =
   assert.match(productCard, /tenantSlug && value === tenantSlug/);
   assert.match(productCard, /basePath: `\/\${tenantSlug}`/);
 });
+
+
+test("Cart product images resolve for dynamic tenants", async () => {
+  const cart = await readFile(
+    "src/app/[tenant]/(storefront)/components/CartTable.tsx",
+    "utf8"
+  );
+
+  assert.match(cart, /resolveTenantImageUrl\(/);
+  assert.match(cart, /tenantSlug && value === tenantSlug/);
+  assert.match(cart, /basePath: `\/\${tenantSlug}`/);
+});
+
+test("Storefront carousel keeps a stable image frame", async () => {
+  const details = await readFile(
+    "src/app/[tenant]/(storefront)/products/_components/ProductDetails.tsx",
+    "utf8"
+  );
+
+  assert.match(details, /aspect-square/);
+  assert.match(details, /fill/);
+  assert.match(details, /object-contain p-3 sm:p-6/);
+  assert.doesNotMatch(details, /h-auto max-h-\[72vh\]/);
+});
