@@ -53,6 +53,7 @@ export function ManagedProductImages({
   const t = useTranslations("StoreCatalogManagement");
   const inputRef = useRef<HTMLInputElement>(null);
   const [newImages, setNewImages] = useState<PreviewFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   const normalizedExisting = useMemo(
     () =>
@@ -74,6 +75,30 @@ export function ManagedProductImages({
     const transfer = new DataTransfer();
     for (const image of next) transfer.items.add(image.file);
     inputRef.current.files = transfer.files;
+  }
+
+  function addFiles(files: File[]) {
+    const existingKeys = new Set(
+      newImages.map(
+        ({ file }) => `${file.name}:${file.size}:${file.lastModified}`
+      )
+    );
+    const additions = files
+      .filter(isValidImage)
+      .filter((file) => {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
+        if (existingKeys.has(key)) return false;
+        existingKeys.add(key);
+        return true;
+      })
+      .map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+      }));
+
+    if (additions.length > 0) {
+      syncFiles([...newImages, ...additions]);
+    }
   }
 
   return (
@@ -137,7 +162,34 @@ export function ManagedProductImages({
           </div>
         ))}
 
-        <label className="flex aspect-square min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-background p-4 text-center transition-colors hover:bg-muted/40">
+        <label
+          className={
+            "flex aspect-square min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-4 text-center transition-colors " +
+            (isDragging
+              ? "border-foreground bg-muted/60"
+              : "border-border bg-background hover:bg-muted/40")
+          }
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            setIsDragging(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setIsDragging(false);
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDragging(false);
+            addFiles(Array.from(event.dataTransfer.files));
+          }}
+        >
           <Plus className="size-8" />
           <span className="font-semibold">{t("addImages")}</span>
           <span className="text-sm text-muted-foreground">{t("imageHelp")}</span>
@@ -150,12 +202,7 @@ export function ManagedProductImages({
             required={existingImages.length === 0 && newImages.length === 0}
             className="sr-only"
             onChange={(event) => {
-              const selected = Array.from(event.target.files ?? []).filter(isValidImage);
-              const additions = selected.map((file) => ({
-                file,
-                url: URL.createObjectURL(file),
-              }));
-              syncFiles([...newImages, ...additions]);
+              addFiles(Array.from(event.target.files ?? []));
             }}
           />
         </label>
