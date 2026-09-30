@@ -315,7 +315,7 @@ test("Managed products persist one-to-many image galleries", async () => {
   assert.match(imageSchema, /imageUrl: text\("image_url"\)/);
   assert.match(productImageSchema, /sortOrder: integer\("sort_order"\)/);
   assert.match(productImageSchema, /product_images_product_sort_unique/);
-  assert.match(actions, /formData\.getAll\("images"\)/);
+  assert.match(actions, /formData\s*\.getAll\("images"\)/);
   assert.match(actions, /z\.array\(imageSchema\)\.min\(1/);
   assert.match(actions, /insert\(productImages\)/);
   assert.match(actions, /imageUrl: uploaded\[0\]\.imageUrl/);
