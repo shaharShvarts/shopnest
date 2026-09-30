@@ -193,7 +193,6 @@ export async function addManagedCategory(
     await createCatalogCategory(new DrizzleCatalogStore(db), {
       ...data,
       imageUrl: uploaded.imageUrl,
-      resolveTenant,
     });
   } catch (error) {
     await deleteCatalogImage({
@@ -360,7 +359,6 @@ export async function addManagedSubcategory(
     await createCatalogSubcategory(new DrizzleCatalogStore(db), {
       ...data,
       imageUrl: uploaded.imageUrl,
-      resolveTenant,
     });
   } catch (error) {
     await deleteCatalogImage({
