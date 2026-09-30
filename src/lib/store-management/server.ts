@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getDbForTenant } from "@/drizzle/db";
+import { redirect } from "next/navigation";
 import { getCurrentAdminSession } from "@/lib/admin-auth/server";
 import { getCurrentMerchant } from "@/lib/merchant-auth/server";
 import {
@@ -13,6 +14,58 @@ import {
 import { DrizzleStoreManagementRepository } from "./drizzle-repository";
 
 const repository = new DrizzleStoreManagementRepository();
+
+export type StoreDashboardPrincipal =
+  | {
+      kind: "owner";
+      merchantId: number;
+      email: string;
+      displayName: string;
+    }
+  | {
+      kind: "manager";
+      adminUserId: number;
+      email: string;
+      displayName: string;
+    };
+
+export async function getCurrentStoreDashboardPrincipal(): Promise<StoreDashboardPrincipal | null> {
+  const merchant = await getCurrentMerchant();
+  if (merchant) {
+    return {
+      kind: "owner",
+      merchantId: merchant.id,
+      email: merchant.email,
+      displayName: merchant.displayName,
+    };
+  }
+
+  const admin = await getCurrentAdminSession();
+  if (
+    !admin ||
+    !admin.isActive ||
+    admin.role !== "tenant_admin" ||
+    admin.tenantSlugs.length > 0
+  ) {
+    return null;
+  }
+
+  const stores = await repository.listManagedStores(admin.id);
+  if (stores.length === 0) return null;
+
+  return {
+    kind: "manager",
+    adminUserId: admin.id,
+    email: admin.email,
+    displayName: admin.email,
+  };
+}
+
+export async function requireStoreDashboardPrincipal() {
+  const principal = await getCurrentStoreDashboardPrincipal();
+  if (!principal) redirect("/login");
+  return principal;
+}
 
 export class StoreManagementServerError extends Error {
   constructor(
