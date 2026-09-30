@@ -4,6 +4,18 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
+  authenticateAdmin,
+  createAdminSession,
+  logoutAdmin,
+  resolveAdminSession,
+} from "@/lib/admin-auth/core";
+import { shouldUseSecureAdminCookie } from "@/lib/admin-auth/cookie";
+import {
+  ADMIN_SESSION_COOKIE,
+  getAdminAuthRepository,
+} from "@/lib/admin-auth/server";
+import { getStoreManagementRepository } from "@/lib/store-management/server";
+import {
   authenticateMerchant,
   createMerchantSession,
   MERCHANT_PASSWORD_MIN_LENGTH,
@@ -97,6 +109,7 @@ export async function signupMerchantAction(
   }
 
   const cookieStore = await cookies();
+  await clearAdminSession(cookieStore);
   await logoutMerchantToken(cookieStore.get(MERCHANT_SESSION_COOKIE)?.value);
   const session = await createMerchantSession(repository, merchant.id);
   await setMerchantSessionCookie(cookieStore, session);
@@ -116,12 +129,48 @@ export async function loginMerchantAction(
     parsed.data.email,
     parsed.data.password
   );
-  if (!merchant) return { success: false, message: "invalidCredentials" };
+
+  if (merchant) {
+    const cookieStore = await cookies();
+    await clearAdminSession(cookieStore);
+    await logoutMerchantToken(cookieStore.get(MERCHANT_SESSION_COOKIE)?.value);
+    const session = await createMerchantSession(repository, merchant.id);
+    await setMerchantSessionCookie(cookieStore, session);
+    redirect("/dashboard");
+  }
+
+  const adminRepository = getAdminAuthRepository();
+  const admin = await authenticateAdmin(
+    adminRepository,
+    parsed.data.email,
+    parsed.data.password
+  );
+  if (!admin || admin.role !== "tenant_admin") {
+    return { success: false, message: "invalidCredentials" };
+  }
+
+  const managerSession = await createAdminSession(adminRepository, admin.id);
+  const managerPrincipal = await resolveAdminSession(
+    adminRepository,
+    managerSession.token
+  );
+  const managedStores =
+    await getStoreManagementRepository().listManagedStores(admin.id);
+
+  if (
+    !managerPrincipal ||
+    managerPrincipal.tenantSlugs.length > 0 ||
+    managedStores.length === 0
+  ) {
+    await logoutAdmin(adminRepository, managerSession.token);
+    return { success: false, message: "invalidCredentials" };
+  }
 
   const cookieStore = await cookies();
   await logoutMerchantToken(cookieStore.get(MERCHANT_SESSION_COOKIE)?.value);
-  const session = await createMerchantSession(repository, merchant.id);
-  await setMerchantSessionCookie(cookieStore, session);
+  cookieStore.delete(MERCHANT_SESSION_COOKIE);
+  await clearAdminSession(cookieStore);
+  await setAdminSessionCookie(cookieStore, managerSession);
   redirect("/dashboard");
 }
 
@@ -201,4 +250,32 @@ async function setMerchantSessionCookie(
       nodeEnv: process.env.NODE_ENV,
     })
   );
+}
+
+async function clearAdminSession(
+  cookieStore: Awaited<ReturnType<typeof cookies>>
+) {
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  if (token) {
+    await logoutAdmin(getAdminAuthRepository(), token);
+  }
+  cookieStore.delete(ADMIN_SESSION_COOKIE);
+}
+
+async function setAdminSessionCookie(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  session: { token: string; expiresAt: Date }
+) {
+  const requestHeaders = await headers();
+  cookieStore.set(ADMIN_SESSION_COOKIE, session.token, {
+    httpOnly: true,
+    secure: shouldUseSecureAdminCookie({
+      origin: requestHeaders.get("origin"),
+      forwardedProto: requestHeaders.get("x-forwarded-proto"),
+      nodeEnv: process.env.NODE_ENV,
+    }),
+    sameSite: "lax",
+    path: "/",
+    expires: session.expiresAt,
+  });
 }
