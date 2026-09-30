@@ -56,7 +56,7 @@ export default async function MerchantDashboardPage() {
                     href={`/dashboard/stores/${record.store.id}/products`}
                     className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold"
                   >
-                    Manage catalog
+                    {tCatalog("manageCatalog")}
                   </Link>
                 ) : null}
               </li>
