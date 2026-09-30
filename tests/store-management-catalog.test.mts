@@ -186,3 +186,42 @@ class FakeRepository implements StoreManagementRepository {
       .map(([, value]) => value);
   }
 }
+
+
+test("Catalog navigation is localized and ordered categories, subcategories, products", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_components/CatalogNavigation.tsx",
+    "utf8"
+  );
+
+  const categoriesIndex = source.indexOf('label: t("categories")');
+  const subcategoriesIndex = source.indexOf('label: t("subcategories")');
+  const productsIndex = source.indexOf('label: t("products")');
+
+  assert.ok(categoriesIndex >= 0);
+  assert.ok(subcategoriesIndex > categoriesIndex);
+  assert.ok(productsIndex > subcategoriesIndex);
+  assert.match(source, /useTranslations\("StoreCatalogManagement"\)/);
+});
+
+test("Unified catalog UI has Hebrew and English translations and dashboard language switching", async () => {
+  const [english, hebrew, layout, switcher, actions] = await Promise.all([
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+    readFile("src/app/(merchant)/dashboard/layout.tsx", "utf8"),
+    readFile(
+      "src/app/(merchant)/dashboard/_components/DashboardLanguageSwitcher.tsx",
+      "utf8"
+    ),
+    readFile("src/app/(merchant)/dashboard/_actions.ts", "utf8"),
+  ]);
+
+  assert.equal(english.StoreCatalogManagement.categories, "Categories");
+  assert.equal(hebrew.StoreCatalogManagement.categories, "קטגוריות");
+  assert.equal(hebrew.StoreCatalogManagement.subcategories, "תתי־קטגוריות");
+  assert.equal(hebrew.StoreCatalogManagement.products, "מוצרים");
+  assert.match(layout, /DashboardLanguageSwitcher/);
+  assert.match(switcher, /setDashboardLocaleAction/);
+  assert.match(actions, /SHOPNEST_LOCALE/);
+  assert.match(actions, /locale !== "he" && locale !== "en"/);
+});
