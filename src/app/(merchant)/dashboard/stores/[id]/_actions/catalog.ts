@@ -133,6 +133,16 @@ const productEditSchema = z
   .object({ ...productFields, image: optionalImageSchema })
   .superRefine(validateThresholds);
 
+
+function trustedMediaResolver(tenant: {
+  slug: string;
+  schema: string;
+  basePath: string;
+}) {
+  return (value: unknown) =>
+    typeof value === "string" && value === tenant.slug ? tenant : null;
+}
+
 function managedPath(storeId: number, section: string) {
   return `/dashboard/stores/${storeId}/${section}`;
 }
@@ -160,6 +170,7 @@ export async function addManagedCategory(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await categoryCreateSchema.safeParseAsync(
     Object.fromEntries(formData)
   );
@@ -175,17 +186,20 @@ export async function addManagedCategory(
     tenantSlug: tenant.slug,
     kind: "categories",
     file: image,
+    resolveTenant,
   });
 
   try {
     await createCatalogCategory(new DrizzleCatalogStore(db), {
       ...data,
       imageUrl: uploaded.imageUrl,
+      resolveTenant,
     });
   } catch (error) {
     await deleteCatalogImage({
       tenantSlug: tenant.slug,
       imageUrl: uploaded.imageUrl,
+      resolveTenant,
     });
     const formError = catalogFormError(error, "category");
     return {
@@ -208,6 +222,7 @@ export async function editManagedCategory(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await categoryEditSchema.safeParseAsync(
     Object.fromEntries(formData)
   );
@@ -248,6 +263,7 @@ export async function editManagedCategory(
       await deleteCatalogImage({
         tenantSlug: tenant.slug,
         imageUrl: uploaded.imageUrl,
+        resolveTenant,
       });
     }
     const formError = catalogFormError(error, "category");
@@ -261,6 +277,7 @@ export async function editManagedCategory(
     await deleteCatalogImage({
       tenantSlug: tenant.slug,
       imageUrl: category.imageUrl,
+      resolveTenant,
     });
   }
 
@@ -280,6 +297,7 @@ export async function deleteManagedCategory(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
 
   let category;
   try {
@@ -300,6 +318,7 @@ export async function deleteManagedCategory(
   await deleteCatalogImage({
     tenantSlug: tenant.slug,
     imageUrl: category.imageUrl,
+    resolveTenant,
   });
   revalidateManagedCatalog(storeId, tenant, [
     "/",
@@ -317,6 +336,7 @@ export async function addManagedSubcategory(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await subcategoryCreateSchema.safeParseAsync(
     Object.fromEntries(formData)
   );
@@ -332,17 +352,20 @@ export async function addManagedSubcategory(
     tenantSlug: tenant.slug,
     kind: "subcategories",
     file: image,
+    resolveTenant,
   });
 
   try {
     await createCatalogSubcategory(new DrizzleCatalogStore(db), {
       ...data,
       imageUrl: uploaded.imageUrl,
+      resolveTenant,
     });
   } catch (error) {
     await deleteCatalogImage({
       tenantSlug: tenant.slug,
       imageUrl: uploaded.imageUrl,
+      resolveTenant,
     });
     const formError = catalogFormError(error, "subcategory");
     return {
@@ -369,6 +392,7 @@ export async function editManagedSubcategory(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await subcategoryEditSchema.safeParseAsync(
     Object.fromEntries(formData)
   );
@@ -420,6 +444,7 @@ export async function editManagedSubcategory(
       await deleteCatalogImage({
         tenantSlug: tenant.slug,
         imageUrl: uploaded.imageUrl,
+        resolveTenant,
       });
     }
     const formError = catalogFormError(error, "subcategory");
@@ -433,6 +458,7 @@ export async function editManagedSubcategory(
     await deleteCatalogImage({
       tenantSlug: tenant.slug,
       imageUrl: subcategory.imageUrl,
+      resolveTenant,
     });
   }
 
@@ -453,6 +479,7 @@ export async function deleteManagedSubcategory(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
 
   let subcategory;
   try {
@@ -471,6 +498,7 @@ export async function deleteManagedSubcategory(
   await deleteCatalogImage({
     tenantSlug: tenant.slug,
     imageUrl: subcategory.imageUrl,
+    resolveTenant,
   });
   revalidateManagedCatalog(storeId, tenant, [
     "/",
@@ -488,6 +516,7 @@ export async function addManagedProduct(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await productCreateSchema.safeParseAsync(
     Object.fromEntries(formData)
   );
@@ -519,6 +548,7 @@ export async function addManagedProduct(
     tenantSlug: tenant.slug,
     kind: "products",
     file: image,
+    resolveTenant,
   });
 
   try {
@@ -539,6 +569,7 @@ export async function addManagedProduct(
     await deleteCatalogImage({
       tenantSlug: tenant.slug,
       imageUrl: uploaded.imageUrl,
+      resolveTenant,
     });
     const formError = catalogFormError(error, "product");
     return {
@@ -565,6 +596,7 @@ export async function editManagedProduct(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await productEditSchema.safeParseAsync(
     Object.fromEntries(formData)
   );
@@ -641,6 +673,7 @@ export async function editManagedProduct(
       await deleteCatalogImage({
         tenantSlug: tenant.slug,
         imageUrl: uploaded.imageUrl,
+        resolveTenant,
       });
     }
 
@@ -666,6 +699,7 @@ export async function editManagedProduct(
     await deleteCatalogImage({
       tenantSlug: tenant.slug,
       imageUrl: product.imageUrl,
+      resolveTenant,
     });
   }
 
@@ -686,6 +720,7 @@ export async function deleteManagedProduct(
     storeId,
     "catalog.manage"
   );
+  const resolveTenant = trustedMediaResolver(tenant);
 
   let product;
   try {
@@ -706,6 +741,7 @@ export async function deleteManagedProduct(
   await deleteCatalogImage({
     tenantSlug: tenant.slug,
     imageUrl: product.imageUrl,
+    resolveTenant,
   });
   revalidateManagedCatalog(storeId, tenant, [
     "/",
