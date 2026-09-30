@@ -747,6 +747,10 @@
     "manageCatalog": "Manage catalog",
     "language": "Language",
     "hebrew": "עברית",
-    "english": "English"
+    "english": "English",
+    "chooseOrDropImage": "Click to choose an image or drag & drop",
+    "imageHelp": "Supported images up to 5 MiB. File contents are verified on upload.",
+    "imageReplacementHelp": "The current image is kept unless you choose a replacement.",
+    "storedImageUnavailable": "Stored image unavailable. Choose a replacement image."
   }
 }
