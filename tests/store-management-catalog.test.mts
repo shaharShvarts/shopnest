@@ -356,3 +356,22 @@ test("Storefront product details render a carousel for gallery images", async ()
   assert.match(details, /previousImage/);
   assert.match(details, /nextImage/);
 });
+
+
+test("Storefront cards resolve media from the active tenant context", async () => {
+  const [categoryCard, subcategoryCard, productCard] = await Promise.all([
+    readFile("src/app/components/CategoryCard.tsx", "utf8"),
+    readFile("src/app/components/SubcategoryCard.tsx", "utf8"),
+    readFile("src/app/components/ProductCard.tsx", "utf8"),
+  ]);
+
+  for (const source of [categoryCard, subcategoryCard]) {
+    assert.match(source, /resolveTenantImageUrl\(/);
+    assert.match(source, /value === tenant\.slug/);
+    assert.match(source, /basePath: tenant\.basePath/);
+  }
+
+  assert.match(productCard, /resolveTenantImageUrl\(/);
+  assert.match(productCard, /tenantSlug && value === tenantSlug/);
+  assert.match(productCard, /basePath: `\/\${tenantSlug}`/);
+});
