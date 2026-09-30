@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { categories, products, subcategories } from "@/drizzle/schema";
+import { categories, images, productImages, products, subcategories } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
 import { ManagedProductForm } from "../../../_components/ManagedProductForm";
@@ -26,10 +26,20 @@ export default async function EditManagedProductPage({
     requireStoreManagementDb(storeId, "catalog.manage"),
     getTranslations("StoreCatalogManagement"),
   ]);
-  const [[product], categoryRows, subcategoryRows] = await Promise.all([
+  const [[product], categoryRows, subcategoryRows, imageRows] = await Promise.all([
     db.select().from(products).where(eq(products.id, productId)).limit(1),
     db.select().from(categories).orderBy(categories.name),
     db.select().from(subcategories).orderBy(subcategories.name),
+    db
+      .select({
+        id: images.id,
+        imageUrl: images.imageUrl,
+        sortOrder: productImages.sortOrder,
+      })
+      .from(productImages)
+      .innerJoin(images, eq(productImages.imageId, images.id))
+      .where(eq(productImages.productId, productId))
+      .orderBy(asc(productImages.sortOrder)),
   ]);
   if (!product) notFound();
 
@@ -52,6 +62,7 @@ export default async function EditManagedProductPage({
           categories={categoryRows}
           subcategories={subcategoryRows}
           product={product}
+          existingImages={imageRows}
         />
       </section>
     </main>
