@@ -548,7 +548,12 @@
     "business": "Business",
     "stores": "Stores",
     "navigation": "Merchant workspace navigation",
-    "signedInAs": "Signed in as"
+    "signedInAs": "Signed in as",
+    "managerGreeting": "Welcome, {name}",
+    "managerDetail": "Manage the stores assigned to you from one ShopNest workspace.",
+    "assignedStores": "Assigned stores",
+    "managerPhaseOneDetail": "Operational tools will appear here as they are migrated into the unified dashboard.",
+    "managerRole": "Manager"
   },
   "MerchantSubscription": {
     "plan": "Plan",
