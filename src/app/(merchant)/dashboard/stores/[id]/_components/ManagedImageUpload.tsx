@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { ImageOff, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -124,12 +123,12 @@ export function ManagedImageUpload({
         />
 
         {previewUrl && !previewFailed ? (
-          <Image
+          // Native img is intentional here: local previews use blob: URLs,
+          // while persisted images are already served by ShopNest media routes.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={previewUrl}
             alt={t("image")}
-            width={900}
-            height={700}
-            unoptimized
             onError={() => setPreviewFailed(true)}
             className="max-h-[420px] w-full rounded-xl object-contain"
           />
