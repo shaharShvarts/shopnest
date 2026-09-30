@@ -5,10 +5,14 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-const items = [
+const ownerItems = [
   { href: "/dashboard", key: "overview" },
   { href: "/dashboard/business", key: "business" },
   { href: "/dashboard/stores", key: "stores" },
+] as const;
+
+const managerItems = [
+  { href: "/dashboard", key: "overview" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -16,9 +20,14 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export function DashboardNavigation() {
+export function DashboardNavigation({
+  role,
+}: {
+  role: "owner" | "manager";
+}) {
   const pathname = usePathname();
   const t = useTranslations("MerchantDashboard");
+  const items = role === "owner" ? ownerItems : managerItems;
 
   return (
     <nav aria-label={t("navigation")} className="w-full">
