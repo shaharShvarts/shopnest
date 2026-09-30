@@ -175,7 +175,18 @@ function CartProductImage({
   sizes: string;
   tenantSlug: string;
 }) {
-  const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenantSlug);
+  const normalizedImageUrl = resolveTenantImageUrl(
+    imageUrl,
+    tenantSlug,
+    (value: unknown) =>
+      tenantSlug && value === tenantSlug
+        ? {
+            slug: tenantSlug,
+            schema: "",
+            basePath: `/${tenantSlug}`,
+          }
+        : null
+  );
 
   if (!normalizedImageUrl) {
     return (
