@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import type { Category, Subcategory } from "@/drizzle/schema";
 import {
   addManagedSubcategory,
@@ -18,6 +19,7 @@ export function ManagedSubcategoryForm({
   categories: Category[];
   subcategory?: Subcategory | null;
 }) {
+  const t = useTranslations("StoreCatalogManagement");
   const action = subcategory
     ? editManagedSubcategory.bind(null, storeId, subcategory.id)
     : addManagedSubcategory.bind(null, storeId);
@@ -27,7 +29,7 @@ export function ManagedSubcategoryForm({
     <form action={formAction} className="space-y-5">
       <div>
         <label htmlFor="name" className="mb-1 block text-sm font-semibold">
-          Name
+          {t("name")}
         </label>
         <input
           id="name"
@@ -45,7 +47,7 @@ export function ManagedSubcategoryForm({
 
       <div>
         <label htmlFor="categoryId" className="mb-1 block text-sm font-semibold">
-          Category
+          {t("category")}
         </label>
         <select
           id="categoryId"
@@ -55,7 +57,7 @@ export function ManagedSubcategoryForm({
           className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2"
         >
           <option value="" disabled>
-            Select category
+            {t("selectCategory")}
           </option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
@@ -72,7 +74,7 @@ export function ManagedSubcategoryForm({
 
       <div>
         <label htmlFor="image" className="mb-1 block text-sm font-semibold">
-          {subcategory ? "Replacement image (optional)" : "Image"}
+          {subcategory ? t("replacementImage") : t("image")}
         </label>
         <input
           id="image"
@@ -84,7 +86,7 @@ export function ManagedSubcategoryForm({
         />
         {subcategory?.imageUrl ? (
           <p className="mt-1 break-all text-xs text-muted-foreground">
-            Current: {subcategory.imageUrl}
+            {t("currentImage", { url: subcategory.imageUrl })}
           </p>
         ) : null}
         {state.errors?.image?.map((message) => (
@@ -99,7 +101,7 @@ export function ManagedSubcategoryForm({
         disabled={pending}
         className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background disabled:opacity-50"
       >
-        {pending ? "Saving..." : "Save"}
+        {pending ? t("saving") : t("save")}
       </button>
     </form>
   );
