@@ -63,20 +63,19 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
     <section className="mx-auto w-full max-w-7xl">
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)] lg:items-start lg:gap-10">
         <div className="min-w-0 space-y-3">
-          <div className="relative flex min-w-0 items-center justify-center overflow-hidden rounded-2xl bg-muted/70 p-3 sm:p-6">
+          <div className="relative aspect-square min-w-0 overflow-hidden rounded-2xl bg-muted/70">
             {normalizedImageUrl ? (
               <Image
                 src={normalizedImageUrl}
                 alt={product.name}
-                width={900}
-                height={900}
+                fill
                 unoptimized
                 priority={activeImageIndex === 0}
-                className="h-auto max-h-[72vh] w-full object-contain lg:max-h-[680px]"
+                className="object-contain p-3 sm:p-6"
                 sizes="(min-width: 1024px) 58vw, 100vw"
               />
             ) : (
-              <div className="flex min-h-72 w-full flex-col items-center justify-center gap-3 text-muted-foreground sm:min-h-[30rem]">
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-muted-foreground">
                 <ImageIcon aria-hidden="true" className="size-12" />
                 <span>{catalogT("imageUnavailable")}</span>
               </div>
