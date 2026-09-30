@@ -37,7 +37,13 @@ export type StoreManagementRecord = {
     organizationId: number;
     displayName: string;
     slug: string;
-    status: string;
+    status:
+      | "draft"
+      | "ready_for_provisioning"
+      | "activation_requested"
+      | "provisioning"
+      | "provisioning_failed"
+      | "provisioned";
     tenantId: number | null;
     deletedAt: Date | null;
   };
