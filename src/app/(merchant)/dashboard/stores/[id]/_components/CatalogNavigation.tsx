@@ -2,21 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export function CatalogNavigation({ storeId }: { storeId: number }) {
   const pathname = usePathname();
+  const t = useTranslations("StoreCatalogManagement");
   const items = [
     {
-      href: `/dashboard/stores/${storeId}/products`,
-      label: "Products",
-    },
-    {
       href: `/dashboard/stores/${storeId}/categories`,
-      label: "Categories",
+      label: t("categories"),
     },
     {
       href: `/dashboard/stores/${storeId}/subcategories`,
-      label: "Subcategories",
+      label: t("subcategories"),
+    },
+    {
+      href: `/dashboard/stores/${storeId}/products`,
+      label: t("products"),
     },
   ];
 
