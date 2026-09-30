@@ -85,10 +85,12 @@ test("Unified catalog routes derive DB authority from Store Management Context",
     ),
   ]);
 
-  assert.match(actions, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
-  assert.match(products, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
-  assert.match(categories, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
-  assert.match(subcategories, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
+  const catalogBoundary =
+    /requireStoreManagementDb\(\s*storeId,\s*"catalog\.manage"\s*\)/;
+  assert.match(actions, catalogBoundary);
+  assert.match(products, catalogBoundary);
+  assert.match(categories, catalogBoundary);
+  assert.match(subcategories, catalogBoundary);
 
   for (const source of [actions, products, categories, subcategories]) {
     assert.doesNotMatch(
