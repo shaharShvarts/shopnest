@@ -82,7 +82,11 @@
     "stockFew": "נותרו רק יחידות בודדות במלאי",
     "stockExact": "נותרו רק {count} במלאי",
     "stockLast": "הפריט האחרון במלאי",
-    "stockOut": "אזל מהמלאי"
+    "stockOut": "אזל מהמלאי",
+    "previousImage": "התמונה הקודמת",
+    "nextImage": "התמונה הבאה",
+    "showImage": "הצגת תמונה {number}",
+    "imageThumbnail": "תמונת מוצר {number}"
   },
   "CatalogUX": {
     "catalog": "קטלוג",
