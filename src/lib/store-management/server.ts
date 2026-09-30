@@ -209,6 +209,39 @@ export async function requireManagerStoreManagementDb(
   }
 }
 
+
+export async function requireStoreManagementDb(
+  storeId: number,
+  permission: StoreManagementPermission = "store.operate"
+) {
+  const principal = await getCurrentStoreDashboardPrincipal();
+  if (!principal) {
+    throw new StoreManagementServerError(401, "Store login required");
+  }
+
+  if (principal.kind === "owner") {
+    return requireOwnerStoreManagementDb(storeId, permission);
+  }
+
+  return requireManagerStoreManagementDb(storeId, permission);
+}
+
+export async function requireStoreManagementContext(
+  storeId: number,
+  permission: StoreManagementPermission = "store.read"
+) {
+  const principal = await getCurrentStoreDashboardPrincipal();
+  if (!principal) {
+    throw new StoreManagementServerError(401, "Store login required");
+  }
+
+  if (principal.kind === "owner") {
+    return requireOwnerStoreManagementContext(storeId, permission);
+  }
+
+  return requireManagerStoreManagementContext(storeId, permission);
+}
+
 export function getStoreManagementRepository() {
   return repository;
 }
