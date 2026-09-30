@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { categories, subcategories } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
@@ -21,16 +22,12 @@ export default async function EditManagedSubcategoryPage({
   }
   if (!Number.isSafeInteger(subcategoryId) || subcategoryId <= 0) notFound();
 
-  const { db, store } = await requireStoreManagementDb(
-    storeId,
-    "catalog.manage"
-  );
+  const [{ db, store }, t] = await Promise.all([
+    requireStoreManagementDb(storeId, "catalog.manage"),
+    getTranslations("StoreCatalogManagement"),
+  ]);
   const [[subcategory], categoryRows] = await Promise.all([
-    db
-      .select()
-      .from(subcategories)
-      .where(eq(subcategories.id, subcategoryId))
-      .limit(1),
+    db.select().from(subcategories).where(eq(subcategories.id, subcategoryId)).limit(1),
     db.select().from(categories).orderBy(categories.name),
   ]);
   if (!subcategory) notFound();
@@ -41,18 +38,14 @@ export default async function EditManagedSubcategoryPage({
         href={`/dashboard/stores/${storeId}/subcategories`}
         className="text-sm font-semibold underline underline-offset-4"
       >
-        Back to subcategories
+        {t("backToSubcategories")}
       </Link>
       <header className="mb-6 mt-4">
         <p className="text-sm text-muted-foreground">{store.displayName}</p>
-        <h1 className="text-3xl font-bold tracking-tight">Edit subcategory</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("editSubcategory")}</h1>
       </header>
       <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
-        <ManagedSubcategoryForm
-          storeId={storeId}
-          categories={categoryRows}
-          subcategory={subcategory}
-        />
+        <ManagedSubcategoryForm storeId={storeId} categories={categoryRows} subcategory={subcategory} />
       </section>
     </main>
   );
