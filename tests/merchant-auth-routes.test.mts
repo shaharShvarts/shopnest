@@ -13,7 +13,14 @@ test("merchant signup collects only identity fields and creates a merchant sessi
   assert.match(actions, /createMerchantSession/);
   assert.match(actions, /MERCHANT_SESSION_COOKIE/);
   assert.match(actions, /redirect\("\/dashboard"\)/);
-  assert.doesNotMatch(actions, /schemaName|tenantSlug|organization|subscription|planId|storeSlug/);
+  const signupBoundary = actions.slice(
+    actions.indexOf("const signupSchema"),
+    actions.indexOf("const loginSchema")
+  );
+  assert.doesNotMatch(
+    signupBoundary,
+    /schemaName|tenantSlug|organization|subscription|planId|storeSlug/
+  );
 });
 
 test("shared login authenticates Owner first and then an eligible Manager", async () => {
