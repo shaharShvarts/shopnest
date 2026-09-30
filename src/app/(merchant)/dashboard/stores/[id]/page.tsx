@@ -134,7 +134,7 @@ export default async function MerchantStoreDetailPage({
                 href={"/dashboard/stores/" + store.id + "/products"}
                 className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
               >
-                Manage catalog
+                {tCatalog("manageCatalog")}
               </Link>
               <Link
                 href={"/dashboard/stores/" + store.id + "/domain"}
