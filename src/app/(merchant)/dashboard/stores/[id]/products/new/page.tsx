@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { categories, subcategories } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
@@ -17,10 +18,10 @@ export default async function NewManagedProductPage({
     notFound();
   }
 
-  const { db, store } = await requireStoreManagementDb(
-    storeId,
-    "catalog.manage"
-  );
+  const [{ db, store }, t] = await Promise.all([
+    requireStoreManagementDb(storeId, "catalog.manage"),
+    getTranslations("StoreCatalogManagement"),
+  ]);
   const [categoryRows, subcategoryRows] = await Promise.all([
     db.select().from(categories).orderBy(categories.name),
     db.select().from(subcategories).orderBy(subcategories.name),
@@ -32,11 +33,11 @@ export default async function NewManagedProductPage({
         href={`/dashboard/stores/${storeId}/products`}
         className="text-sm font-semibold underline underline-offset-4"
       >
-        Back to products
+        {t("backToProducts")}
       </Link>
       <header className="mb-6 mt-4">
         <p className="text-sm text-muted-foreground">{store.displayName}</p>
-        <h1 className="text-3xl font-bold tracking-tight">Add product</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("addProduct")}</h1>
       </header>
       <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
         <ManagedProductForm
