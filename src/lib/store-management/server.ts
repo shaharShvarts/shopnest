@@ -78,6 +78,7 @@ export async function requireManagerStoreManagementContext(
     email: admin.email,
     role: admin.role,
     isActive: admin.isActive,
+    legacyTenantSlugs: admin.tenantSlugs,
   };
 
   try {
@@ -135,6 +136,7 @@ export async function requireManagerStoreManagementDb(
     email: admin.email,
     role: admin.role,
     isActive: admin.isActive,
+    legacyTenantSlugs: admin.tenantSlugs,
   };
 
   try {
