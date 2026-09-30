@@ -323,6 +323,20 @@ test("Managed products persist one-to-many image galleries", async () => {
   assert.match(editPage, /existingImages=\{imageRows\}/);
 });
 
+test("Managed product gallery supports click selection and drag-drop", async () => {
+  const gallery = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedProductImages.tsx",
+    "utf8"
+  );
+
+  assert.match(gallery, /multiple/);
+  assert.match(gallery, /onDragOver=/);
+  assert.match(gallery, /onDrop=/);
+  assert.match(gallery, /event\.dataTransfer\.files/);
+  assert.match(gallery, /dropEffect = "copy"/);
+  assert.match(gallery, /addFiles\(/);
+});
+
 test("Storefront product details render a carousel for gallery images", async () => {
   const [page, details] = await Promise.all([
     readFile(
