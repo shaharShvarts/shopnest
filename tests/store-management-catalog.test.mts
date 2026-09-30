@@ -276,3 +276,15 @@ test("Catalog media route reads through trusted request tenant", async () => {
   );
   assert.match(route, /readCatalogImage\(\{[\s\S]*resolveTenant/);
 });
+
+
+test("Local selected catalog image uses blob preview without Next Image", async () => {
+  const upload = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedImageUpload.tsx",
+    "utf8"
+  );
+
+  assert.match(upload, /URL\.createObjectURL/);
+  assert.match(upload, /<img/);
+  assert.doesNotMatch(upload, /from "next\/image"/);
+});
