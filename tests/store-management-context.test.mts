@@ -296,6 +296,8 @@ test("Server Store Management context uses authenticated principals and trusted 
 
   assert.match(source, /getCurrentMerchant/);
   assert.match(source, /getCurrentAdminSession/);
+  assert.match(source, /getCurrentStoreDashboardPrincipal/);
+  assert.match(source, /listManagedStores\(admin\.id\)/);
   assert.match(source, /legacyTenantSlugs: admin\.tenantSlugs/);
   assert.match(source, /getDbForTenant\(context\.tenant\)/);
   assert.doesNotMatch(
@@ -318,5 +320,11 @@ class FakeRepository implements StoreManagementRepository {
   async findManagedStore(adminUserId: number, storeId: number) {
     this.managerLookups.push([adminUserId, storeId]);
     return this.managed.get(`${adminUserId}:${storeId}`) ?? null;
+  }
+
+  async listManagedStores(adminUserId: number) {
+    return [...this.managed.entries()]
+      .filter(([key]) => key.startsWith(`${adminUserId}:`))
+      .map(([, value]) => value);
   }
 }
