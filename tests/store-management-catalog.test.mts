@@ -288,3 +288,57 @@ test("Local selected catalog image uses blob preview without Next Image", async 
   assert.match(upload, /<img/);
   assert.doesNotMatch(upload, /from "next\/image"/);
 });
+
+
+test("Managed products persist one-to-many image galleries", async () => {
+  const [schema, imageSchema, productImageSchema, actions, form, editPage] =
+    await Promise.all([
+      readFile("src/drizzle/schema.ts", "utf8"),
+      readFile("src/drizzle/schema/image.ts", "utf8"),
+      readFile("src/drizzle/schema/productImage.ts", "utf8"),
+      readFile(
+        "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
+        "utf8"
+      ),
+      readFile(
+        "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedProductForm.tsx",
+        "utf8"
+      ),
+      readFile(
+        "src/app/(merchant)/dashboard/stores/[id]/products/[productId]/edit/page.tsx",
+        "utf8"
+      ),
+    ]);
+
+  assert.match(schema, /schema\/image/);
+  assert.match(schema, /schema\/productImage/);
+  assert.match(imageSchema, /imageUrl: text\("image_url"\)/);
+  assert.match(productImageSchema, /sortOrder: integer\("sort_order"\)/);
+  assert.match(productImageSchema, /product_images_product_sort_unique/);
+  assert.match(actions, /formData\.getAll\("images"\)/);
+  assert.match(actions, /z\.array\(imageSchema\)\.min\(1/);
+  assert.match(actions, /insert\(productImages\)/);
+  assert.match(actions, /imageUrl: uploaded\[0\]\.imageUrl/);
+  assert.match(form, /ManagedProductImages/);
+  assert.match(editPage, /existingImages=\{imageRows\}/);
+});
+
+test("Storefront product details render a carousel for gallery images", async () => {
+  const [page, details] = await Promise.all([
+    readFile(
+      "src/app/[tenant]/(storefront)/products/[id]/details/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/[tenant]/(storefront)/products/_components/ProductDetails.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(page, /from\(productImages\)/);
+  assert.match(page, /imageUrls:/);
+  assert.match(details, /normalizedImageUrls\.length > 1/);
+  assert.match(details, /activeImageIndex/);
+  assert.match(details, /previousImage/);
+  assert.match(details, /nextImage/);
+});
