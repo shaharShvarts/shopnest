@@ -1,0 +1,156 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import {
+  hasStoreManagementPermission,
+  requireStoreManagementAccess,
+  type StoreManagementPrincipal,
+  type StoreManagementRecord,
+  type StoreManagementRepository,
+} from "../src/lib/store-management/core.ts";
+
+const store: StoreManagementRecord = {
+  store: {
+    id: 4,
+    organizationId: 1,
+    displayName: "sex shop",
+    slug: "sex-shop",
+    status: "provisioned",
+    tenantId: 2,
+    deletedAt: null,
+  },
+  tenant: {
+    id: 2,
+    slug: "sex-shop",
+    schemaName: "tenant_4",
+    displayName: "sex shop",
+    status: "active",
+  },
+};
+
+const owner: StoreManagementPrincipal = {
+  kind: "merchant",
+  merchantId: 10,
+  email: "owner@example.com",
+};
+
+const manager: StoreManagementPrincipal = {
+  kind: "manager",
+  adminUserId: 20,
+  email: "manager@example.com",
+  role: "tenant_admin",
+  isActive: true,
+  legacyTenantSlugs: [],
+};
+
+test("Owner and Manager both receive catalog.manage for an authorized Store", async () => {
+  const repository = new FakeRepository();
+  repository.owned.set("10:4", store);
+  repository.managed.set("20:4", store);
+
+  const ownerContext = await requireStoreManagementAccess(
+    repository,
+    owner,
+    4,
+    "catalog.manage"
+  );
+  const managerContext = await requireStoreManagementAccess(
+    repository,
+    manager,
+    4,
+    "catalog.manage"
+  );
+
+  assert.equal(hasStoreManagementPermission(ownerContext, "catalog.manage"), true);
+  assert.equal(hasStoreManagementPermission(managerContext, "catalog.manage"), true);
+});
+
+test("Unified catalog routes derive DB authority from Store Management Context", async () => {
+  const [actions, products, categories, subcategories] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/products/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/categories/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/subcategories/page.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(actions, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
+  assert.match(products, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
+  assert.match(categories, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
+  assert.match(subcategories, /requireStoreManagementDb\(storeId, "catalog\.manage"\)/);
+
+  for (const source of [actions, products, categories, subcategories]) {
+    assert.doesNotMatch(
+      source,
+      /requireTenantAdminDb|getTenant\(|TENANT_SCHEMA_HEADER|schemaName.*formData|tenantSlug.*formData/
+    );
+  }
+});
+
+test("Unified catalog actions expose create, edit, and delete for all catalog entities", async () => {
+  const actions = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
+    "utf8"
+  );
+
+  for (const name of [
+    "addManagedCategory",
+    "editManagedCategory",
+    "deleteManagedCategory",
+    "addManagedSubcategory",
+    "editManagedSubcategory",
+    "deleteManagedSubcategory",
+    "addManagedProduct",
+    "editManagedProduct",
+    "deleteManagedProduct",
+  ]) {
+    assert.match(actions, new RegExp(`export async function ${name}`));
+  }
+
+  assert.match(actions, /saveCatalogImage/);
+  assert.match(actions, /deleteCatalogImage/);
+  assert.match(actions, /adjustInventoryInTransaction/);
+  assert.match(actions, /initializeInventoryAlertsInTransaction/);
+});
+
+test("Dashboard catalog navigation stays Store-specific", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_components/CatalogNavigation.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /\/dashboard\/stores\/\$\{storeId\}\/products/);
+  assert.match(source, /\/dashboard\/stores\/\$\{storeId\}\/categories/);
+  assert.match(source, /\/dashboard\/stores\/\$\{storeId\}\/subcategories/);
+  assert.doesNotMatch(source, /\[tenant\]|tenantSlug|schemaName/);
+});
+
+class FakeRepository implements StoreManagementRepository {
+  owned = new Map<string, StoreManagementRecord>();
+  managed = new Map<string, StoreManagementRecord>();
+
+  async findOwnedStore(merchantId: number, storeId: number) {
+    return this.owned.get(`${merchantId}:${storeId}`) ?? null;
+  }
+
+  async findManagedStore(adminUserId: number, storeId: number) {
+    return this.managed.get(`${adminUserId}:${storeId}`) ?? null;
+  }
+
+  async listManagedStores(adminUserId: number) {
+    return [...this.managed.entries()]
+      .filter(([key]) => key.startsWith(`${adminUserId}:`))
+      .map(([, value]) => value);
+  }
+}
