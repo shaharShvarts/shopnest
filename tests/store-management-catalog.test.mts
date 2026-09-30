@@ -225,3 +225,39 @@ test("Unified catalog UI has Hebrew and English translations and dashboard langu
   assert.match(actions, /SHOPNEST_LOCALE/);
   assert.match(actions, /locale !== "he" && locale !== "en"/);
 });
+
+
+test("Managed catalog edit keeps the existing image unless a replacement is selected", async () => {
+  const [actions, upload, categoryForm, editPage] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedImageUpload.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedCategoryForm.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/categories/[categoryId]/edit/page.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(
+    actions,
+    /value instanceof File && value\.size === 0 \? undefined : value/
+  );
+  assert.match(upload, /resolveTenantImageUrl/);
+  assert.match(upload, /URL\.createObjectURL/);
+  assert.match(upload, /URL\.revokeObjectURL/);
+  assert.match(upload, /required=\{!existingImageUrl\}/);
+  assert.match(upload, /initialImage/);
+  assert.match(categoryForm, /ManagedImageUpload/);
+  assert.match(categoryForm, /initialImage=\{category\?\.imageUrl\}/);
+  assert.match(editPage, /max-w-6xl/);
+  assert.match(editPage, /tenantSlug=\{tenant\.slug\}/);
+});
