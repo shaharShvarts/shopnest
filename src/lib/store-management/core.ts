@@ -59,6 +59,7 @@ export interface StoreManagementRepository {
     adminUserId: number,
     storeId: number
   ): Promise<StoreManagementRecord | null>;
+  listManagedStores(adminUserId: number): Promise<StoreManagementRecord[]>;
 }
 
 export type StoreManagementContext = {
