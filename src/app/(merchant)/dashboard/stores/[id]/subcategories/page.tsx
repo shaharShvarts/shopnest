@@ -53,23 +53,23 @@ export default async function ManagedSubcategoriesPage({
 
       <div className="overflow-x-auto rounded-2xl border border-border bg-background">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left">
+          <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Active</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3 text-start">Name</th>
+              <th className="px-4 py-3 text-start">Category</th>
+              <th className="px-4 py-3 text-start">Active</th>
+              <th className="px-4 py-3 text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((subcategory) => (
               <tr key={subcategory.id} className="border-t border-border">
-                <td className="px-4 py-3 font-medium">{subcategory.name}</td>
-                <td className="px-4 py-3">{subcategory.categoryName}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 text-start font-medium">{subcategory.name}</td>
+                <td className="px-4 py-3 text-start">{subcategory.categoryName}</td>
+                <td className="px-4 py-3 text-start">
                   {subcategory.isActive ? "Yes" : "No"}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 text-end">
                   <div className="flex justify-end gap-2">
                     <Link
                       href={`/dashboard/stores/${storeId}/subcategories/${subcategory.id}/edit`}
