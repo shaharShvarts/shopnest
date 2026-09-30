@@ -50,6 +50,14 @@ export default async function MerchantDashboardPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {tStore(record.store.status)}
                 </p>
+                {record.store.status === "provisioned" ? (
+                  <Link
+                    href={`/dashboard/stores/${record.store.id}/products`}
+                    className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold"
+                  >
+                    Manage catalog
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>
