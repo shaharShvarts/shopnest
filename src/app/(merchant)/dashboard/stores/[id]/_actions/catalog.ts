@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import z from "zod";
-import { categories, products, subcategories } from "@/drizzle/schema";
+import { categories, images, productImages, products, subcategories } from "@/drizzle/schema";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
 import {
   createCatalogCategory,
@@ -123,12 +123,73 @@ function validateThresholds(
 }
 
 const productCreateSchema = z
-  .object({ ...productFields, image: imageSchema })
+  .object({ ...productFields, images: z.array(imageSchema).min(1, "At least one image is required") })
   .superRefine(validateThresholds);
 
 const productEditSchema = z
-  .object({ ...productFields, image: optionalImageSchema })
+  .object({ ...productFields, images: z.array(imageSchema) })
   .superRefine(validateThresholds);
+
+function productFormData(formData: FormData) {
+  return {
+    ...Object.fromEntries(formData),
+    images: formData
+      .getAll("images")
+      .filter(
+        (value): value is File =>
+          value instanceof File && value.size > 0
+      ),
+  };
+}
+
+async function saveManagedProductImages(
+  tenant: { slug: string; schema: string; basePath: string },
+  files: File[]
+) {
+  const resolveTenant = trustedMediaResolver(tenant);
+  const uploaded: Awaited<ReturnType<typeof saveCatalogImage>>[] = [];
+
+  try {
+    for (const file of files) {
+      uploaded.push(
+        await saveCatalogImage({
+          tenantSlug: tenant.slug,
+          kind: "products",
+          file,
+          resolveTenant,
+        })
+      );
+    }
+    return uploaded;
+  } catch (error) {
+    await Promise.all(
+      uploaded.map((image) =>
+        deleteCatalogImage({
+          tenantSlug: tenant.slug,
+          imageUrl: image.imageUrl,
+          resolveTenant,
+        })
+      )
+    );
+    throw error;
+  }
+}
+
+async function deleteManagedProductFiles(
+  tenant: { slug: string; schema: string; basePath: string },
+  imageUrls: string[]
+) {
+  const resolveTenant = trustedMediaResolver(tenant);
+  await Promise.all(
+    imageUrls.map((imageUrl) =>
+      deleteCatalogImage({
+        tenantSlug: tenant.slug,
+        imageUrl,
+        resolveTenant,
+      })
+    )
+  );
+}
 
 
 function trustedMediaResolver(tenant: {
@@ -513,9 +574,8 @@ export async function addManagedProduct(
     storeId,
     "catalog.manage"
   );
-  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await productCreateSchema.safeParseAsync(
-    Object.fromEntries(formData)
+    productFormData(formData)
   );
   if (!parsed.success) {
     return {
@@ -524,7 +584,7 @@ export async function addManagedProduct(
     };
   }
 
-  const { image, ...data } = parsed.data;
+  const { images: imageFiles, ...data } = parsed.data;
   const store = new DrizzleCatalogStore(db);
 
   try {
@@ -541,19 +601,27 @@ export async function addManagedProduct(
     };
   }
 
-  const uploaded = await saveCatalogImage({
-    tenantSlug: tenant.slug,
-    kind: "products",
-    file: image,
-    resolveTenant,
-  });
+  const uploaded = await saveManagedProductImages(tenant, imageFiles);
 
   try {
     await db.transaction(async (tx) => {
       const [created] = await tx
         .insert(products)
-        .values({ ...data, imageUrl: uploaded.imageUrl })
+        .values({ ...data, imageUrl: uploaded[0].imageUrl })
         .returning({ id: products.id });
+
+      for (const [sortOrder, image] of uploaded.entries()) {
+        const [createdImage] = await tx
+          .insert(images)
+          .values({ imageUrl: image.imageUrl })
+          .returning({ id: images.id });
+
+        await tx.insert(productImages).values({
+          productId: created.id,
+          imageId: createdImage.id,
+          sortOrder,
+        });
+      }
 
       await initializeInventoryAlertsInTransaction(
         new DrizzleInventoryTransaction(tx),
@@ -563,11 +631,10 @@ export async function addManagedProduct(
       );
     });
   } catch (error) {
-    await deleteCatalogImage({
-      tenantSlug: tenant.slug,
-      imageUrl: uploaded.imageUrl,
-      resolveTenant,
-    });
+    await deleteManagedProductFiles(
+      tenant,
+      uploaded.map((image) => image.imageUrl)
+    );
     const formError = catalogFormError(error, "product");
     return {
       success: false,
@@ -593,9 +660,8 @@ export async function editManagedProduct(
     storeId,
     "catalog.manage"
   );
-  const resolveTenant = trustedMediaResolver(tenant);
   const parsed = await productEditSchema.safeParseAsync(
-    Object.fromEntries(formData)
+    productFormData(formData)
   );
   if (!parsed.success) {
     return {
@@ -611,7 +677,7 @@ export async function editManagedProduct(
     .limit(1);
   if (!product) notFound();
 
-  const { image, ...data } = parsed.data;
+  const { images: imageFiles, ...data } = parsed.data;
   const store = new DrizzleCatalogStore(db);
 
   try {
@@ -628,18 +694,19 @@ export async function editManagedProduct(
     };
   }
 
-  let imageUrl = product.imageUrl;
-  let uploaded: Awaited<ReturnType<typeof saveCatalogImage>> | null = null;
+  const currentGallery = await db
+    .select({ imageId: productImages.imageId })
+    .from(productImages)
+    .where(eq(productImages.productId, productId));
 
-  if (image) {
-    uploaded = await saveCatalogImage({
-      tenantSlug: tenant.slug,
-      kind: "products",
-      file: image,
-      resolveTenant,
-    });
-    imageUrl = uploaded.imageUrl;
+  if (currentGallery.length === 0 && imageFiles.length === 0) {
+    return {
+      success: false,
+      errors: { images: ["At least one image is required"] },
+    };
   }
+
+  const uploaded = await saveManagedProductImages(tenant, imageFiles);
 
   try {
     await db.transaction(async (tx) => {
@@ -662,18 +729,27 @@ export async function editManagedProduct(
           price: data.price,
           categoryId: data.categoryId,
           subcategoryId: data.subcategoryId,
-          imageUrl,
         })
         .where(eq(products.id, productId));
+
+      for (const [index, image] of uploaded.entries()) {
+        const [createdImage] = await tx
+          .insert(images)
+          .values({ imageUrl: image.imageUrl })
+          .returning({ id: images.id });
+
+        await tx.insert(productImages).values({
+          productId,
+          imageId: createdImage.id,
+          sortOrder: currentGallery.length + index,
+        });
+      }
     });
   } catch (error) {
-    if (uploaded) {
-      await deleteCatalogImage({
-        tenantSlug: tenant.slug,
-        imageUrl: uploaded.imageUrl,
-        resolveTenant,
-      });
-    }
+    await deleteManagedProductFiles(
+      tenant,
+      uploaded.map((image) => image.imageUrl)
+    );
 
     if (error instanceof InventoryError) {
       const field =
@@ -693,17 +769,10 @@ export async function editManagedProduct(
     };
   }
 
-  if (uploaded) {
-    await deleteCatalogImage({
-      tenantSlug: tenant.slug,
-      imageUrl: product.imageUrl,
-      resolveTenant,
-    });
-  }
-
   revalidateManagedCatalog(storeId, tenant, [
     "/",
     "/products",
+    `/products/${productId}/details`,
     `/categories/${product.categoryId}/products`,
     `/categories/${data.categoryId}/products`,
   ]);
@@ -718,14 +787,32 @@ export async function deleteManagedProduct(
     storeId,
     "catalog.manage"
   );
-  const resolveTenant = trustedMediaResolver(tenant);
+
+  const gallery = await db
+    .select({
+      imageId: images.id,
+      imageUrl: images.imageUrl,
+    })
+    .from(productImages)
+    .innerJoin(images, eq(productImages.imageId, images.id))
+    .where(eq(productImages.productId, productId));
 
   let product;
   try {
-    [product] = await db
-      .delete(products)
-      .where(eq(products.id, productId))
-      .returning();
+    product = await db.transaction(async (tx) => {
+      const [deleted] = await tx
+        .delete(products)
+        .where(eq(products.id, productId))
+        .returning();
+
+      if (deleted && gallery.length > 0) {
+        await tx
+          .delete(images)
+          .where(inArray(images.id, gallery.map((image) => image.imageId)));
+      }
+
+      return deleted;
+    });
   } catch (error) {
     if (isForeignKeyViolation(error)) {
       throw new Error(
@@ -736,11 +823,14 @@ export async function deleteManagedProduct(
   }
 
   if (!product) notFound();
-  await deleteCatalogImage({
-    tenantSlug: tenant.slug,
-    imageUrl: product.imageUrl,
-    resolveTenant,
-  });
+
+  const mediaUrls =
+    gallery.length > 0
+      ? gallery.map((image) => image.imageUrl)
+      : [product.imageUrl];
+
+  await deleteManagedProductFiles(tenant, mediaUrls);
+
   revalidateManagedCatalog(storeId, tenant, [
     "/",
     "/products",
