@@ -254,7 +254,28 @@ Do not collapse `merchant_accounts` and `admin_users` merely for UI consistency.
 
 The desired UX is one dashboard; internal identity storage can remain separate until there is a strong reason to unify it.
 
-### 6.4 Permission checks
+### 6.4 Unified login decision
+
+Owner and Manager use the same ShopNest sign-in entry point:
+
+```text
+/login
+    -> Merchant Owner authentication first
+    -> eligible Store Manager authentication if Merchant authentication does not match
+    -> /dashboard
+```
+
+Internal identity/session storage remains separate. A successful workspace login must clear the other workspace session type so the browser does not carry simultaneous Owner and Manager identities.
+
+For the first version:
+
+- Manager continues to use `public.admin_users` credentials internally.
+- Manager must be a `tenant_admin` account with an explicit Store-level Manager assignment.
+- A Manager account with legacy `admin_user_tenants` assignments is not eligible for the unified Manager context, preventing bypass through the broader legacy Tenant Admin routes.
+- Super Admin is not eligible for the normal Store Management dashboard through this path.
+- Merchant password reset remains the existing Owner flow in Phase 1. Manager self-service password recovery is deferred to the Team/Manager management phase rather than weakening or conflating the existing auth domains.
+
+### 6.5 Permission checks
 
 Permission enforcement must exist at all relevant boundaries:
 
