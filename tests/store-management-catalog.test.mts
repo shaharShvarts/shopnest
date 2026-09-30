@@ -261,3 +261,18 @@ test("Managed catalog edit keeps the existing image unless a replacement is sele
   assert.match(editPage, /max-w-6xl/);
   assert.match(editPage, /tenantSlug=\{tenant\.slug\}/);
 });
+
+
+test("Catalog media route reads through trusted request tenant", async () => {
+  const route = await readFile(
+    "src/app/media/[kind]/[filename]/route.ts",
+    "utf8"
+  );
+
+  assert.match(route, /const tenant = await getTenant\(\)/);
+  assert.match(
+    route,
+    /typeof value === "string" && value === tenant\.slug \? tenant : null/
+  );
+  assert.match(route, /readCatalogImage\(\{[\s\S]*resolveTenant/);
+});
