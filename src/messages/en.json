@@ -751,6 +751,13 @@
     "chooseOrDropImage": "Click to choose an image or drag & drop",
     "imageHelp": "Supported images up to 5 MiB. File contents are verified on upload.",
     "imageReplacementHelp": "The current image is kept unless you choose a replacement.",
-    "storedImageUnavailable": "Stored image unavailable. Choose a replacement image."
+    "storedImageUnavailable": "Stored image unavailable. Choose a replacement image.",
+    "productImages": "Product images",
+    "productImagesHelp": "Add one or more product images. The first image is used as the primary catalog image.",
+    "primaryImage": "Primary",
+    "addImages": "Add images",
+    "removeImage": "Remove image",
+    "productImageNumber": "Product image {number}",
+    "newProductImageNumber": "New product image {number}"
   }
 }
