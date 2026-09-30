@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { categories, subcategories } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
@@ -19,10 +20,10 @@ export default async function ManagedSubcategoriesPage({
     notFound();
   }
 
-  const { db, store } = await requireStoreManagementDb(
-    storeId,
-    "catalog.manage"
-  );
+  const [{ db, store }, t] = await Promise.all([
+    requireStoreManagementDb(storeId, "catalog.manage"),
+    getTranslations("StoreCatalogManagement"),
+  ]);
   const rows = await db
     .select({
       id: subcategories.id,
@@ -39,13 +40,13 @@ export default async function ManagedSubcategoriesPage({
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">{store.displayName}</p>
-          <h1 className="text-3xl font-bold tracking-tight">Subcategories</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("subcategories")}</h1>
         </div>
         <Link
           href={`/dashboard/stores/${storeId}/subcategories/new`}
           className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
         >
-          Add subcategory
+          {t("addSubcategory")}
         </Link>
       </header>
 
@@ -55,10 +56,10 @@ export default async function ManagedSubcategoriesPage({
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3 text-start">Name</th>
-              <th className="px-4 py-3 text-start">Category</th>
-              <th className="px-4 py-3 text-start">Active</th>
-              <th className="px-4 py-3 text-end">Actions</th>
+              <th className="px-4 py-3 text-start">{t("name")}</th>
+              <th className="px-4 py-3 text-start">{t("category")}</th>
+              <th className="px-4 py-3 text-start">{t("active")}</th>
+              <th className="px-4 py-3 text-end">{t("actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -67,7 +68,7 @@ export default async function ManagedSubcategoriesPage({
                 <td className="px-4 py-3 text-start font-medium">{subcategory.name}</td>
                 <td className="px-4 py-3 text-start">{subcategory.categoryName}</td>
                 <td className="px-4 py-3 text-start">
-                  {subcategory.isActive ? "Yes" : "No"}
+                  {subcategory.isActive ? t("yes") : t("no")}
                 </td>
                 <td className="px-4 py-3 text-end">
                   <div className="flex justify-end gap-2">
@@ -75,20 +76,14 @@ export default async function ManagedSubcategoriesPage({
                       href={`/dashboard/stores/${storeId}/subcategories/${subcategory.id}/edit`}
                       className="rounded-lg border border-border px-3 py-2 font-semibold"
                     >
-                      Edit
+                      {t("edit")}
                     </Link>
-                    <form
-                      action={deleteManagedSubcategory.bind(
-                        null,
-                        storeId,
-                        subcategory.id
-                      )}
-                    >
+                    <form action={deleteManagedSubcategory.bind(null, storeId, subcategory.id)}>
                       <button
                         type="submit"
                         className="rounded-lg border border-destructive px-3 py-2 font-semibold text-destructive"
                       >
-                        Delete
+                        {t("delete")}
                       </button>
                     </form>
                   </div>
@@ -98,7 +93,7 @@ export default async function ManagedSubcategoriesPage({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                  No subcategories yet.
+                  {t("noSubcategories")}
                 </td>
               </tr>
             ) : null}
