@@ -112,6 +112,29 @@ export class DrizzleStoreManagementRepository
     return row ? mapRecord(row as SelectionRow) : null;
   }
 
+  async listManagedStores(
+    adminUserId: number
+  ): Promise<StoreManagementRecord[]> {
+    const rows = await getControlPlaneDb()
+      .select(selection)
+      .from(stores)
+      .innerJoin(
+        storeManagerAssignments,
+        and(
+          eq(storeManagerAssignments.storeId, stores.id),
+          eq(storeManagerAssignments.adminUserId, adminUserId)
+        )
+      )
+      .leftJoin(
+        controlPlaneTenants,
+        eq(stores.tenantId, controlPlaneTenants.id)
+      )
+      .where(isNull(stores.deletedAt))
+      .orderBy(stores.id);
+
+    return rows.map((row) => mapRecord(row as SelectionRow));
+  }
+
   async findManagedStore(
     adminUserId: number,
     storeId: number
