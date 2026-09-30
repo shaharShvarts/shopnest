@@ -86,9 +86,14 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(redirectUrl, 302);
     }
 
+    const tenantMediaPrefix = `/${domain.tenant.slug}/media/`;
+    const hostedInternalPath = req.nextUrl.pathname.startsWith(tenantMediaPrefix)
+      ? req.nextUrl.pathname.slice(domain.tenant.basePath.length)
+      : req.nextUrl.pathname;
+
     tenantRoute = {
       tenant: domain.tenant,
-      internalPath: req.nextUrl.pathname,
+      internalPath: hostedInternalPath,
     };
     routeMode = "host";
   }
