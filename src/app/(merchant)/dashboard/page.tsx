@@ -8,10 +8,11 @@ export default async function MerchantDashboardPage() {
   const principal = await requireStoreDashboardPrincipal();
 
   if (principal.kind === "manager") {
-    const [stores, tDashboard, tStore] = await Promise.all([
+    const [stores, tDashboard, tStore, tCatalog] = await Promise.all([
       getStoreManagementRepository().listManagedStores(principal.adminUserId),
       getTranslations("MerchantDashboard"),
       getTranslations("MerchantStore"),
+      getTranslations("StoreCatalogManagement"),
     ]);
 
     return (
