@@ -140,8 +140,21 @@ export async function middleware(req: NextRequest) {
 
   let response;
   if (tenantRoute?.tenant && routeMode === "host") {
+    const normalizedHostedHandlerPath =
+      isTenantHandlerPath(internalPath) &&
+      internalPath !== req.nextUrl.pathname;
+
     response = isTenantHandlerPath(internalPath)
-      ? NextResponse.next({ request: { headers: requestHeaders } })
+      ? normalizedHostedHandlerPath
+        ? NextResponse.rewrite(
+            buildHostedTenantRewriteUrl(
+              req.nextUrl,
+              tenantRoute.tenant,
+              internalPath
+            ),
+            { request: { headers: requestHeaders } }
+          )
+        : NextResponse.next({ request: { headers: requestHeaders } })
       : NextResponse.rewrite(
           buildHostedTenantRewriteUrl(
             req.nextUrl,
