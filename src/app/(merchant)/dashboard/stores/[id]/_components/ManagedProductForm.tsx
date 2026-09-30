@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import type { Category, Product, Subcategory } from "@/drizzle/schema";
 import {
   addManagedProduct,
@@ -20,6 +21,7 @@ export function ManagedProductForm({
   subcategories: Subcategory[];
   product?: Product | null;
 }) {
+  const t = useTranslations("StoreCatalogManagement");
   const action = product
     ? editManagedProduct.bind(null, storeId, product.id)
     : addManagedProduct.bind(null, storeId);
@@ -29,7 +31,7 @@ export function ManagedProductForm({
     <form action={formAction} className="space-y-5">
       <div>
         <label htmlFor="name" className="mb-1 block text-sm font-semibold">
-          Name
+          {t("name")}
         </label>
         <input
           id="name"
@@ -47,7 +49,7 @@ export function ManagedProductForm({
 
       <div>
         <label htmlFor="description" className="mb-1 block text-sm font-semibold">
-          Description
+          {t("description")}
         </label>
         <textarea
           id="description"
@@ -60,7 +62,7 @@ export function ManagedProductForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="categoryId" className="mb-1 block text-sm font-semibold">
-            Category
+            {t("category")}
           </label>
           <select
             id="categoryId"
@@ -70,7 +72,7 @@ export function ManagedProductForm({
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2"
           >
             <option value="" disabled>
-              Select category
+              {t("selectCategory")}
             </option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -87,7 +89,7 @@ export function ManagedProductForm({
 
         <div>
           <label htmlFor="subcategoryId" className="mb-1 block text-sm font-semibold">
-            Subcategory
+            {t("subcategory")}
           </label>
           <select
             id="subcategoryId"
@@ -95,7 +97,7 @@ export function ManagedProductForm({
             defaultValue={product?.subcategoryId ?? ""}
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2"
           >
-            <option value="">None</option>
+            <option value="">{t("noSubcategory")}</option>
             {subcategories.map((subcategory) => (
               <option key={subcategory.id} value={subcategory.id}>
                 {subcategory.name}
@@ -113,25 +115,25 @@ export function ManagedProductForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberField
           name="price"
-          label="Price"
+          label={t("price")}
           defaultValue={product?.price}
           error={state.errors?.price}
         />
         <NumberField
           name="quantity"
-          label="Quantity"
+          label={t("quantity")}
           defaultValue={product?.quantity}
           error={state.errors?.quantity}
         />
         <NumberField
           name="lowStockThreshold"
-          label="Low-stock threshold"
+          label={t("lowStockThreshold")}
           defaultValue={product?.lowStockThreshold ?? 10}
           error={state.errors?.lowStockThreshold}
         />
         <NumberField
           name="criticalStockThreshold"
-          label="Critical-stock threshold"
+          label={t("criticalStockThreshold")}
           defaultValue={product?.criticalStockThreshold ?? 4}
           error={state.errors?.criticalStockThreshold}
         />
@@ -139,7 +141,7 @@ export function ManagedProductForm({
 
       <div>
         <label htmlFor="image" className="mb-1 block text-sm font-semibold">
-          {product ? "Replacement image (optional)" : "Image"}
+          {product ? t("replacementImage") : t("image")}
         </label>
         <input
           id="image"
@@ -151,7 +153,7 @@ export function ManagedProductForm({
         />
         {product?.imageUrl ? (
           <p className="mt-1 break-all text-xs text-muted-foreground">
-            Current: {product.imageUrl}
+            {t("currentImage", { url: product.imageUrl })}
           </p>
         ) : null}
         {state.errors?.image?.map((message) => (
@@ -166,7 +168,7 @@ export function ManagedProductForm({
         disabled={pending}
         className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background disabled:opacity-50"
       >
-        {pending ? "Saving..." : "Save"}
+        {pending ? t("saving") : t("save")}
       </button>
     </form>
   );
