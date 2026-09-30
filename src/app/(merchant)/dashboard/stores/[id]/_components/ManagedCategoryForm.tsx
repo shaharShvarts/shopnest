@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import type { Category } from "@/drizzle/schema";
 import {
   addManagedCategory,
@@ -16,6 +17,7 @@ export function ManagedCategoryForm({
   storeId: number;
   category?: Category | null;
 }) {
+  const t = useTranslations("StoreCatalogManagement");
   const action = category
     ? editManagedCategory.bind(null, storeId, category.id)
     : addManagedCategory.bind(null, storeId);
@@ -25,7 +27,7 @@ export function ManagedCategoryForm({
     <form action={formAction} className="space-y-5">
       <div>
         <label htmlFor="name" className="mb-1 block text-sm font-semibold">
-          Name
+          {t("name")}
         </label>
         <input
           id="name"
@@ -43,7 +45,7 @@ export function ManagedCategoryForm({
 
       <div>
         <label htmlFor="image" className="mb-1 block text-sm font-semibold">
-          {category ? "Replacement image (optional)" : "Image"}
+          {category ? t("replacementImage") : t("image")}
         </label>
         <input
           id="image"
@@ -55,7 +57,7 @@ export function ManagedCategoryForm({
         />
         {category?.imageUrl ? (
           <p className="mt-1 break-all text-xs text-muted-foreground">
-            Current: {category.imageUrl}
+            {t("currentImage", { url: category.imageUrl })}
           </p>
         ) : null}
         {state.errors?.image?.map((message) => (
@@ -70,7 +72,7 @@ export function ManagedCategoryForm({
         disabled={pending}
         className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background disabled:opacity-50"
       >
-        {pending ? "Saving..." : "Save"}
+        {pending ? t("saving") : t("save")}
       </button>
     </form>
   );
