@@ -42,6 +42,7 @@ const manager: StoreManagementPrincipal = {
   email: "manager@example.com",
   role: "tenant_admin",
   isActive: true,
+  legacyTenantSlugs: [],
 };
 
 test("Owner resolves an exact owned Store without relying on a first organization", async () => {
@@ -121,13 +122,14 @@ test("Manager is denied every Owner-only sensitive permission", async () => {
   }
 });
 
-test("Super Admin and inactive admin sessions do not become Store Managers", async () => {
+test("Super Admin, inactive users, and legacy Tenant Admins do not become Store Managers", async () => {
   const repository = new FakeRepository();
   repository.managed.set("20:4", activeStore);
 
   for (const principal of [
     { ...manager, role: "super_admin" as const },
     { ...manager, isActive: false },
+    { ...manager, legacyTenantSlugs: ["sex-shop"] },
   ]) {
     await assert.rejects(
       () => requireStoreManagementAccess(repository, principal, 4),
