@@ -8,6 +8,23 @@ import { useTranslations } from "next-intl";
 import { isValidImage } from "@/lib/isValidImage";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
+type TenantImageIdentity = {
+  slug: string;
+  schema: string;
+  basePath: string;
+};
+
+type TenantImageResolver = (
+  value: unknown
+) => TenantImageIdentity | null;
+
+const resolveTenantImageUrlWithResolver =
+  resolveTenantImageUrl as unknown as (
+    value: unknown,
+    tenantSlug: string,
+    resolveTenant: TenantImageResolver
+  ) => string | null;
+
 type ManagedImageUploadProps = {
   tenantSlug: string;
   initialImage?: string | null;
@@ -35,7 +52,7 @@ export function ManagedImageUpload({
 
   const existingImageUrl = useMemo(
     () =>
-      resolveTenantImageUrl(
+      resolveTenantImageUrlWithResolver(
         initialImage,
         tenantSlug,
         tenantResolver(tenantSlug)
