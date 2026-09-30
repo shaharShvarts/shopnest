@@ -16,33 +16,39 @@ test("merchant signup collects only identity fields and creates a merchant sessi
   assert.doesNotMatch(actions, /schemaName|tenantSlug|organization|subscription|planId|storeSlug/);
 });
 
-test("merchant login rotates merchant session and uses generic invalid credentials", async () => {
+test("shared login authenticates Owner first and then an eligible Manager", async () => {
   const actions = await readFile("src/app/(marketing)/_actions/merchant-auth.ts", "utf8");
   assert.match(actions, /authenticateMerchant/);
-  assert.match(
-    actions,
-    /logoutMerchantToken\([\s\S]*MERCHANT_SESSION_COOKIE[\s\S]*createMerchantSession/
-  );
+  assert.match(actions, /authenticateAdmin/);
+  assert.match(actions, /admin\.role !== "tenant_admin"/);
+  assert.match(actions, /managerPrincipal\.tenantSlugs\.length > 0/);
+  assert.match(actions, /listManagedStores\(admin\.id\)/);
+  assert.match(actions, /createMerchantSession/);
+  assert.match(actions, /createAdminSession/);
+  assert.match(actions, /ADMIN_SESSION_COOKIE/);
+  assert.match(actions, /MERCHANT_SESSION_COOKIE/);
   assert.match(actions, /invalidCredentials/);
   assert.doesNotMatch(actions, /unknownEmail|wrongPassword|accountNotFound/);
 });
 
-test("forgot and reset flows do not enumerate accounts or cross auth domains", async () => {
+test("forgot and reset remain Merchant password flows without tenant or customer authority", async () => {
   const actions = await readFile("src/app/(marketing)/_actions/merchant-auth.ts", "utf8");
   assert.match(actions, /requestMerchantPasswordReset/);
   assert.match(actions, /resetMerchantPassword/);
   assert.match(actions, /submitted: true/);
   assert.doesNotMatch(
     actions,
-    /getDbForTenant|getTenant\(|customerAccounts|customerSessions|adminUsers|shopnest_customer_session|shopnest_admin_session|sql\.raw/
+    /getDbForTenant|getTenant\(|customerAccounts|customerSessions|shopnest_customer_session|sql\.raw/
   );
 });
 
-test("merchant logout only invalidates merchant auth", async () => {
+test("dashboard logout invalidates both Owner and Manager workspace sessions", async () => {
   const action = await readFile("src/app/(merchant)/dashboard/_actions.ts", "utf8");
   assert.match(action, /logoutMerchantToken/);
+  assert.match(action, /logoutAdmin/);
   assert.match(action, /MERCHANT_SESSION_COOKIE/);
-  assert.doesNotMatch(action, /CUSTOMER_SESSION_COOKIE|ADMIN_SESSION_COOKIE|logoutCustomer|logoutAdmin/);
+  assert.match(action, /ADMIN_SESSION_COOKIE/);
+  assert.doesNotMatch(action, /CUSTOMER_SESSION_COOKIE|logoutCustomer/);
 });
 
 test("merchant auth pages are accessible forms with password recovery", async () => {
@@ -64,12 +70,18 @@ test("merchant auth pages are accessible forms with password recovery", async ()
   assert.match(forms, /min-h-11/);
 });
 
-test("merchant dashboard is protected by merchant auth only", async () => {
-  const page = await readFile("src/app/(merchant)/dashboard/page.tsx", "utf8");
-  assert.match(page, /requireMerchantPage\(\)/);
+test("dashboard accepts a trusted Owner or Manager principal without tenant request authority", async () => {
+  const [page, login] = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/page.tsx", "utf8"),
+    readFile("src/app/(marketing)/login/page.tsx", "utf8"),
+  ]);
+  assert.match(page, /requireStoreDashboardPrincipal\(\)/);
+  assert.match(page, /principal\.kind === "manager"/);
+  assert.match(page, /listManagedStores\(principal\.adminUserId\)/);
+  assert.match(login, /getCurrentStoreDashboardPrincipal\(\)/);
   assert.doesNotMatch(
     page,
-    /getTenant\(|getDbForTenant|TenantLink|getCurrentCustomer|getCurrentAdminSession/
+    /getTenant\(|getDbForTenant|TenantLink|getCurrentCustomer|TENANT_SCHEMA_HEADER|search_path/
   );
 });
 
