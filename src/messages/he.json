@@ -544,7 +544,12 @@
     "business": "עסק",
     "stores": "חנויות",
     "navigation": "ניווט בסביבת העבודה של הסוחר",
-    "signedInAs": "מחובר כ־"
+    "signedInAs": "מחובר כ־",
+    "managerGreeting": "ברוך הבא, {name}",
+    "managerDetail": "נהל את החנויות שהוקצו לך מתוך סביבת ניהול אחת של ShopNest.",
+    "assignedStores": "חנויות שהוקצו לך",
+    "managerPhaseOneDetail": "כלי התפעול יופיעו כאן בהדרגה עם העברתם לממשק הניהול המאוחד.",
+    "managerRole": "מנהל"
   },
   "MerchantSubscription": {
     "plan": "מסלול",
