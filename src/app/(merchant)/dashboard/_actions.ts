@@ -38,7 +38,7 @@ export async function setDashboardLocaleAction(locale: "he" | "en") {
 
   const cookieStore = await cookies();
   cookieStore.set("SHOPNEST_LOCALE", locale, {
-    httpOnly: false,
+    httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
