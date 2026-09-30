@@ -21,6 +21,8 @@ export type StoreDashboardPrincipal =
       merchantId: number;
       email: string;
       displayName: string;
+      phoneE164: string | null;
+      status: "active";
     }
   | {
       kind: "manager";
@@ -37,6 +39,8 @@ export async function getCurrentStoreDashboardPrincipal(): Promise<StoreDashboar
       merchantId: merchant.id,
       email: merchant.email,
       displayName: merchant.displayName,
+      phoneE164: merchant.phoneE164,
+      status: merchant.status,
     };
   }
 
