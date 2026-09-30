@@ -22,7 +22,7 @@ export type StoreDashboardPrincipal =
       email: string;
       displayName: string;
       phoneE164: string | null;
-      status: "active";
+      status: "active" | "disabled";
     }
   | {
       kind: "manager";
