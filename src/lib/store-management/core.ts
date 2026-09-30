@@ -28,6 +28,7 @@ export type StoreManagementPrincipal =
       email: string;
       role: "tenant_admin" | "super_admin";
       isActive: boolean;
+      legacyTenantSlugs: string[];
     };
 
 export type StoreManagementRecord = {
@@ -137,7 +138,11 @@ export async function requireStoreManagementAccess(
     role = "owner";
     record = await repository.findOwnedStore(principal.merchantId, storeId);
   } else {
-    if (!principal.isActive || principal.role !== "tenant_admin") {
+    if (
+      !principal.isActive ||
+      principal.role !== "tenant_admin" ||
+      principal.legacyTenantSlugs.length > 0
+    ) {
       throw new StoreManagementAuthorizationError(
         "PERMISSION_DENIED",
         "Store access denied"
