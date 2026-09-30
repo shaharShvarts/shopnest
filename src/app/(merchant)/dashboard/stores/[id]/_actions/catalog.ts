@@ -49,10 +49,7 @@ const imageSchema = z
   });
 
 const optionalImageSchema = z.preprocess(
-  (value) =>
-    value instanceof File && value.size === 0 && value.name === ""
-      ? undefined
-      : value,
+  (value) => (value instanceof File && value.size === 0 ? undefined : value),
   imageSchema.optional()
 );
 
