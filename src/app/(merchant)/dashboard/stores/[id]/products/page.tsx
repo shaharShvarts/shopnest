@@ -46,23 +46,23 @@ export default async function ManagedProductsPage({
 
       <div className="overflow-x-auto rounded-2xl border border-border bg-background">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left">
+          <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Price</th>
-              <th className="px-4 py-3">Quantity</th>
-              <th className="px-4 py-3">Active</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3 text-start">Name</th>
+              <th className="px-4 py-3 text-start">Price</th>
+              <th className="px-4 py-3 text-start">Quantity</th>
+              <th className="px-4 py-3 text-start">Active</th>
+              <th className="px-4 py-3 text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((product) => (
               <tr key={product.id} className="border-t border-border">
-                <td className="px-4 py-3 font-medium">{product.name}</td>
-                <td className="px-4 py-3">{product.price}</td>
-                <td className="px-4 py-3">{product.quantity}</td>
-                <td className="px-4 py-3">{product.isActive ? "Yes" : "No"}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 text-start font-medium">{product.name}</td>
+                <td className="px-4 py-3 text-start">{product.price}</td>
+                <td className="px-4 py-3 text-start">{product.quantity}</td>
+                <td className="px-4 py-3 text-start">{product.isActive ? "Yes" : "No"}</td>
+                <td className="px-4 py-3 text-end">
                   <div className="flex justify-end gap-2">
                     <Link
                       href={`/dashboard/stores/${storeId}/products/${product.id}/edit`}
