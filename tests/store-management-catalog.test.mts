@@ -100,6 +100,36 @@ test("Unified catalog routes derive DB authority from Store Management Context",
   }
 });
 
+test("Unified catalog media accepts only the trusted Store tenant", async () => {
+  const actions = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
+    "utf8"
+  );
+
+  assert.match(actions, /function trustedMediaResolver/);
+  assert.match(
+    actions,
+    /typeof value === "string" && value === tenant\.slug \? tenant : null/
+  );
+
+  const mediaCalls = [
+    ...actions.matchAll(
+      /(?:saveCatalogImage|deleteCatalogImage)\(\{[\s\S]*?\n\s*\}\)/g
+    ),
+  ];
+
+  assert.ok(mediaCalls.length > 0);
+  for (const call of mediaCalls) {
+    assert.match(
+      call[0],
+      /resolveTenant/,
+      `media call did not use the trusted Store tenant resolver: ${call[0]}`
+    );
+  }
+
+  assert.doesNotMatch(actions, /resolveConfiguredTenant/);
+});
+
 test("Unified catalog actions expose create, edit, and delete for all catalog entities", async () => {
   const actions = await readFile(
     "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
