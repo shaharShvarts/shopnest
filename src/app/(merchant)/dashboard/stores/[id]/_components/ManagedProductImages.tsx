@@ -1,7 +1,7 @@
 "use client";
 
 import { ImageOff, Plus, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { isValidImage } from "@/lib/isValidImage";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
@@ -67,11 +67,6 @@ export function ManagedProductImages({
     [existingImages, tenantSlug]
   );
 
-  useEffect(() => {
-    return () => {
-      for (const image of newImages) URL.revokeObjectURL(image.url);
-    };
-  }, [newImages]);
 
   function syncFiles(next: PreviewFile[]) {
     setNewImages(next);
