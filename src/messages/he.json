@@ -743,6 +743,10 @@
     "manageCatalog": "ניהול קטלוג",
     "language": "שפה",
     "hebrew": "עברית",
-    "english": "English"
+    "english": "English",
+    "chooseOrDropImage": "לחצו לבחירת תמונה או גררו אותה לכאן",
+    "imageHelp": "נתמכות תמונות עד 5 MiB. תוכן הקובץ נבדק בעת ההעלאה.",
+    "imageReplacementHelp": "התמונה הקיימת תישמר כל עוד לא תבחרו תמונה חלופית.",
+    "storedImageUnavailable": "לא ניתן להציג את התמונה השמורה. יש לבחור תמונה חלופית."
   }
 }
