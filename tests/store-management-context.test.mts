@@ -186,6 +186,57 @@ test("Unprovisioned, suspended, mismatched, and unsafe tenant bindings fail clos
   }
 });
 
+
+test("Draft Store keeps control-plane Owner access but cannot open a tenant DB", async () => {
+  const repository = new FakeRepository();
+  const draftStore: StoreManagementRecord = {
+    ...activeStore,
+    store: {
+      ...activeStore.store,
+      status: "draft",
+      tenantId: null,
+    },
+    tenant: null,
+  };
+  repository.owned.set("10:4", draftStore);
+
+  const context = await requireStoreManagementAccess(repository, owner, 4);
+  assert.equal(context.store.status, "draft");
+
+  await assert.rejects(
+    () => requireActiveStoreManagementTenant(repository, owner, 4),
+    (error: unknown) =>
+      error instanceof StoreManagementAuthorizationError &&
+      error.code === "TENANT_UNAVAILABLE"
+  );
+});
+
+test("Deleted and malformed Store identifiers fail closed", async () => {
+  const repository = new FakeRepository();
+  repository.owned.set("10:4", {
+    ...activeStore,
+    store: { ...activeStore.store, deletedAt: new Date("2026-09-30T00:00:00Z") },
+  });
+
+  await assert.rejects(
+    () => requireStoreManagementAccess(repository, owner, 4),
+    (error: unknown) =>
+      error instanceof StoreManagementAuthorizationError &&
+      error.code === "STORE_NOT_FOUND"
+  );
+
+  for (const storeId of [0, -1, 1.5, Number.NaN]) {
+    await assert.rejects(
+      () => requireStoreManagementAccess(repository, owner, storeId),
+      (error: unknown) =>
+        error instanceof StoreManagementAuthorizationError &&
+        error.code === "STORE_NOT_FOUND"
+    );
+  }
+
+  assert.deepEqual(repository.ownerLookups, [[10, 4]]);
+});
+
 test("Manager assignment migration is Store-level and additive", async () => {
   const sql = await readFile(
     "src/drizzle/control-migrations/0016_store_manager_assignments.sql",
@@ -218,6 +269,38 @@ test("Store Management repository scopes ownership and managers by exact Store",
   assert.doesNotMatch(
     source,
     /getTenant\(|TENANT_SCHEMA_HEADER|search_path|schemaName.*input/
+  );
+});
+
+
+test("Store Manager migration is journaled after PR #47 migration", async () => {
+  const journal = JSON.parse(
+    await readFile("src/drizzle/control-migrations/meta/_journal.json", "utf8")
+  );
+  const entry = journal.entries.find(
+    (candidate: { tag?: string }) =>
+      candidate.tag === "0016_store_manager_assignments"
+  );
+
+  assert.ok(entry);
+  assert.equal(entry.idx, 16);
+  assert.equal(entry.version, "7");
+  assert.equal(entry.breakpoints, true);
+});
+
+test("Server Store Management context uses authenticated principals and trusted tenant DB only", async () => {
+  const source = await readFile(
+    "src/lib/store-management/server.ts",
+    "utf8"
+  );
+
+  assert.match(source, /getCurrentMerchant/);
+  assert.match(source, /getCurrentAdminSession/);
+  assert.match(source, /legacyTenantSlugs: admin\.tenantSlugs/);
+  assert.match(source, /getDbForTenant\(context\.tenant\)/);
+  assert.doesNotMatch(
+    source,
+    /getTenant\(|TENANT_SCHEMA_HEADER|schemaName.*storeId|search_path/
   );
 });
 
