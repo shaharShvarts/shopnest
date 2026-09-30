@@ -63,3 +63,18 @@ test("custom-domain middleware normalizes tenant-prefixed media for the bound te
   );
   assert.match(middleware, /routeMode = "host"/);
 });
+
+
+test("normalized custom-domain media handlers are rewritten", async () => {
+  const middleware = await source("src/middleware.ts");
+
+  assert.match(middleware, /normalizedHostedHandlerPath/);
+  assert.match(
+    middleware,
+    /isTenantHandlerPath\(internalPath\)\s*&&\s*internalPath !== req\.nextUrl\.pathname/
+  );
+  assert.match(
+    middleware,
+    /normalizedHostedHandlerPath[\s\S]*NextResponse\.rewrite/
+  );
+});
