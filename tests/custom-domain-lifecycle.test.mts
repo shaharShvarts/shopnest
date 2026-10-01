@@ -301,7 +301,8 @@ test("Drizzle cutover rechecks authoritative state under a tenant lock", async (
   assert.match(source, /pg_advisory_xact_lock/);
   assert.match(source, /shopnest_domain_lifecycle/);
   assert.match(source, /\.for\("update"\)/);
-  assert.match(source, /plans\.code/);
+  assert.match(source, /entitlements\.code, "custom_domain"/);
+  assert.match(source, /planEntitlements\.value, 1/);
   assert.match(source, /subscriptions\.status/);
   assert.match(source, /providerHostnameStatus/);
   assert.match(source, /providerSslStatus/);
@@ -487,4 +488,15 @@ test("merchant rollback derives the retiring domain from owned store identity", 
 
   assert.equal(repository.primary?.hostname, "old.example.com");
   assert.equal(repository.retiring?.hostname, "new.example.com");
+});
+
+
+test("custom domain lifecycle has no Medium/Large plan-code gate", async () => {
+  const source = await readFile(
+    "src/lib/custom-domain-lifecycle/drizzle-repository.ts",
+    "utf8"
+  );
+  assert.doesNotMatch(source, /planCode !== "medium"/);
+  assert.doesNotMatch(source, /planCode !== "large"/);
+  assert.match(source, /customDomainEntitlement !== 1/);
 });
