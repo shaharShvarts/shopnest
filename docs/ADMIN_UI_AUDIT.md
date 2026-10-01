@@ -79,7 +79,7 @@ Remaining:
 
 #### `src/app/admin/stores/[slug]/page.tsx`
 
-Status: **high-priority migration**
+Status: **migrated in Wave 1**
 
 Observed drift:
 
@@ -90,13 +90,14 @@ Observed drift:
 - action link styled separately from shared button language
 - form-control dimensions are not explicitly aligned to the 44px standard
 
-Required migration:
+Wave 1 migration completed:
 
 - Store status -> `ManagementSelect`
-- number/text inputs -> shared ManagementInput
-- notes -> shared ManagementTextarea
-- normal actions -> shared Button / management action pattern
-- preserve checkbox semantics while standardizing label/focus treatment
+- featured-rank input -> `ManagementInput`
+- support notes -> `ManagementTextarea`
+- tenant-admin link -> shared `Button`
+- save and rollback actions aligned to 44px management height
+- checkbox semantics preserved for later checkbox-specific refinement
 
 #### Other Control Plane surfaces
 
@@ -284,10 +285,10 @@ Do not extract abstractions solely for theoretical completeness. Extract where r
 
 ### Wave 1 — shared controls + Control Plane
 
-1. Add ManagementInput
-2. Add ManagementTextarea
+1. Add ManagementInput ✅
+2. Add ManagementTextarea ✅
 3. standardize management Button sizing convention
-4. migrate `/admin/stores/[slug]`
+4. migrate `/admin/stores/[slug]` ✅
 5. finish remaining Plan inputs/integer control
 6. review Control Plane tables/cards/login
 
