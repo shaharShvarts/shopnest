@@ -1,25 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  createEntitlementSchema,
   createPlanSchema,
   formatMinorAmount,
   parseIlsToMinor,
   validateEntitlementValue,
 } from "../src/lib/plan-administration/core.ts";
+import {
+  SUPPORTED_ENTITLEMENTS,
+  supportedEntitlementByCode,
+} from "../src/lib/store-entitlements/registry.ts";
 
-test("plan and entitlement codes are stable machine identifiers", () => {
-  assert.equal(createPlanSchema.parse({ code: "small_plus", name: "Small Plus" }).code, "small_plus");
+test("plan codes are stable machine identifiers", () => {
   assert.equal(
-    createEntitlementSchema.parse({
-      code: "media_storage_mb",
-      name: "Media storage",
-      description: null,
-      valueType: "integer",
-    }).code,
-    "media_storage_mb"
+    createPlanSchema.parse({ code: "small_plus", name: "Small Plus" }).code,
+    "small_plus"
   );
-  assert.throws(() => createPlanSchema.parse({ code: "Bad Plan", name: "Bad" }));
+  assert.throws(() =>
+    createPlanSchema.parse({ code: "Bad Plan", name: "Bad" })
+  );
+});
+
+test("supported entitlement registry exposes only implemented capabilities", () => {
+  assert.equal(SUPPORTED_ENTITLEMENTS.length, 1);
+  assert.deepEqual(supportedEntitlementByCode("store_managers"), {
+    code: "store_managers",
+    name: "Store Managers",
+    description: "Maximum number of Store Managers assigned to one Store.",
+    valueType: "integer",
+  });
+  assert.equal(supportedEntitlementByCode("free_shipping"), null);
 });
 
 test("ILS prices round-trip in minor units", () => {
