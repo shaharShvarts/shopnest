@@ -148,6 +148,13 @@
       "when": 1790816400000,
       "tag": "0020_more_supported_entitlements",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790820000000,
+      "tag": "0021_dynamic_tenant_plan_snapshot",
+      "breakpoints": true
     }
   ]
 }
