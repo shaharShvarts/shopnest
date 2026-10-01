@@ -161,3 +161,23 @@ test("Control Plane shell and plan controls have active navigation and consisten
   assert.match(plans, /hover:bg-slate-800/);
   assert.match(plans, /hover:border-slate-300/);
 });
+
+
+test("Control Plane language, status select, and entitlement action polish remain wired", async () => {
+  const [language, localeAction, layout, plans] = await Promise.all([
+    readFile("src/app/components/LanguageSelector.tsx", "utf8"),
+    readFile("src/app/_actions/locale.ts", "utf8"),
+    readFile("src/app/admin/layout.tsx", "utf8"),
+    readFile("src/app/admin/plans/page.tsx", "utf8"),
+  ]);
+
+  assert.match(language, /setShopNestLocaleAction/);
+  assert.match(language, /router\.refresh\(\)/);
+  assert.doesNotMatch(language, /document\.cookie/);
+  assert.match(localeAction, /SHOPNEST_LOCALE/);
+  assert.match(localeAction, /httpOnly: true/);
+  assert.match(layout, /text-slate-300/);
+  assert.match(plans, /appearance-none/);
+  assert.match(plans, /absolute left-3 top-1\/2/);
+  assert.match(plans, /self-start border-red-200/);
+});
