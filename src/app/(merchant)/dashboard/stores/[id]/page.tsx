@@ -72,20 +72,6 @@ export default async function MerchantStoreDetailPage({
       : domainView?.platformUrl ??
         `${process.env.SHOPNEST_PLATFORM_ORIGIN?.replace(/\/+$/, "") || "https://shopnest.co.il"}/${store.slug}`;
 
-  const planDisplayName = (code: string, fallback: string) => {
-    switch (code) {
-      case "free":
-        return tSubscription("planFree");
-      case "small":
-        return tSubscription("planSmall");
-      case "medium":
-        return tSubscription("planMedium");
-      case "large":
-        return tSubscription("planLarge");
-      default:
-        return fallback;
-    }
-  };
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
@@ -329,7 +315,7 @@ export default async function MerchantStoreDetailPage({
           </div>
           <div className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
             {subscription
-              ? planDisplayName(subscription.plan.code, subscription.plan.name)
+              ? subscription.plan.name
               : tSubscription("notSelected")}
           </div>
         </div>
@@ -381,7 +367,7 @@ export default async function MerchantStoreDetailPage({
             </dt>
             <dd className="mt-1 font-medium">
               {subscription
-                ? planDisplayName(subscription.plan.code, subscription.plan.name)
+                ? subscription.plan.name
                 : tSubscription("notSelected")}
             </dd>
           </div>
@@ -420,16 +406,13 @@ export default async function MerchantStoreDetailPage({
                 </option>
                 {subscription?.plan.status === "inactive" ? (
                   <option value={subscription.plan.code} disabled>
-                    {planDisplayName(
-                      subscription.plan.code,
-                      subscription.plan.name
-                    )}{" "}
+                    {subscription.plan.name}{" "}
                     — {tSubscription("unavailable")}
                   </option>
                 ) : null}
                 {activePlans.map((plan) => (
                   <option key={plan.id} value={plan.code}>
-                    {planDisplayName(plan.code, plan.name)}
+                    {plan.name}
                   </option>
                 ))}
               </select>
