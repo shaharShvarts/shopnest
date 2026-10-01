@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { isNull } from "drizzle-orm";
 import { products } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
+import {
+  entitlementHasCapacity,
+  entitlementIsUnlimited,
+  integerEntitlement,
+} from "@/lib/store-entitlements/core";
+import { getEffectiveStoreEntitlements } from "@/lib/store-entitlements/server";
 import { CatalogNavigation } from "../_components/CatalogNavigation";
 import { deleteManagedProduct } from "../_actions/catalog";
 
@@ -23,7 +30,16 @@ export default async function ManagedProductsPage({
     requireStoreManagementDb(storeId, "catalog.manage"),
     getTranslations("StoreCatalogManagement"),
   ]);
-  const rows = await db.select().from(products).orderBy(products.name);
+  const [rows, entitlementState] = await Promise.all([
+    db.select().from(products).orderBy(products.name),
+    getEffectiveStoreEntitlements(storeId),
+  ]);
+  const productsLimit = integerEntitlement(
+    entitlementState,
+    "products_limit"
+  );
+  const currentUsage = rows.filter((product) => product.deletedAt === null).length;
+  const canAddProduct = entitlementHasCapacity(productsLimit, currentUsage);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
@@ -32,15 +48,40 @@ export default async function ManagedProductsPage({
           <p className="text-sm text-muted-foreground">{store.displayName}</p>
           <h1 className="text-3xl font-bold tracking-tight">{t("products")}</h1>
         </div>
-        <Link
-          href={`/dashboard/stores/${storeId}/products/new`}
-          className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-        >
-          {t("addProduct")}
-        </Link>
+        {canAddProduct ? (
+          <Link
+            href={`/dashboard/stores/${storeId}/products/new`}
+            className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
+          >
+            {t("addProduct")}
+          </Link>
+        ) : (
+          <span
+            aria-disabled="true"
+            className="min-h-11 cursor-not-allowed rounded-lg bg-muted px-5 py-2.5 font-semibold text-muted-foreground"
+          >
+            {t("addProduct")}
+          </span>
+        )}
       </header>
 
       <CatalogNavigation storeId={storeId} />
+
+      <div className="mb-4 rounded-xl border border-border bg-muted/30 p-4 text-sm">
+        <p className="font-medium">
+          {t("productQuota", {
+            used: currentUsage,
+            limit: entitlementIsUnlimited(productsLimit)
+              ? t("unlimited")
+              : productsLimit,
+          })}
+        </p>
+        {!canAddProduct ? (
+          <p className="mt-1 text-muted-foreground">
+            {t("productQuotaReached")}
+          </p>
+        ) : null}
+      </div>
 
       <div className="overflow-x-auto rounded-2xl border border-border bg-background">
         <table className="w-full text-sm">
