@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   addPlanEntitlementForAdmin,
@@ -15,8 +16,18 @@ import {
   validateEntitlementValue,
 } from "@/lib/plan-administration/core";
 
-function plansPath(result?: string) {
-  return result ? `/admin/plans?result=${encodeURIComponent(result)}` : "/admin/plans";
+const PLAN_RESULT_COOKIE = "SHOPNEST_PLAN_RESULT";
+
+async function redirectWithPlanResult(result: string): Promise<never> {
+  const cookieStore = await cookies();
+  cookieStore.set(PLAN_RESULT_COOKIE, result, {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/admin/plans",
+    maxAge: 60,
+  });
+  redirect("/admin/plans");
 }
 
 export async function createPlanAction(formData: FormData) {
@@ -26,11 +37,11 @@ export async function createPlanAction(formData: FormData) {
       name: formData.get("name"),
     });
   } catch {
-    redirect(plansPath("PLAN_CREATE_FAILED"));
+    await redirectWithPlanResult("PLAN_CREATE_FAILED");
   }
 
   revalidatePath("/admin/plans");
-  redirect(plansPath("PLAN_CREATED"));
+  await redirectWithPlanResult("PLAN_CREATED");
 }
 
 export async function addPlanEntitlementAction(formData: FormData) {
@@ -40,11 +51,11 @@ export async function addPlanEntitlementAction(formData: FormData) {
       entitlementCode: formData.get("entitlementCode"),
     });
   } catch {
-    redirect(plansPath("ENTITLEMENT_ADD_FAILED"));
+    await redirectWithPlanResult("ENTITLEMENT_ADD_FAILED");
   }
 
   revalidatePath("/admin/plans");
-  redirect(plansPath("ENTITLEMENT_ADDED"));
+  await redirectWithPlanResult("ENTITLEMENT_ADDED");
 }
 
 export async function removePlanEntitlementAction(
@@ -57,11 +68,11 @@ export async function removePlanEntitlementAction(
       entitlementId,
     });
   } catch {
-    redirect(plansPath("ENTITLEMENT_REMOVE_FAILED"));
+    await redirectWithPlanResult("ENTITLEMENT_REMOVE_FAILED");
   }
 
   revalidatePath("/admin/plans");
-  redirect(plansPath("ENTITLEMENT_REMOVED"));
+  await redirectWithPlanResult("ENTITLEMENT_REMOVED");
 }
 
 export async function updatePlanAction(formData: FormData) {
@@ -76,13 +87,13 @@ export async function updatePlanAction(formData: FormData) {
 
     const plans = await listPlanAdministration();
     const plan = plans.find((candidate) => candidate.id === parsed.planId);
-    if (!plan) redirect(plansPath("PLAN_UPDATE_FAILED"));
+    if (!plan) await redirectWithPlanResult("PLAN_UPDATE_FAILED");
 
     const entitlementValues: Record<string, number> = {};
     for (const entitlement of plan.entitlements) {
       const raw = formData.get(`entitlement_${entitlement.id}`);
       if (typeof raw !== "string" || raw.trim() === "") {
-        redirect(plansPath("PLAN_UPDATE_FAILED"));
+        await redirectWithPlanResult("PLAN_UPDATE_FAILED");
       }
 
       const numericValue = Number(raw);
@@ -102,10 +113,10 @@ export async function updatePlanAction(formData: FormData) {
       entitlementValues,
     });
   } catch {
-    redirect(plansPath("PLAN_UPDATE_FAILED"));
+    await redirectWithPlanResult("PLAN_UPDATE_FAILED");
   }
 
   revalidatePath("/admin/plans");
   revalidatePath("/dashboard/stores");
-  redirect(plansPath("PLAN_UPDATED"));
+  await redirectWithPlanResult("PLAN_UPDATED");
 }
