@@ -1,7 +1,12 @@
 import "server-only";
 
-import { asc, count, eq, isNull, max, sql } from "drizzle-orm";
-import { controlPlaneTenants } from "@/drizzle/control-plane-schema";
+import { and, asc, count, eq, isNull, max, sql } from "drizzle-orm";
+import {
+  controlPlaneTenants,
+  plans,
+  stores,
+  subscriptions,
+} from "@/drizzle/control-plane-schema";
 import { getControlPlaneDb, getDbForTenant } from "@/drizzle/db";
 import { orders } from "@/drizzle/schema";
 import type { TrustedTenant } from "@/lib/tenant-registry/core";
@@ -24,6 +29,8 @@ const storeSelection = {
   displayName: controlPlaneTenants.displayName,
   status: controlPlaneTenants.status,
   plan: controlPlaneTenants.plan,
+  subscriptionPlanCode: plans.code,
+  subscriptionPlanName: plans.name,
   featured: controlPlaneTenants.featured,
   featuredRank: controlPlaneTenants.featuredRank,
   supportNotes: controlPlaneTenants.supportNotes,
@@ -37,6 +44,15 @@ export async function listControlPlaneStores(): Promise<ControlPlaneStore[]> {
   return getControlPlaneDb()
     .select(storeSelection)
     .from(controlPlaneTenants)
+    .leftJoin(
+      stores,
+      and(
+        eq(stores.tenantId, controlPlaneTenants.id),
+        isNull(stores.deletedAt)
+      )
+    )
+    .leftJoin(subscriptions, eq(subscriptions.storeId, stores.id))
+    .leftJoin(plans, eq(plans.id, subscriptions.planId))
     .orderBy(asc(controlPlaneTenants.displayName));
 }
 
@@ -45,6 +61,15 @@ export async function getControlPlaneStore(slug: string) {
   const [store] = await getControlPlaneDb()
     .select(storeSelection)
     .from(controlPlaneTenants)
+    .leftJoin(
+      stores,
+      and(
+        eq(stores.tenantId, controlPlaneTenants.id),
+        isNull(stores.deletedAt)
+      )
+    )
+    .leftJoin(subscriptions, eq(subscriptions.storeId, stores.id))
+    .leftJoin(plans, eq(plans.id, subscriptions.planId))
     .where(eq(controlPlaneTenants.slug, slug))
     .limit(1);
   if (!store) return null;
@@ -61,7 +86,20 @@ export async function updateControlPlaneStore(input: unknown) {
   const principal = await requireSuperAdmin();
   const update = authorizeStoreMutation(principal, input);
   const [existing] = await getControlPlaneDb()
-    .select(storeSelection)
+    .select({
+      id: controlPlaneTenants.id,
+      slug: controlPlaneTenants.slug,
+      schemaName: controlPlaneTenants.schemaName,
+      displayName: controlPlaneTenants.displayName,
+      status: controlPlaneTenants.status,
+      plan: controlPlaneTenants.plan,
+      featured: controlPlaneTenants.featured,
+      featuredRank: controlPlaneTenants.featuredRank,
+      supportNotes: controlPlaneTenants.supportNotes,
+      suspendedAt: controlPlaneTenants.suspendedAt,
+      createdAt: controlPlaneTenants.createdAt,
+      updatedAt: controlPlaneTenants.updatedAt,
+    })
     .from(controlPlaneTenants)
     .where(eq(controlPlaneTenants.slug, update.slug))
     .limit(1);
@@ -83,7 +121,20 @@ export async function updateControlPlaneStore(input: unknown) {
       updatedAt: new Date(),
     })
     .where(eq(controlPlaneTenants.id, existing.id))
-    .returning(storeSelection);
+    .returning({
+      id: controlPlaneTenants.id,
+      slug: controlPlaneTenants.slug,
+      schemaName: controlPlaneTenants.schemaName,
+      displayName: controlPlaneTenants.displayName,
+      status: controlPlaneTenants.status,
+      plan: controlPlaneTenants.plan,
+      featured: controlPlaneTenants.featured,
+      featuredRank: controlPlaneTenants.featuredRank,
+      supportNotes: controlPlaneTenants.supportNotes,
+      suspendedAt: controlPlaneTenants.suspendedAt,
+      createdAt: controlPlaneTenants.createdAt,
+      updatedAt: controlPlaneTenants.updatedAt,
+    });
   return updated;
 }
 
