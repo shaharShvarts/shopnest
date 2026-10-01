@@ -213,14 +213,10 @@ class ProductLimitReachedError extends Error {
   }
 }
 
-type ProductUsageDb = {
-  select: typeof import("@/drizzle/db").getDbForTenant extends (...args: never[]) => infer R
-    ? R["select"]
-    : never;
-};
+type TenantDb = ReturnType<typeof import("@/drizzle/db").getDbForTenant>;
 
 async function currentProductUsage(
-  db: { select: ProductUsageDb["select"] }
+  db: Pick<TenantDb, "select">
 ) {
   const [row] = await db
     .select({ value: count(products.id) })
