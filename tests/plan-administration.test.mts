@@ -123,3 +123,22 @@ test("marketing pricing reads the dynamic active plan catalog", async () => {
   assert.doesNotMatch(page, /pricing\.\$\{plan\}/);
   assert.doesNotMatch(preview, /pricing\.\$\{plan\}/);
 });
+
+
+test("plan administration uses clean flash redirects and readable language control", async () => {
+  const [actions, page, flash, language] = await Promise.all([
+    readFile("src/app/admin/_actions/plans.ts", "utf8"),
+    readFile("src/app/admin/plans/page.tsx", "utf8"),
+    readFile("src/app/admin/plans/PlanFlashMessage.tsx", "utf8"),
+    readFile("src/app/components/LanguageSelector.tsx", "utf8"),
+  ]);
+
+  assert.match(actions, /SHOPNEST_PLAN_RESULT/);
+  assert.match(actions, /redirect\("\/admin\/plans"\)/);
+  assert.doesNotMatch(actions, /\?result=/);
+  assert.doesNotMatch(page, /searchParams/);
+  assert.match(page, /SHOPNEST_PLAN_RESULT/);
+  assert.match(flash, /max-age=0/);
+  assert.match(language, /bg-white/);
+  assert.match(language, /text-slate-950/);
+});
