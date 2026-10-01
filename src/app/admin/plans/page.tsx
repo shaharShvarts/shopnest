@@ -7,6 +7,7 @@ import {
 } from "@/app/admin/_actions/plans";
 import { formatMinorAmount } from "@/lib/plan-administration/core";
 import { listPlanAdministration } from "@/lib/plan-administration/server";
+import EntitlementIntegerInput from "./EntitlementIntegerInput";
 
 export const dynamic = "force-dynamic";
 
@@ -137,21 +138,20 @@ export default async function PlansPage({
                             <option value="1">{t("enabled")}</option>
                           </select>
                         ) : (
-                          <input
+                          <EntitlementIntegerInput
                             name={`entitlement_${entitlement.id}`}
-                            type="number"
-                            min={-1}
-                            step={1}
-                            defaultValue={entitlement.value ?? 0}
-                            className="min-h-11 rounded-md border px-3 py-2"
+                            initialValue={entitlement.value ?? 0}
                           />
                         )}
 
                         <button
                           type="submit"
-                          formAction={removePlanEntitlementAction}
-                          name="entitlementId"
-                          value={entitlement.id}
+                          formAction={removePlanEntitlementAction.bind(
+                            null,
+                            plan.id,
+                            entitlement.id
+                          )}
+                          formNoValidate
                           className="min-h-11 rounded-md border border-red-200 px-4 py-2 font-semibold text-red-700"
                         >
                           {t("removeFeature")}
