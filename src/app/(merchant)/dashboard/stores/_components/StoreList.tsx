@@ -15,6 +15,7 @@ export type StoreListItem = {
   id: number;
   displayName: string;
   slug: string;
+  activeAddress: string;
   status: MerchantStoreStatus;
   tenantId: number | null;
   updatedAt: string;
@@ -127,8 +128,8 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
               <h2 className="text-xl font-bold">
                 {store.displayName}
               </h2>
-              <p className="mt-1 font-mono text-sm text-muted-foreground">
-                shopnest.co.il/{store.slug}
+              <p className="mt-1 break-all font-mono text-sm text-muted-foreground">
+                {store.activeAddress}
               </p>
               <p className="mt-2 text-sm font-medium">
                 {t(store.status)}
