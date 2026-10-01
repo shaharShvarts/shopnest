@@ -40,6 +40,15 @@ export function ManagedProductForm({
 
   return (
     <form action={formAction} className="space-y-8">
+      {state.errors?._form?.map((message) => (
+        <p
+          key={message}
+          role="alert"
+          className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+        >
+          {message}
+        </p>
+      ))}
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
           <div>
