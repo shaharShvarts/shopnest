@@ -169,8 +169,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
           storeStatus: stores.status,
           tenantStatus: controlPlaneTenants.status,
           subscriptionStatus: subscriptions.status,
-          planCode: plans.code,
-          planStatus: plans.status,
+          customDomainEntitlement: planEntitlements.value,
         })
         .from(storeDomainClaims)
         .innerJoin(stores, eq(stores.id, storeDomainClaims.storeId))
@@ -193,6 +192,20 @@ export class DrizzleCloudflareDomainProvisioningRepository
           )
         )
         .innerJoin(plans, eq(plans.id, subscriptions.planId))
+        .innerJoin(
+          planEntitlements,
+          and(
+            eq(planEntitlements.planId, plans.id),
+            eq(planEntitlements.value, 1)
+          )
+        )
+        .innerJoin(
+          entitlements,
+          and(
+            eq(entitlements.id, planEntitlements.entitlementId),
+            eq(entitlements.code, "custom_domain")
+          )
+        )
         .where(
           and(
             eq(storeDomainClaims.storeId, input.storeId),
