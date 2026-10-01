@@ -13,9 +13,7 @@ import {
 } from "@/lib/store-lifecycle/core";
 import {
   ActivationOrchestrationError,
-  asProvisionableTenantPlan,
   tenantSchemaNameForStore,
-  type ProvisionableTenantPlan,
 } from "./core";
 
 export type ActivationProvisioningContext = {
@@ -25,7 +23,8 @@ export type ActivationProvisioningContext = {
   slug: string;
   schemaName: string;
   subscriptionId: number;
-  plan: ProvisionableTenantPlan;
+  planId: number;
+  planCode: string;
 };
 
 export type ActivationFinalization = {
@@ -173,6 +172,7 @@ export class DrizzleActivationOrchestrationRepository
         storeId: subscriptions.storeId,
         tenantId: subscriptions.tenantId,
         status: subscriptions.status,
+        planId: plans.id,
         planCode: plans.code,
         planStatus: plans.status,
       })
@@ -200,14 +200,6 @@ export class DrizzleActivationOrchestrationRepository
       );
     }
 
-    const plan = asProvisionableTenantPlan(subscription.planCode);
-    if (!plan) {
-      throw new ActivationOrchestrationError(
-        "PLAN_NOT_PROVISIONABLE",
-        "Selected plan is not provisionable by the current Tenant runtime"
-      );
-    }
-
     return {
       storeId: store.id,
       organizationId: store.organizationId,
@@ -215,7 +207,8 @@ export class DrizzleActivationOrchestrationRepository
       slug: store.slug,
       schemaName,
       subscriptionId: subscription.id,
-      plan,
+      planId: subscription.planId,
+      planCode: subscription.planCode,
     };
   }
 
@@ -294,6 +287,7 @@ export class DrizzleActivationOrchestrationRepository
             storeId: subscriptions.storeId,
             tenantId: subscriptions.tenantId,
             status: subscriptions.status,
+            planId: plans.id,
             planCode: plans.code,
             planStatus: plans.status,
           })
@@ -303,10 +297,6 @@ export class DrizzleActivationOrchestrationRepository
           .limit(1)
           .for("update");
 
-        const currentPlan = subscription
-          ? asProvisionableTenantPlan(subscription.planCode)
-          : null;
-
         if (
           !subscription ||
           subscription.organizationId !== context.organizationId ||
@@ -314,12 +304,11 @@ export class DrizzleActivationOrchestrationRepository
           subscription.tenantId !== null ||
           !isAllowedPreProvisioningSubscriptionStatus(subscription.status) ||
           subscription.planStatus !== "active" ||
-          currentPlan !== context.plan
+          subscription.planId !== context.planId ||
+          subscription.planCode !== context.planCode
         ) {
           throw new ActivationOrchestrationError(
-            currentPlan === null
-              ? "PLAN_NOT_PROVISIONABLE"
-              : "TENANT_FINALIZATION_FAILED",
+            "TENANT_FINALIZATION_FAILED",
             "Subscription changed during provisioning"
           );
         }
@@ -353,7 +342,7 @@ export class DrizzleActivationOrchestrationRepository
             schemaName: context.schemaName,
             displayName: context.displayName,
             status: "active",
-            plan: context.plan,
+            plan: context.planCode,
             createdAt: now,
             updatedAt: now,
           })
