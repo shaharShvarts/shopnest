@@ -38,7 +38,6 @@ const superAdmin: AdminPrincipal = {
 const mutation = {
   slug: "gift-shop",
   status: "active",
-  plan: "medium",
   featured: true,
   featuredRank: 1,
   supportNotes: null,
@@ -69,7 +68,7 @@ test("platform and tenant admin routes remain isolated", () => {
   assert.deepEqual(resolveTenantRoute("/unknown-store/admin"), { kind: "not-found" });
 });
 
-test("unauthenticated and tenant admins cannot change status, plan, or featured state", () => {
+test("unauthenticated and tenant admins cannot change store control-plane settings", () => {
   assert.throws(() => authorizeStoreMutation(null, mutation), { code: "FORBIDDEN" });
   assert.throws(
     () => authorizeStoreMutation({ ...superAdmin, role: "tenant_admin", tenantSlugs: ["gift-shop"] }, mutation),
@@ -77,12 +76,18 @@ test("unauthenticated and tenant admins cannot change status, plan, or featured 
   );
 });
 
-test("plans accept only small, medium, and large", () => {
-  for (const plan of ["small", "medium", "large"]) {
-    assert.equal(storeMutationSchema.safeParse({ ...mutation, plan }).success, true);
-  }
-  assert.equal(storeMutationSchema.safeParse({ ...mutation, plan: "enterprise" }).success, false);
-  assert.equal(storeMutationSchema.safeParse({ ...mutation, featured: false, featuredRank: 1 }).success, false);
+test("store mutation no longer accepts a commercial plan field", () => {
+  assert.equal(storeMutationSchema.safeParse(mutation).success, true);
+  assert.equal(
+    storeMutationSchema.safeParse({ ...mutation, featured: false, featuredRank: 1 }).success,
+    false
+  );
+
+  const parsed = storeMutationSchema.parse({
+    ...mutation,
+    plan: "enterprise",
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(parsed, "plan"), false);
 });
 
 test("active control-plane tenant rows are the trusted dynamic registry", () => {
@@ -360,4 +365,22 @@ test("domain hostname uniqueness is partial so a removed hostname can be reused"
     schema,
     /hostname: varchar\("hostname", \{ length: 253 \}\)\.notNull\(\)\.unique\(\)/
   );
+});
+
+
+test("tenant plan snapshot migration accepts dynamic plan codes", async () => {
+  const [migration, tenantSchema, actionSource, pageSource] = await Promise.all([
+    readFile(
+      "src/drizzle/control-migrations/0021_dynamic_tenant_plan_snapshot.sql",
+      "utf8"
+    ),
+    readFile("src/drizzle/control-schema/tenant.ts", "utf8"),
+    readFile("src/app/admin/_actions/stores.ts", "utf8"),
+    readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
+  ]);
+
+  assert.match(migration, /ALTER COLUMN "plan" TYPE varchar\(64\)/);
+  assert.match(tenantSchema, /plan: varchar\("plan", \{ length: 64 \}\)/);
+  assert.doesNotMatch(actionSource, /formData\.get\("plan"\)/);
+  assert.doesNotMatch(pageSource, /name="plan"/);
 });
