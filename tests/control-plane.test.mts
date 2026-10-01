@@ -411,3 +411,22 @@ test("schema code no longer defines the legacy tenant plan enum", async () => {
 
   assert.doesNotMatch(sharedSource, /tenantPlanEnum|tenantPlans|type TenantPlan/);
 });
+
+
+test("Control Plane store settings use shared management controls", async () => {
+  const [page, input, select, textarea] = await Promise.all([
+    readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
+    readFile("src/components/management/ManagementInput.tsx", "utf8"),
+    readFile("src/components/management/ManagementSelect.tsx", "utf8"),
+    readFile("src/components/management/ManagementTextarea.tsx", "utf8"),
+  ]);
+
+  assert.match(page, /ManagementInput/);
+  assert.match(page, /ManagementSelect/);
+  assert.match(page, /ManagementTextarea/);
+  assert.doesNotMatch(page, /<select\b/);
+  assert.match(page, /<Button asChild variant="outline" className="h-11">/);
+  assert.match(input, /"h-11 w-full/);
+  assert.match(select, /"h-11 w-full appearance-none/);
+  assert.match(textarea, /"min-h-28 w-full/);
+});
