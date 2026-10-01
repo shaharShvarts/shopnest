@@ -542,7 +542,8 @@
     "activation_requested": "הפעלה התבקשה",
     "provisioning": "בתהליך הקמה",
     "provisioning_failed": "ההקמה נכשלה",
-    "manageDomain": "ניהול דומיין מותאם"
+    "manageDomain": "ניהול דומיין מותאם",
+    "manageTeam": "ניהול מנהלים"
   },
   "MerchantDashboard": {
     "workspace": "סביבת עבודה לסוחר",
@@ -761,5 +762,43 @@
     "removeImage": "הסרת תמונה",
     "productImageNumber": "תמונת מוצר {number}",
     "newProductImageNumber": "תמונת מוצר חדשה {number}"
+  },
+  "StoreTeam": {
+    "title": "מנהלי החנות",
+    "description": "ניהול משתמשי Manager שיכולים לעבוד בחנות לפי ההרשאות והמגבלות של המסלול.",
+    "usageTitle": "מכסת מנהלים",
+    "usageUnlimited": "{used} מנהלים משויכים — ללא הגבלה",
+    "usageFinite": "{used} מתוך {limit} מנהלים בשימוש. נותרו {remaining}.",
+    "unlimited": "ללא הגבלה",
+    "limitReachedTitle": "לא נשארו מנהלים זמינים במסלול הנוכחי",
+    "limitReachedDescription": "אפשר להסיר מנהל קיים או לעבור למסלול שמאפשר יותר מנהלים.",
+    "unlimitedManagers": "ללא הגבלה",
+    "managerCount": "{count} מנהלים",
+    "planLimitsPending": "מגבלות המסלולים עדיין לא הוגדרו בממשק ShopNest.",
+    "assignedTitle": "מנהלים משויכים",
+    "noManagers": "עדיין לא משויך מנהל לחנות.",
+    "active": "פעיל",
+    "inactive": "לא פעיל",
+    "remove": "הסרת שיוך",
+    "createTitle": "יצירת Manager חדש",
+    "createHelp": "ייווצר חשבון Manager חדש ויישויך ישירות לחנות הזו.",
+    "email": "אימייל",
+    "temporaryPassword": "סיסמה זמנית",
+    "passwordHelp": "לפחות 12 תווים. מומלץ שהמנהל ישנה אותה לאחר הכניסה הראשונה.",
+    "create": "יצירת Manager",
+    "assignTitle": "שיוך Manager קיים",
+    "assignHelp": "אם כבר קיים חשבון Manager ב-ShopNest, אפשר לשייך אותו גם לחנות הזו.",
+    "assign": "שיוך מנהל",
+    "back": "חזרה לחנות",
+    "result": {
+      "CREATED": "המנהל נוצר ושויך לחנות.",
+      "ASSIGNED": "המנהל הקיים שויך לחנות.",
+      "REMOVED": "שיוך המנהל הוסר.",
+      "MANAGER_LIMIT_REACHED": "לא ניתן להוסיף מנהל נוסף: מכסת המנהלים נוצלה.",
+      "MANAGER_NOT_FOUND": "לא נמצא חשבון Manager מתאים.",
+      "MANAGER_ALREADY_ASSIGNED": "המנהל כבר משויך לחנות הזו.",
+      "MANAGER_ACCOUNT_UNAVAILABLE": "כבר קיים חשבון ניהול עם כתובת האימייל הזו.",
+      "INVALID_MANAGER_ACCOUNT": "פרטי המנהל אינם תקינים או שהחשבון אינו מתאים לניהול חנות."
+    }
   }
 }
