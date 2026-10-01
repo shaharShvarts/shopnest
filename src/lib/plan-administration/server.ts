@@ -114,7 +114,7 @@ export async function addPlanEntitlementForAdmin(input: unknown) {
       throw new Error("Supported entitlement type mismatch");
     }
 
-    const defaultValue = definition.valueType === "boolean" ? 0 : 0;
+    const defaultValue = 0;
     await tx
       .insert(planEntitlements)
       .values({
