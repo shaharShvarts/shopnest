@@ -141,6 +141,7 @@ export default async function PlansPage({
                           <EntitlementIntegerInput
                             name={`entitlement_${entitlement.id}`}
                             initialValue={entitlement.value ?? 0}
+                            unlimitedLabel={t("unlimited")}
                           />
                         )}
 
