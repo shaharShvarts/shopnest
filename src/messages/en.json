@@ -361,9 +361,10 @@
     "entitlements": {
       "store_managers": {
         "name": "Store Managers",
-        "description": "Maximum number of Store Managers that can be assigned to one Store."
+        "description": "Maximum number of managers that can be assigned to one Store."
       }
-    }
+    },
+    "unlimited": "Unlimited"
   },
   "Marketing": {
     "nav": {
