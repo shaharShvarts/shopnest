@@ -311,7 +311,7 @@
     "customDomainRollbackHelp": "השחזור מחזיר מיד את הדומיין הקודם ומעביר את הדומיין הראשי הנוכחי לחלון הפניה חדש של 24 שעות.",
     "customDomainRollback": "שחזור הדומיין הקודם",
     "domainRollbackComplete": "שחזור הדומיין המותאם הושלם.",
-    "plansConfigurationDescription": "הגדרת מסלולים, מחירים ומכסות. הערכים כאן משמשים את מנגנון ה-entitlements של החנויות.",
+    "plansConfigurationDescription": "ניהול מסלולים, מחירים והפיצ'רים האמיתיים שהמערכת תומכת בהם.",
     "entitlementCatalog": "קטלוג פיצ'רים ומגבלות",
     "entitlementCatalogDescription": "כל פיצ'ר מסחרי מוגדר פעם אחת ולאחר מכן מקבל ערך שונה בכל מסלול.",
     "code": "קוד",
@@ -328,8 +328,8 @@
     "planName": "שם המסלול",
     "monthlyPriceIls": "מחיר חודשי (₪)",
     "annualPriceIls": "מחיר שנתי (₪)",
-    "planEntitlements": "מגבלות ופיצ'רים במסלול",
-    "planEntitlementsHelp": "0 = לא זמין, מספר חיובי = מכסה, ‎-1 = ללא הגבלה. פיצ'ר מסוג כן/לא מוגדר כפעיל או כבוי.",
+    "planEntitlements": "פיצ'רים במסלול",
+    "planEntitlementsHelp": "הוסף רק פיצ'רים נתמכים. 0 = חסום במפורש, מספר חיובי = מכסה, ‎-1 = ללא הגבלה.",
     "notConfigured": "לא מוגדר",
     "enabled": "פעיל",
     "entitlementValuePlaceholder": "למשל 0, 2 או ‎-1",
@@ -343,8 +343,17 @@
       "ENTITLEMENT_CREATED": "הפיצ'ר נוסף לקטלוג.",
       "ENTITLEMENT_CREATE_FAILED": "לא ניתן ליצור את הפיצ'ר. ייתכן שהקוד כבר קיים או שאינו תקין.",
       "PLAN_UPDATED": "הגדרות המסלול נשמרו.",
-      "PLAN_UPDATE_FAILED": "לא ניתן לשמור את הגדרות המסלול."
-    }
+      "PLAN_UPDATE_FAILED": "לא ניתן לשמור את הגדרות המסלול.",
+      "ENTITLEMENT_ADDED": "הפיצ'ר נוסף למסלול.",
+      "ENTITLEMENT_ADD_FAILED": "לא ניתן להוסיף את הפיצ'ר למסלול.",
+      "ENTITLEMENT_REMOVED": "הפיצ'ר הוסר מהמסלול.",
+      "ENTITLEMENT_REMOVE_FAILED": "לא ניתן להסיר את הפיצ'ר מהמסלול."
+    },
+    "noPlanEntitlements": "עדיין לא נוספו פיצ'רים למסלול הזה.",
+    "chooseFeature": "בחר פיצ'ר נתמך",
+    "addFeature": "הוסף פיצ'ר",
+    "removeFeature": "הסר מהמסלול",
+    "allSupportedFeaturesAdded": "כל הפיצ'רים הנתמכים כבר נוספו למסלול."
   },
   "Marketing": {
     "nav": {
