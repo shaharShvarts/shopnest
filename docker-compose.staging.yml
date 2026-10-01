@@ -19,6 +19,7 @@ services:
       DB_PASSWORD: ${STAGING_DB_PASSWORD:?Set STAGING_DB_PASSWORD in .env.staging}
       PAYMENT_ENCRYPTION_KEY: ${STAGING_PAYMENT_ENCRYPTION_KEY:?Set STAGING_PAYMENT_ENCRYPTION_KEY in .env.staging}
       PAYMENT_PUBLIC_ORIGIN: https://staging.shopnest.co.il
+      SHOPNEST_PLATFORM_ORIGIN: https://staging.shopnest.co.il
       SHOPNEST_UPLOADS_DIR: /app/uploads
       SHOPNEST_PASSWORD_RESET_DEV_CAPTURE: ""
     volumes:
