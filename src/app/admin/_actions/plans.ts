@@ -87,7 +87,9 @@ export async function updatePlanAction(formData: FormData) {
 
     const plans = await listPlanAdministration();
     const plan = plans.find((candidate) => candidate.id === parsed.planId);
-    if (!plan) await redirectWithPlanResult("PLAN_UPDATE_FAILED");
+    if (!plan) {
+      return await redirectWithPlanResult("PLAN_UPDATE_FAILED");
+    }
 
     const entitlementValues: Record<string, number> = {};
     for (const entitlement of plan.entitlements) {
