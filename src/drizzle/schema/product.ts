@@ -15,6 +15,7 @@ import { cartProducts } from "./cartProduct";
 import { likes } from "./like";
 import { orderProducts } from "./orderProduct";
 import { productTags } from "./productTag";
+import { productImages } from "./productImage";
 
 // PRODUCTS
 export const products = pgTable(
@@ -77,4 +78,5 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   likes: many(likes),
   orderProducts: many(orderProducts),
   productTags: many(productTags),
+  productImages: many(productImages),
 }));

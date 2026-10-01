@@ -8,10 +8,11 @@ export default async function MerchantDashboardPage() {
   const principal = await requireStoreDashboardPrincipal();
 
   if (principal.kind === "manager") {
-    const [stores, tDashboard, tStore] = await Promise.all([
+    const [stores, tDashboard, tStore, tCatalog] = await Promise.all([
       getStoreManagementRepository().listManagedStores(principal.adminUserId),
       getTranslations("MerchantDashboard"),
       getTranslations("MerchantStore"),
+      getTranslations("StoreCatalogManagement"),
     ]);
 
     return (
@@ -50,6 +51,14 @@ export default async function MerchantDashboardPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {tStore(record.store.status)}
                 </p>
+                {record.store.status === "provisioned" ? (
+                  <Link
+                    href={`/dashboard/stores/${record.store.id}/products`}
+                    className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold"
+                  >
+                    {tCatalog("manageCatalog")}
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>

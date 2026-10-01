@@ -86,9 +86,14 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(redirectUrl, 302);
     }
 
+    const tenantMediaPrefix = `/${domain.tenant.slug}/media/`;
+    const hostedInternalPath = req.nextUrl.pathname.startsWith(tenantMediaPrefix)
+      ? req.nextUrl.pathname.slice(domain.tenant.basePath.length)
+      : req.nextUrl.pathname;
+
     tenantRoute = {
       tenant: domain.tenant,
-      internalPath: req.nextUrl.pathname,
+      internalPath: hostedInternalPath,
     };
     routeMode = "host";
   }
@@ -135,8 +140,21 @@ export async function middleware(req: NextRequest) {
 
   let response;
   if (tenantRoute?.tenant && routeMode === "host") {
+    const normalizedHostedHandlerPath =
+      isTenantHandlerPath(internalPath) &&
+      internalPath !== req.nextUrl.pathname;
+
     response = isTenantHandlerPath(internalPath)
-      ? NextResponse.next({ request: { headers: requestHeaders } })
+      ? normalizedHostedHandlerPath
+        ? NextResponse.rewrite(
+            buildHostedTenantRewriteUrl(
+              req.nextUrl,
+              tenantRoute.tenant,
+              internalPath
+            ),
+            { request: { headers: requestHeaders } }
+          )
+        : NextResponse.next({ request: { headers: requestHeaders } })
       : NextResponse.rewrite(
           buildHostedTenantRewriteUrl(
             req.nextUrl,

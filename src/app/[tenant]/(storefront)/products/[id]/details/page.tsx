@@ -1,6 +1,6 @@
 import { getDbForTenant } from "@/drizzle/db";
-import { categories, products, subcategories } from "@/drizzle/schema";
-import { and, eq, isNull, or } from "drizzle-orm";
+import { categories, images, productImages, products, subcategories } from "@/drizzle/schema";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
 import ProductDetails from "../../_components/ProductDetails";
 import DynamicBreadcrumb from "@/app/[tenant]/(storefront)/components/Breadcrumb";
 import { getTranslations } from "next-intl/server";
@@ -62,12 +62,26 @@ const fetchProductById = async (id: string, tenant: Tenant) => {
     .limit(1);
   if (!product) return undefined;
 
+  const gallery = await db
+    .select({
+      imageUrl: images.imageUrl,
+      sortOrder: productImages.sortOrder,
+    })
+    .from(productImages)
+    .innerJoin(images, eq(productImages.imageId, images.id))
+    .where(eq(productImages.productId, product.id))
+    .orderBy(asc(productImages.sortOrder));
+
   const availability = await new InventoryService(
     new DrizzleInventoryStore(db)
   ).getAvailability(product.id);
 
   return {
     ...product,
+    imageUrls:
+      gallery.length > 0
+        ? gallery.map((image) => image.imageUrl)
+        : [product.imageUrl],
     quantity: availability.available,
     inventoryStatus: availability.status,
     customerStockMessage: getCustomerStockMessage(availability.available),

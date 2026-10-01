@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { requireStoreDashboardPrincipal } from "@/lib/store-management/server";
 import { logoutDashboardAction } from "./_actions";
 import { DashboardNavigation } from "./_components/DashboardNavigation";
+import { DashboardLanguageSwitcher } from "./_components/DashboardLanguageSwitcher";
 
 export default async function MerchantDashboardLayout({
   children,
@@ -10,6 +11,7 @@ export default async function MerchantDashboardLayout({
   children: React.ReactNode;
 }>) {
   const principal = await requireStoreDashboardPrincipal();
+  const locale = await getLocale();
   const t = await getTranslations("MerchantDashboard");
   const tAuth = await getTranslations("MerchantAuth");
 
@@ -38,6 +40,8 @@ export default async function MerchantDashboardLayout({
                 {t("signedInAs")} {principal.email}
               </p>
             </div>
+
+            <DashboardLanguageSwitcher locale={locale === "en" ? "en" : "he"} />
 
             <form action={logoutDashboardAction}>
               <button

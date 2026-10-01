@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ImageIcon, LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -27,10 +27,23 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   const t = useTranslations("ProductDetails");
   const catalogT = useTranslations("CatalogUX");
   const tenant = useTenant();
-  const normalizedImageUrl = resolveTenantImageUrl(
-    product.imageUrl,
-    tenant.slug
-  );
+  const resolveImage = resolveTenantImageUrl as unknown as (
+    value: unknown,
+    tenantSlug: string,
+    resolveTenant: (value: unknown) => typeof tenant | null
+  ) => string | null;
+  const normalizedImageUrls = product.imageUrls
+    .map((imageUrl) =>
+      resolveImage(
+        imageUrl,
+        tenant.slug,
+        (value) => (value === tenant.slug ? tenant : null)
+      )
+    )
+    .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const normalizedImageUrl =
+    normalizedImageUrls[activeImageIndex] ?? normalizedImageUrls[0] ?? null;
   const stockMessage = product.customerStockMessage;
   const stockText =
     stockMessage.kind === "few_left"
@@ -49,24 +62,87 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   return (
     <section className="mx-auto w-full max-w-7xl">
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)] lg:items-start lg:gap-10">
-        <div className="flex min-w-0 items-center justify-center overflow-hidden rounded-2xl bg-muted/70 p-3 sm:p-6">
-          {normalizedImageUrl ? (
-            <Image
-              src={normalizedImageUrl}
-              alt={product.name}
-              width={900}
-              height={900}
-              unoptimized
-              priority
-              className="h-auto max-h-[72vh] w-full object-contain lg:max-h-[680px]"
-              sizes="(min-width: 1024px) 58vw, 100vw"
-            />
-          ) : (
-            <div className="flex min-h-72 w-full flex-col items-center justify-center gap-3 text-muted-foreground sm:min-h-[30rem]">
-              <ImageIcon aria-hidden="true" className="size-12" />
-              <span>{catalogT("imageUnavailable")}</span>
+        <div className="min-w-0 space-y-3">
+          <div className="relative aspect-square min-w-0 overflow-hidden rounded-2xl bg-muted/70">
+            {normalizedImageUrl ? (
+              <Image
+                src={normalizedImageUrl}
+                alt={product.name}
+                fill
+                unoptimized
+                priority={activeImageIndex === 0}
+                className="object-contain p-3 sm:p-6"
+                sizes="(min-width: 1024px) 58vw, 100vw"
+              />
+            ) : (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-muted-foreground">
+                <ImageIcon aria-hidden="true" className="size-12" />
+                <span>{catalogT("imageUnavailable")}</span>
+              </div>
+            )}
+
+            {normalizedImageUrls.length > 1 ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t("previousImage")}
+                  className="absolute start-3 top-1/2 size-10 -translate-y-1/2 rounded-full bg-background/90"
+                  onClick={() =>
+                    setActiveImageIndex((index) =>
+                      index === 0 ? normalizedImageUrls.length - 1 : index - 1
+                    )
+                  }
+                >
+                  <ChevronLeft />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t("nextImage")}
+                  className="absolute end-3 top-1/2 size-10 -translate-y-1/2 rounded-full bg-background/90"
+                  onClick={() =>
+                    setActiveImageIndex((index) =>
+                      index === normalizedImageUrls.length - 1 ? 0 : index + 1
+                    )
+                  }
+                >
+                  <ChevronRight />
+                </Button>
+              </>
+            ) : null}
+          </div>
+
+          {normalizedImageUrls.length > 1 ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {normalizedImageUrls.map((imageUrl, index) => (
+                <button
+                  key={imageUrl}
+                  type="button"
+                  aria-label={t("showImage", { number: index + 1 })}
+                  aria-current={index === activeImageIndex ? "true" : undefined}
+                  className={
+                    "shrink-0 overflow-hidden rounded-xl border-2 p-1 " +
+                    (index === activeImageIndex
+                      ? "border-foreground"
+                      : "border-transparent")
+                  }
+                  onClick={() => setActiveImageIndex(index)}
+                >
+                  <Image
+                    src={imageUrl}
+                    alt={t("imageThumbnail", { number: index + 1 })}
+                    width={88}
+                    height={88}
+                    unoptimized
+                    className="size-20 rounded-lg object-cover"
+                  />
+                </button>
+              ))}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="min-w-0 space-y-6 lg:sticky lg:top-28">

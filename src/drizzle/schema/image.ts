@@ -9,6 +9,8 @@ export const images = pgTable("images", {
   createdAt,
 });
 
-export const tagRelations = relations(images, ({ many }) => ({
-  productImage: many(productImages),
+export const imagesRelations = relations(images, ({ many }) => ({
+  productImages: many(productImages),
 }));
+
+export type CatalogImage = typeof images.$inferSelect;

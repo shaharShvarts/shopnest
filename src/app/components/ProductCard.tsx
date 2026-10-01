@@ -21,7 +21,18 @@ export async function ProductCard({
   tenantSlug = "",
 }: ProductCardProps) {
   const t = await getTranslations("ProductsPage");
-  const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenantSlug);
+  const normalizedImageUrl = resolveTenantImageUrl(
+    imageUrl,
+    tenantSlug,
+    (value: unknown) =>
+      tenantSlug && value === tenantSlug
+        ? {
+            slug: tenantSlug,
+            schema: "",
+            basePath: `/${tenantSlug}`,
+          }
+        : null
+  );
   const stockMessage = getCustomerStockMessage(quantity);
   const stockText =
     stockMessage.kind === "out_of_stock"
