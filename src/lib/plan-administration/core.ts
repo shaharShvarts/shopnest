@@ -11,8 +11,8 @@ export const planMutationSchema = z.object({
   planId: z.coerce.number().int().positive(),
   name: z.string().trim().min(1).max(160),
   status: z.enum(["active", "inactive"]),
-  monthlyAmountMinor: z.number().int().nonnegative().nullable(),
-  annualAmountMinor: z.number().int().nonnegative().nullable(),
+  monthlyAmountMinor: z.number().int().nonnegative(),
+  annualAmountMinor: z.number().int().nonnegative(),
   entitlementValues: z.record(
     z.string(),
     z.number().int().min(-1)
@@ -24,15 +24,27 @@ export const createPlanSchema = z.object({
   name: z.string().trim().min(1).max(160),
 });
 
-export function parseIlsToMinor(value: FormDataEntryValue | null) {
-  if (typeof value !== "string" || value.trim() === "") return null;
-  const normalized = value.trim().replace(",", ".");
-  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
-    throw new Error("Invalid ILS amount");
-  }
+export const ilsPriceInputSchema = z
+  .string()
+  .trim()
+  .min(1, "Price is required")
+  .regex(/^(?:0|[1-9]\d*)(?:[.,]\d{1,2})?$/, "Invalid ILS price");
+
+export const planUpdateFormSchema = z.object({
+  planId: z.coerce.number().int().positive(),
+  name: z.string().trim().min(1).max(160),
+  status: z.enum(["active", "inactive"]),
+  monthlyPrice: ilsPriceInputSchema,
+  annualPrice: ilsPriceInputSchema,
+});
+
+export function parseIlsToMinor(value: unknown) {
+  const parsed = ilsPriceInputSchema.parse(value);
+  const normalized = parsed.replace(",", ".");
   const [whole, fraction = ""] = normalized.split(".");
   const amount =
     Number(whole) * 100 + Number((fraction + "00").slice(0, 2));
+
   if (!Number.isSafeInteger(amount) || amount < 0) {
     throw new Error("Invalid ILS amount");
   }
