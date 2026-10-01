@@ -357,7 +357,13 @@
     "chooseFeature": "Choose a supported feature",
     "addFeature": "Add feature",
     "removeFeature": "Remove from plan",
-    "allSupportedFeaturesAdded": "All supported features are already added to this plan."
+    "allSupportedFeaturesAdded": "All supported features are already added to this plan.",
+    "entitlements": {
+      "store_managers": {
+        "name": "Store Managers",
+        "description": "Maximum number of Store Managers that can be assigned to one Store."
+      }
+    }
   },
   "Marketing": {
     "nav": {
