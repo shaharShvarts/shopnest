@@ -27,13 +27,14 @@ test("feature removal binds trusted plan and entitlement ids", async () => {
   assert.match(source, /formNoValidate/);
 });
 
-test("integer entitlement input rejects exponent notation in the UI", async () => {
+test("integer entitlement quota uses arrows and an unlimited control", async () => {
   const source = await readFile(
     "src/app/admin/plans/EntitlementIntegerInput.tsx",
     "utf8"
   );
-  assert.match(source, /type="text"/);
-  assert.match(source, /inputMode="numeric"/);
-  assert.match(source, /pattern="-1\|0\|\[1-9\]\[0-9\]\*"/);
-  assert.match(source, /\^\\d\+\$/);
+  assert.match(source, /type="hidden"/);
+  assert.match(source, /Math\.max\(0, base \+ delta\)/);
+  assert.match(source, /setValue\(-1\)/);
+  assert.match(source, /unlimitedLabel/);
+  assert.doesNotMatch(source, /type="number"/);
 });
