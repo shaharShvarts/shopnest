@@ -357,9 +357,10 @@
     "entitlements": {
       "store_managers": {
         "name": "מנהלי חנות",
-        "description": "מספר ה-Managers המרבי שניתן לשייך לחנות אחת."
+        "description": "מספר המנהלים המרבי שניתן לשייך לחנות אחת."
       }
-    }
+    },
+    "unlimited": "ללא הגבלה"
   },
   "Marketing": {
     "nav": {
