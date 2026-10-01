@@ -17,3 +17,23 @@ test("plan server rejects unsupported capability names", async () => {
   assert.match(source, /supportedEntitlementByCode/);
   assert.match(source, /Unsupported entitlement/);
 });
+
+
+test("feature removal binds trusted plan and entitlement ids", async () => {
+  const source = await readFile("src/app/admin/plans/page.tsx", "utf8");
+  assert.match(source, /removePlanEntitlementAction\.bind/);
+  assert.match(source, /plan\.id/);
+  assert.match(source, /entitlement\.id/);
+  assert.match(source, /formNoValidate/);
+});
+
+test("integer entitlement input rejects exponent notation in the UI", async () => {
+  const source = await readFile(
+    "src/app/admin/plans/EntitlementIntegerInput.tsx",
+    "utf8"
+  );
+  assert.match(source, /type="text"/);
+  assert.match(source, /inputMode="numeric"/);
+  assert.match(source, /pattern="-1\|0\|\[1-9\]\[0-9\]\*"/);
+  assert.match(source, /\^\\d\+\$/);
+});
