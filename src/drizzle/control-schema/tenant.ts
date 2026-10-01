@@ -10,7 +10,7 @@ import {
   text,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { tenantPlanEnum, tenantStatusEnum } from "./shared";
+import { tenantStatusEnum } from "./shared";
 
 export const controlPlaneTenants = pgTable(
   "tenants",
@@ -20,7 +20,7 @@ export const controlPlaneTenants = pgTable(
     schemaName: varchar("schema_name", { length: 63 }).notNull().unique(),
     displayName: varchar("display_name", { length: 160 }).notNull(),
     status: tenantStatusEnum("status").notNull().default("active"),
-    plan: tenantPlanEnum("plan").notNull().default("small"),
+    plan: varchar("plan", { length: 64 }).notNull().default("small"),
     featured: boolean("featured").notNull().default(false),
     featuredRank: integer("featured_rank"),
     supportNotes: text("support_notes"),
