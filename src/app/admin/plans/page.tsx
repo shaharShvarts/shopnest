@@ -170,7 +170,7 @@ export default async function PlansPage() {
                             entitlement.id
                           )}
                           formNoValidate
-                          className="h-9 self-start border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
+                          className="h-11 self-start border-red-200 px-4 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                         >
                           {t("removeFeature")}
                         </Button>
