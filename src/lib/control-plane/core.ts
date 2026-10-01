@@ -13,6 +13,8 @@ export type ControlPlaneStore = {
   displayName: string;
   status: TenantStatus;
   plan: string;
+  subscriptionPlanCode: string | null;
+  subscriptionPlanName: string | null;
   featured: boolean;
   featuredRank: number | null;
   supportNotes: string | null;
