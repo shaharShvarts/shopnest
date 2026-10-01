@@ -315,7 +315,7 @@
     "customDomainRollbackHelp": "Rollback restores the previous domain immediately and retires the current primary for a new 24-hour redirect window.",
     "customDomainRollback": "Rollback custom domain",
     "domainRollbackComplete": "Custom-domain rollback completed.",
-    "plansConfigurationDescription": "Configure plans, prices, and quotas. These values drive Store entitlements.",
+    "plansConfigurationDescription": "Manage plans, pricing, and only the real capabilities supported by ShopNest.",
     "entitlementCatalog": "Feature and limit catalog",
     "entitlementCatalogDescription": "Define each commercial capability once, then assign a value per plan.",
     "code": "Code",
@@ -332,8 +332,8 @@
     "planName": "Plan name",
     "monthlyPriceIls": "Monthly price (₪)",
     "annualPriceIls": "Annual price (₪)",
-    "planEntitlements": "Plan features and limits",
-    "planEntitlementsHelp": "0 = unavailable, positive integer = quota, -1 = unlimited. Boolean features are enabled or disabled.",
+    "planEntitlements": "Plan features",
+    "planEntitlementsHelp": "Add only supported capabilities. 0 = explicitly locked, positive integer = quota, -1 = unlimited.",
     "notConfigured": "Not configured",
     "enabled": "Enabled",
     "entitlementValuePlaceholder": "For example 0, 2, or -1",
@@ -347,8 +347,17 @@
       "ENTITLEMENT_CREATED": "Feature added to the catalog.",
       "ENTITLEMENT_CREATE_FAILED": "Unable to create the feature. The code may already exist or be invalid.",
       "PLAN_UPDATED": "Plan configuration saved.",
-      "PLAN_UPDATE_FAILED": "Unable to save the plan configuration."
-    }
+      "PLAN_UPDATE_FAILED": "Unable to save the plan configuration.",
+      "ENTITLEMENT_ADDED": "Feature added to the plan.",
+      "ENTITLEMENT_ADD_FAILED": "Unable to add the feature to the plan.",
+      "ENTITLEMENT_REMOVED": "Feature removed from the plan.",
+      "ENTITLEMENT_REMOVE_FAILED": "Unable to remove the feature from the plan."
+    },
+    "noPlanEntitlements": "No features have been added to this plan yet.",
+    "chooseFeature": "Choose a supported feature",
+    "addFeature": "Add feature",
+    "removeFeature": "Remove from plan",
+    "allSupportedFeaturesAdded": "All supported features are already added to this plan."
   },
   "Marketing": {
     "nav": {
