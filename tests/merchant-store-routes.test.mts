@@ -186,3 +186,17 @@ test("provisioned Store exposes the merchant custom-domain manager route", async
     /tenantId:\s*formData|schemaName:\s*formData|providerHostnameId:\s*formData|lifecycleRole:\s*formData/
   );
 });
+
+
+test("Store detail shows the active storefront address instead of presenting slug as the customer URL", async () => {
+  const page = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
+    "utf8"
+  );
+
+  assert.match(page, /getMerchantDomainView/);
+  assert.match(page, /domainView\?\.currentPrimary/);
+  assert.match(page, /activeStoreAddress/);
+  assert.match(page, /t\(["']storeId["']\)/);
+  assert.doesNotMatch(page, />\s*shopnest\.co\.il\/\{store\.slug\}\s*</);
+});
