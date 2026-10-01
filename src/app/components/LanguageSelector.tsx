@@ -47,7 +47,7 @@ export default function LanguageSelector() {
         <Button
           variant="outline"
           aria-label={`Language: ${selected?.label ?? "Select language"}`}
-          className="h-11 min-w-11 gap-1 px-2 sm:w-[180px] sm:justify-around sm:px-3"
+          className="h-11 min-w-11 gap-1 bg-white px-2 text-slate-950 hover:bg-slate-100 hover:text-slate-950 sm:w-[180px] sm:justify-around sm:px-3"
         >
           <Image
             src={selected?.flag ?? languages[0].flag}
