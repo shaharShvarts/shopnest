@@ -117,15 +117,15 @@ export default async function PlansPage({
                         className="grid gap-3 rounded-lg border p-4 md:grid-cols-[1fr_220px_auto]"
                       >
                         <div>
-                          <p className="font-semibold">{entitlement.name}</p>
+                          <p className="font-semibold">
+                            {t(`entitlements.${entitlement.code}.name`)}
+                          </p>
                           <p className="font-mono text-xs text-slate-500">
                             {entitlement.code}
                           </p>
-                          {entitlement.description ? (
-                            <p className="mt-1 text-sm text-slate-600">
-                              {entitlement.description}
-                            </p>
-                          ) : null}
+                          <p className="mt-1 text-sm text-slate-600">
+                            {t(`entitlements.${entitlement.code}.description`)}
+                          </p>
                         </div>
 
                         {entitlement.valueType === "boolean" ? (
@@ -187,7 +187,7 @@ export default async function PlansPage({
                   </option>
                   {plan.availableEntitlements.map((entitlement) => (
                     <option key={entitlement.code} value={entitlement.code}>
-                      {entitlement.name}
+                      {t(`entitlements.${entitlement.code}.name`)}
                     </option>
                   ))}
                 </select>
