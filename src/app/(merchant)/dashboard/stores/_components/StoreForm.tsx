@@ -26,6 +26,7 @@ type StoreFormValues = {
   slug?: string;
   tenantId?: number | null;
   updatedAt?: string;
+  activeAddress?: string;
 };
 
 type Availability =
@@ -39,9 +40,11 @@ type Availability =
 export function StoreForm({
   mode,
   initialValues,
+  platformOrigin,
 }: {
   mode: "create" | "edit";
   initialValues?: StoreFormValues;
+  platformOrigin: string;
 }) {
   const t = useTranslations("MerchantStore");
   const action =
@@ -177,7 +180,7 @@ export function StoreForm({
           htmlFor="store-slug"
           className="mb-1 block text-sm font-medium"
         >
-          {t("slug")}
+          {slugLocked ? t("storeId") : t("slug")}
         </label>
         <input
           id="store-slug"
@@ -213,10 +216,12 @@ export function StoreForm({
 
       <div className="rounded-xl bg-muted px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("futureUrl")}
+          {slugLocked ? t("activeStoreAddress") : t("futureUrl")}
         </p>
         <p className="mt-1 break-all font-mono text-sm">
-          shopnest.co.il/{slug || "your-store"}
+          {slugLocked && initialValues?.activeAddress
+            ? initialValues.activeAddress
+            : `${platformOrigin}/${slug || "your-store"}`}
         </p>
       </div>
 
