@@ -120,6 +120,13 @@
       "when": 1790798400000,
       "tag": "0016_store_manager_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790802000000,
+      "tag": "0017_plan_entitlements",
+      "breakpoints": true
     }
   ]
 }
