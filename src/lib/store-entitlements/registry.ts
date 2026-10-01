@@ -19,12 +19,6 @@ export const SUPPORTED_ENTITLEMENTS = [
     valueType: "boolean",
   },
   {
-    code: "media_storage_mb",
-    name: "Media Storage",
-    description: "Maximum media storage available to the Store, in megabytes.",
-    valueType: "integer",
-  },
-  {
     code: "products_limit",
     name: "Products",
     description: "Maximum number of products allowed in the Store catalog.",
