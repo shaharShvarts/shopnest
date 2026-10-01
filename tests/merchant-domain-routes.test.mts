@@ -335,3 +335,26 @@ test("merchant rollback stays server-side and does not trust browser hostname", 
   assert.match(actions, /rollbackRetiringDomainForOwner/);
   assert.match(actions, /storeId:\s*formData\.get\("storeId"\)/);
 });
+
+
+test("merchant domain view uses the configured platform origin", async () => {
+  const module = await import("../src/lib/merchant-domains/core.ts");
+  const view = module.merchantDomainViewFromRecord(
+    {
+      storeId: 4,
+      storeSlug: "sex-shop",
+      tenantId: 2,
+      currentPrimary: null,
+      retiring: null,
+      candidate: null,
+      claim: null,
+    },
+    new Date("2026-10-01T00:00:00.000Z"),
+    "https://dev.shopnest.co.il/"
+  );
+
+  assert.equal(
+    view.platformUrl,
+    "https://dev.shopnest.co.il/sex-shop"
+  );
+});

@@ -29,7 +29,14 @@ export async function getMerchantDomainView(
     merchantId,
     storeId
   );
-  return record ? merchantDomainViewFromRecord(record, now) : null;
+  const platformOrigin =
+    (typeof process !== "undefined"
+      ? process.env.SHOPNEST_PLATFORM_ORIGIN?.trim()
+      : undefined) || "https://shopnest.co.il";
+
+  return record
+    ? merchantDomainViewFromRecord(record, now, platformOrigin)
+    : null;
 }
 
 export function getMerchantDomainRepository() {

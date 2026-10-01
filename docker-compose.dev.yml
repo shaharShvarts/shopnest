@@ -15,6 +15,7 @@ services:
       DB_NAME: shopnest
       DB_PASSWORD: ${DEV_DB_PASSWORD}
       PAYMENT_ENCRYPTION_KEY: ${DEV_PAYMENT_ENCRYPTION_KEY}
+      SHOPNEST_PLATFORM_ORIGIN: https://dev.shopnest.co.il
       SHOPNEST_UPLOADS_DIR: /app/uploads
     volumes:
       - ./uploads:/app/uploads
