@@ -142,3 +142,22 @@ test("plan administration uses clean flash redirects and readable language contr
   assert.match(language, /bg-white/);
   assert.match(language, /text-slate-950/);
 });
+
+
+test("Control Plane shell and plan controls have active navigation and consistent interaction styling", async () => {
+  const [layout, nav, plans, language] = await Promise.all([
+    readFile("src/app/admin/layout.tsx", "utf8"),
+    readFile("src/app/admin/_components/AdminNavigation.tsx", "utf8"),
+    readFile("src/app/admin/plans/page.tsx", "utf8"),
+    readFile("src/app/components/LanguageSelector.tsx", "utf8"),
+  ]);
+
+  assert.match(layout, /AdminNavigation/);
+  assert.match(layout, /text-white transition-opacity hover:opacity-90/);
+  assert.match(nav, /aria-current={active ? "page"/);
+  assert.match(nav, /bg-slate-900 text-white shadow-sm/);
+  assert.match(language, /h-10/);
+  assert.match(plans, /hover:bg-red-50/);
+  assert.match(plans, /hover:bg-slate-800/);
+  assert.match(plans, /hover:border-slate-300/);
+});
