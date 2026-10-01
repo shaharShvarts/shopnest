@@ -4,6 +4,8 @@ import { resolveDatabaseUrl } from "../src/data/env/database-url.mjs";
 import { getStoreLifecycleRepository } from "../src/lib/store-lifecycle/server.ts";
 import { getActivationOrchestrationRepository } from "../src/lib/activation-orchestration/server.ts";
 import { getTenantRegistryService } from "../src/lib/tenant-registry/server.ts";
+import { booleanEntitlement } from "../src/lib/store-entitlements/core.ts";
+import { getEffectiveStoreEntitlements } from "../src/lib/store-entitlements/server.ts";
 import { provisionTenant } from "./lib/tenant-provisioning.mjs";
 
 function requireDevAcceptanceEnvironment() {
@@ -100,9 +102,10 @@ try {
   const context =
     await activationRepository.loadProvisioningContext(storeId);
 
-  if (context.plan !== "medium" && context.plan !== "large") {
+  const entitlements = await getEffectiveStoreEntitlements(storeId);
+  if (!booleanEntitlement(entitlements, "custom_domain")) {
     throw new Error(
-      "DEV custom-domain acceptance requires Medium or Large plan"
+      "DEV custom-domain acceptance requires custom_domain entitlement"
     );
   }
 
@@ -136,7 +139,7 @@ try {
   console.log("tenant_id:", finalized.tenantId);
   console.log("slug:", finalized.slug);
   console.log("schema_name:", finalized.schemaName);
-  console.log("plan:", context.plan);
+  console.log("plan:", context.planCode);
 } catch (error) {
   const latest =
     await lifecycleRepository.findForOwnedStore(
