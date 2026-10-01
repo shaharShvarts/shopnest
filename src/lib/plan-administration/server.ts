@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/db";
 import {
   entitlements,
@@ -106,16 +106,12 @@ export async function updatePlanForAdmin(input: unknown) {
         await tx
           .delete(planPrices)
           .where(
-            eq(planPrices.planId, parsed.planId)
+            and(
+              eq(planPrices.planId, parsed.planId),
+              eq(planPrices.billingInterval, interval),
+              eq(planPrices.currency, "ILS")
+            )
           );
-        if (interval === "monthly" && parsed.annualAmountMinor !== null) {
-          await tx.insert(planPrices).values({
-            planId: parsed.planId,
-            billingInterval: "annual",
-            currency: "ILS",
-            amountMinor: parsed.annualAmountMinor,
-          }).onConflictDoNothing();
-        }
         continue;
       }
 
@@ -155,9 +151,11 @@ export async function updatePlanForAdmin(input: unknown) {
         await tx
           .delete(planEntitlements)
           .where(
-            eq(planEntitlements.planId, parsed.planId)
+            and(
+              eq(planEntitlements.planId, parsed.planId),
+              eq(planEntitlements.entitlementId, entitlement.id)
+            )
           );
-        // restore other values below; this branch is handled by explicit values
         continue;
       }
 
