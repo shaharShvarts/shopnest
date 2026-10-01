@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/db";
 import { planPrices, plans } from "@/drizzle/control-plane-schema";
 
