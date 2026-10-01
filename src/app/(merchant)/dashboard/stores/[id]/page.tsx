@@ -44,6 +44,7 @@ export default async function MerchantStoreDetailPage({
     tSubscription,
     tReadiness,
     tActivation,
+    tCatalog,
     activePlans,
     subscription,
     readiness,
@@ -53,6 +54,7 @@ export default async function MerchantStoreDetailPage({
     getTranslations("MerchantSubscription"),
     getTranslations("MerchantReadiness"),
     getTranslations("MerchantActivation"),
+    getTranslations("StoreCatalogManagement"),
     subscriptionRepository.listActivePlans(),
     subscriptionRepository.findForOwnedStore(merchant.id, id),
     readinessRepository.evaluateForOwnedStore(merchant.id, id),
@@ -127,12 +129,20 @@ export default async function MerchantStoreDetailPage({
             {t("editStore")}
           </Link>
           {store.tenantId !== null ? (
-            <Link
-              href={"/dashboard/stores/" + store.id + "/domain"}
-              className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-            >
-              {t("manageDomain")}
-            </Link>
+            <>
+              <Link
+                href={"/dashboard/stores/" + store.id + "/products"}
+                className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
+              >
+                {tCatalog("manageCatalog")}
+              </Link>
+              <Link
+                href={"/dashboard/stores/" + store.id + "/domain"}
+                className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
+              >
+                {t("manageDomain")}
+              </Link>
+            </>
           ) : null}
           <Link
             href="/dashboard/stores"

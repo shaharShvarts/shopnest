@@ -66,6 +66,7 @@ jobs:
           npm run store-readiness:test
           npm run store-lifecycle:test
           npm run store-management:test
+          npm run store-management-catalog:test
           npm run tenant-registry:test
           npm run domain-registry:test
           npm run cloudflare-saas:test

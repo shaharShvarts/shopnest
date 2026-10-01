@@ -2,6 +2,8 @@ export * from "@/drizzle/schema/user";
 export * from "@/drizzle/schema/category";
 export * from "@/drizzle/schema/subcategory";
 export * from "@/drizzle/schema/product";
+export * from "@/drizzle/schema/image";
+export * from "@/drizzle/schema/productImage";
 export * from "@/drizzle/schema/productTag";
 export * from "@/drizzle/schema/tag";
 export * from "@/drizzle/schema/like";

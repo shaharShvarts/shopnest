@@ -8,6 +8,7 @@ export type StoreManagementRole = "owner" | "manager";
 export type StoreManagementPermission =
   | "store.read"
   | "store.operate"
+  | "catalog.manage"
   | "domain.manage"
   | "payment_configuration.manage"
   | "subscription.manage"
@@ -98,6 +99,7 @@ export class StoreManagementAuthorizationError extends Error {
 const OWNER_PERMISSIONS = new Set<StoreManagementPermission>([
   "store.read",
   "store.operate",
+  "catalog.manage",
   "domain.manage",
   "payment_configuration.manage",
   "subscription.manage",
@@ -110,6 +112,7 @@ const OWNER_PERMISSIONS = new Set<StoreManagementPermission>([
 const MANAGER_PERMISSIONS = new Set<StoreManagementPermission>([
   "store.read",
   "store.operate",
+  "catalog.manage",
 ]);
 
 export function storeManagementPermissionsForRole(
