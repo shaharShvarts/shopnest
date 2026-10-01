@@ -353,7 +353,13 @@
     "chooseFeature": "בחר פיצ'ר נתמך",
     "addFeature": "הוסף פיצ'ר",
     "removeFeature": "הסר מהמסלול",
-    "allSupportedFeaturesAdded": "כל הפיצ'רים הנתמכים כבר נוספו למסלול."
+    "allSupportedFeaturesAdded": "כל הפיצ'רים הנתמכים כבר נוספו למסלול.",
+    "entitlements": {
+      "store_managers": {
+        "name": "מנהלי חנות",
+        "description": "מספר ה-Managers המרבי שניתן לשייך לחנות אחת."
+      }
+    }
   },
   "Marketing": {
     "nav": {
