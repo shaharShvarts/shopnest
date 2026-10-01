@@ -40,7 +40,7 @@ export default async function ShopNestAdminLayout({ children }: Readonly<{ child
                 {t("controlPlane")}
               </span>
             </Link>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-300">
               {t("platformAdministration")}
             </p>
           </div>
