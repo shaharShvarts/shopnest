@@ -58,10 +58,6 @@ function activationRedirectReason(error: unknown) {
     ) {
       return "not-ready";
     }
-
-    if (error.code === "PLAN_NOT_PROVISIONABLE") {
-      return "plan";
-    }
   }
 
   return "failed";
