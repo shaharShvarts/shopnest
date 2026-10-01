@@ -156,3 +156,48 @@ test("retry finalizes local removal when Cloudflare already deleted the hostname
   assert.equal(repository.finalized, 1);
   assert.deepEqual(repository.errors, []);
 });
+
+
+test("local removal clears lifecycle routing metadata before provider cleanup", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-removal-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /status:\s*"removed"/);
+  assert.match(source, /lifecycleRole:\s*null/);
+  assert.match(source, /isPrimary:\s*false/);
+  assert.match(source, /retireAt:\s*null/);
+  assert.match(source, /redirectToDomainId:\s*null/);
+});
+
+test("merchant removal serializes against domain lifecycle changes", async () => {
+  const { readFile } = await import("node:fs/promises");
+
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-removal-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /shopnest_domain_lifecycle/);
+  assert.match(source, /pg_advisory_xact_lock/);
+  assert.match(
+    source,
+    /eq\(storeDomains\.lifecycleRole,\s*"primary"\)/
+  );
+});
+
+test("removed domain remains discoverable for provider cleanup retry", async () => {
+  const { readFile } = await import("node:fs/promises");
+
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-removal-repository.ts",
+    "utf8"
+  );
+
+  assert.match(
+    source,
+    /eq\(storeDomains\.status,\s*"removed"\)/
+  );
+});

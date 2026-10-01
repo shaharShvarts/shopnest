@@ -20,6 +20,13 @@ export type CloudflareSaasConfig =
       freeHostnameLimit: number;
     };
 
+export class CloudflareSaasDisabledError extends Error {
+  constructor() {
+    super("Cloudflare SaaS integration is disabled");
+    this.name = "CloudflareSaasDisabledError";
+  }
+}
+
 function requireString(
   env: NodeJS.ProcessEnv,
   key: string

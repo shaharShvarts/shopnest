@@ -1,5 +1,4 @@
 import { validateClaimHostname } from "../domain-claims/core.ts";
-import { CloudflareSaasError } from "./client.ts";
 
 export type DomainRemovalReservation =
   | {
@@ -76,6 +75,18 @@ export class CloudflareDomainRemovalService {
       return reservation;
     }
 
+    await this.cleanupReservation(reservation, now);
+
+    return {
+      kind: "removed",
+      hostname: reservation.hostname,
+    };
+  }
+
+  async cleanupReservation(
+    reservation: Extract<DomainRemovalReservation, { kind: "ready" }>,
+    now = new Date()
+  ): Promise<void> {
     this.clearDomainCache(reservation.hostname);
 
     if (reservation.providerHostnameId) {
@@ -84,13 +95,17 @@ export class CloudflareDomainRemovalService {
           reservation.providerHostnameId
         );
       } catch (error) {
-        if (
-          !(
-            error instanceof CloudflareSaasError &&
-            error.kind === "http_error" &&
-            error.status === 404
-          )
-        ) {
+        const alreadyDeleted =
+          error !== null &&
+          typeof error === "object" &&
+          "name" in error &&
+          error.name === "CloudflareSaasError" &&
+          "kind" in error &&
+          error.kind === "http_error" &&
+          "status" in error &&
+          error.status === 404;
+
+        if (!alreadyDeleted) {
           await this.repository.recordRemovalError({
             domainId: reservation.domainId,
             errorCode: "CLOUDFLARE_DELETE_ERROR",
@@ -105,10 +120,6 @@ export class CloudflareDomainRemovalService {
       domainId: reservation.domainId,
       now,
     });
-
-    return {
-      kind: "removed",
-      hostname: reservation.hostname,
-    };
   }
+
 }

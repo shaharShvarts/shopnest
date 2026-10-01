@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   and,
+  desc,
   eq,
   gte,
   isNotNull,
@@ -39,6 +40,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
       .select({
         claimStatus: storeDomainClaims.status,
         verifiedAt: storeDomainClaims.verifiedAt,
+        cnameVerifiedAt: storeDomainClaims.cnameVerifiedAt,
         tenantId: stores.tenantId,
         storeStatus: stores.status,
         tenantStatus: controlPlaneTenants.status,
@@ -79,6 +81,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
           isNull(stores.deletedAt)
         )
       )
+      .orderBy(desc(storeDomainClaims.createdAt))
       .limit(1);
 
     if (
@@ -90,6 +93,13 @@ export class DrizzleCloudflareDomainProvisioningRepository
       throw new CloudflareDomainProvisioningError(
         "CLAIM_NOT_VERIFIED",
         "Verified domain claim not found"
+      );
+    }
+
+    if (!claim.cnameVerifiedAt) {
+      throw new CloudflareDomainProvisioningError(
+        "CNAME_NOT_VERIFIED",
+        "Direct ShopNest CNAME verification is required before provisioning"
       );
     }
 
@@ -122,7 +132,6 @@ export class DrizzleCloudflareDomainProvisioningRepository
     merchantId: number;
     storeId: number;
     hostname: string;
-    verificationToken: string;
     providerCount: number;
     freeHostnameLimit: number;
     needsProviderCreate: boolean;
@@ -139,6 +148,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
           claimId: storeDomainClaims.id,
           claimStatus: storeDomainClaims.status,
           verifiedAt: storeDomainClaims.verifiedAt,
+          cnameVerifiedAt: storeDomainClaims.cnameVerifiedAt,
           consumedAt: storeDomainClaims.consumedAt,
           hostname: storeDomainClaims.hostname,
           tenantId: stores.tenantId,
@@ -181,6 +191,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
             isNull(stores.deletedAt)
           )
         )
+        .orderBy(desc(storeDomainClaims.createdAt))
         .limit(1)
         .for("update");
 
@@ -196,6 +207,13 @@ export class DrizzleCloudflareDomainProvisioningRepository
         );
       }
 
+
+      if (!claim.cnameVerifiedAt) {
+        throw new CloudflareDomainProvisioningError(
+          "CNAME_NOT_VERIFIED",
+          "Direct ShopNest CNAME verification is required before provisioning"
+        );
+      }
 
       if (
         claim.planStatus !== "active" ||
@@ -233,15 +251,19 @@ export class DrizzleCloudflareDomainProvisioningRepository
           activationRequestedAt: storeDomains.activationRequestedAt,
         })
         .from(storeDomains)
-        .where(eq(storeDomains.hostname, input.hostname))
+        .where(
+          and(
+            eq(storeDomains.hostname, input.hostname),
+            ne(storeDomains.status, "removed")
+          )
+        )
         .limit(1)
         .for("update");
 
       if (existing) {
         if (
           existing.tenantId !== claim.tenantId ||
-          existing.provider !== "cloudflare" ||
-          existing.status === "removed"
+          existing.provider !== "cloudflare"
         ) {
           throw new CloudflareDomainProvisioningError(
             "DOMAIN_CONFLICT",
@@ -330,8 +352,10 @@ export class DrizzleCloudflareDomainProvisioningRepository
           hostname: input.hostname,
           type: "custom",
           status: "pending_verification",
-          verificationToken: input.verificationToken,
+          verificationToken: `legacy-claim-${claim.claimId}`,
           verifiedAt: claim.verifiedAt,
+          cnameVerifiedAt: claim.cnameVerifiedAt,
+          lifecycleRole: "candidate",
           isPrimary: false,
           provider: "cloudflare",
           activationRequestedAt: input.now,
@@ -375,6 +399,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
           status: storeDomainClaims.status,
           hostname: storeDomainClaims.hostname,
           verifiedAt: storeDomainClaims.verifiedAt,
+          cnameVerifiedAt: storeDomainClaims.cnameVerifiedAt,
           consumedAt: storeDomainClaims.consumedAt,
         })
         .from(storeDomainClaims)
@@ -399,6 +424,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
       if (
         !claim ||
         !claim.verifiedAt ||
+        !claim.cnameVerifiedAt ||
         (claim.status !== "verified" && claim.status !== "consumed")
       ) {
         throw new CloudflareDomainProvisioningError(

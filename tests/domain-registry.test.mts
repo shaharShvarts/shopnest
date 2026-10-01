@@ -14,8 +14,10 @@ import {
 
 class FakeDomainRegistryRepository implements DomainRegistryRepository {
   calls = 0;
+  primaryCalls = 0;
   error: Error | null = null;
   record: DomainRegistryRecord | null = null;
+  primaryHostname: string | null = null;
 
   async findActiveByHostname() {
     this.calls += 1;
@@ -26,11 +28,23 @@ class FakeDomainRegistryRepository implements DomainRegistryRepository {
     }
     return this.record;
   }
+
+  async findPrimaryByTenantSlug() {
+    this.primaryCalls += 1;
+    return this.primaryHostname
+      ? { hostname: this.primaryHostname }
+      : null;
+  }
 }
 
 const ACTIVE_RECORD: DomainRegistryRecord = {
   hostname: "store.example",
   domainStatus: "active",
+  lifecycleRole: "primary",
+  providerHostnameStatus: "active",
+  providerSslStatus: "active",
+  retireAt: null,
+  redirectTargetHostname: null,
   tenant: {
     slug: "panda-pop",
     schemaName: "tenant_42",
@@ -89,6 +103,8 @@ test("custom domains require canonical DNS hostnames and reject platform/local i
 test("only an active exact domain bound to an active safe Tenant becomes trusted", () => {
   const resolved = trustedDomainFromRegistryRecord(ACTIVE_RECORD);
   assert.ok(resolved);
+  assert.equal(resolved.kind, "tenant");
+  if (resolved.kind !== "tenant") throw new Error("expected tenant resolution");
   assert.equal(resolved.hostname, "store.example");
   assert.equal(resolved.tenant.slug, "panda-pop");
   assert.equal(resolved.tenant.schema, "tenant_42");
@@ -232,4 +248,90 @@ test("trusted Host implementation joins through public Tenants and never derives
   );
   assert.ok(entry);
   assert.equal(entry.idx, 12);
+});
+
+
+test("candidate domains never become trusted routing identities", () => {
+  const result = trustedDomainFromRegistryRecord(
+    {
+      ...ACTIVE_RECORD,
+      lifecycleRole: "candidate",
+      providerHostnameStatus: "active",
+      providerSslStatus: "active",
+      retireAt: null,
+      redirectTargetHostname: null,
+    } as any,
+    Date.now()
+  );
+  assert.equal(result, null);
+});
+
+test("primary and retiring domains resolve to different trusted outcomes", () => {
+  const now = new Date("2026-09-23T22:00:00Z").getTime();
+
+  const primary = trustedDomainFromRegistryRecord(
+    {
+      ...ACTIVE_RECORD,
+      lifecycleRole: "primary",
+      providerHostnameStatus: "active",
+      providerSslStatus: "active",
+      retireAt: null,
+      redirectTargetHostname: null,
+    } as any,
+    now
+  );
+  assert.equal((primary as any)?.kind, "tenant");
+  assert.equal((primary as any)?.tenant.slug, "panda-pop");
+
+  const retiring = trustedDomainFromRegistryRecord(
+    {
+      ...ACTIVE_RECORD,
+      lifecycleRole: "retiring",
+      providerHostnameStatus: "active",
+      providerSslStatus: "active",
+      retireAt: new Date("2026-09-24T22:00:00Z"),
+      redirectTargetHostname: "new.example.com",
+    } as any,
+    now
+  );
+  assert.deepEqual(retiring, {
+    kind: "redirect",
+    hostname: "store.example",
+    targetHostname: "new.example.com",
+  });
+});
+
+test("expired retiring domains fail closed before lazy cleanup runs", () => {
+  const result = trustedDomainFromRegistryRecord(
+    {
+      ...ACTIVE_RECORD,
+      lifecycleRole: "retiring",
+      providerHostnameStatus: "active",
+      providerSslStatus: "active",
+      retireAt: new Date("2026-09-23T22:00:00Z"),
+      redirectTargetHostname: "new.example.com",
+    } as any,
+    new Date("2026-09-23T22:00:00Z").getTime()
+  );
+  assert.equal(result, null);
+});
+
+test("primary custom-domain lookup is cached by tenant slug", async () => {
+  const repository = new FakeDomainRegistryRepository();
+  repository.primaryHostname = "store.example";
+  const service = new DomainRegistryService(repository);
+
+  const first = await (service as any).resolvePrimaryDomainForTenantSlug(
+    "panda-pop",
+    10_000
+  );
+  repository.primaryHostname = null;
+  const cached = await (service as any).resolvePrimaryDomainForTenantSlug(
+    "panda-pop",
+    10_000 + DOMAIN_REGISTRY_CACHE_TTL_MS - 1
+  );
+
+  assert.equal(first, "store.example");
+  assert.equal(cached, "store.example");
+  assert.equal(repository.primaryCalls, 1);
 });

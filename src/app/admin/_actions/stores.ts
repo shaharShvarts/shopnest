@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/admin-auth/server";
 import { updateControlPlaneStore } from "@/lib/control-plane/server";
+import { rollbackRetiringDomainForAdmin } from "@/lib/custom-domain-lifecycle/server";
+import { validateClaimHostname } from "@/lib/domain-claims/core";
 
 const formSchema = z.object({
   slug: z.string().trim().min(1).max(63),
@@ -39,4 +42,30 @@ export async function updateStoreAction(formData: FormData) {
   revalidatePath("/admin/plans");
   revalidatePath("/admin/featured");
   redirect(`/admin/stores/${parsed.data.slug}?saved=1`);
+}
+
+
+export async function rollbackCustomDomainAction(formData: FormData) {
+  await requireSuperAdmin();
+
+  const tenantSlug = z
+    .string()
+    .trim()
+    .min(1)
+    .max(63)
+    .parse(formData.get("tenantSlug"));
+  const restoreHostname = validateClaimHostname(
+    formData.get("restoreHostname")
+  );
+
+  await rollbackRetiringDomainForAdmin(
+    tenantSlug,
+    restoreHostname,
+    new Date()
+  );
+
+  revalidatePath("/admin/stores/" + tenantSlug);
+  redirect(
+    "/admin/stores/" + tenantSlug + "?domainRollback=1"
+  );
 }

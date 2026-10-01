@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  CloudflareSaasDisabledError,
   readCloudflareSaasConfig,
   type CloudflareSaasConfig,
 } from "./core";
@@ -16,7 +17,7 @@ let cached:
 export function getCloudflareSaasRuntime() {
   const config = readCloudflareSaasConfig();
   if (!config.enabled) {
-    throw new Error("Cloudflare SaaS integration is disabled");
+    throw new CloudflareSaasDisabledError();
   }
 
   if (

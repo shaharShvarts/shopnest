@@ -323,3 +323,15 @@ test("Cloudflare sync preserves the original verified_at after the domain is alr
 
   assert.equal(repository.updates[0]?.verifiedAt, undefined);
 });
+
+test("Drizzle domain sync ignores removed history when a hostname is reused", async () => {
+  const { readFile } = await import("node:fs/promises");
+
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-sync-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /eq\(storeDomains\.hostname,\s*hostname\)/);
+  assert.match(source, /ne\(storeDomains\.status,\s*"removed"\)/);
+});
