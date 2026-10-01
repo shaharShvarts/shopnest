@@ -71,11 +71,66 @@ Do not silently fall back to a less secure path.
 - Keep authorization checks on the server.
 - Do not rely on hidden buttons or client-side routing as permission enforcement.
 
-### 3.2 Validation
+### 3.2 Validation and form contracts
 
-- Use Zod at trust boundaries.
-- Validate request/form/API inputs before business logic.
-- Normalize identifiers such as email addresses consistently before comparisons.
+Validation is a mandatory architectural rule, not an optional feature-level improvement.
+
+Every user-controlled input must have an explicit contract that is enforced in **both** places below:
+
+1. **Browser/UI constraints** for immediate feedback and to prevent obviously invalid input.
+2. **Server-side Zod validation** at the trust boundary before business logic, authorization-sensitive mutation logic, or persistence.
+
+Client-side validation is never sufficient by itself. Browser requests can be forged or bypass UI controls.
+
+For every form field, choose the input control and Zod schema according to the actual domain type. Do not default to a generic text field.
+
+Examples:
+
+- integer count / quota -> integer-only control and `z.number().int()` or equivalent coercion
+- decimal money / rate -> decimal-only control with explicit precision rules and a Zod schema that enforces them
+- boolean -> checkbox/switch/select with a boolean-specific schema
+- email -> `type="email"` plus normalized Zod email validation
+- URL / hostname / slug / code -> domain-specific parser or regex, not unrestricted text
+- enum/status -> select/radio plus `z.enum(...)`
+- free text -> explicit min/max length and trimming rules
+- IDs -> positive integer/UUID schema as appropriate
+- date/time -> explicit date/time format and range validation
+- file/image -> explicit MIME, size, count, and content validation where required
+
+Field contracts must define, as applicable:
+
+- required vs optional
+- empty-string behavior
+- type
+- minimum / maximum
+- integer vs decimal
+- decimal precision
+- allowed characters / format
+- normalization
+- enum membership
+- uniqueness assumptions
+- cross-field invariants
+
+A field must not be silently treated as optional merely because an empty string was submitted. If the business meaning is "free", "zero", "none", or "disabled", require the explicit semantic value such as `0` or `false` instead of accepting an empty field.
+
+Money values must not be accepted as arbitrary strings or JavaScript floating-point values. Parse validated decimal input into integer minor units before persistence. Define allowed precision explicitly (for example, ILS prices allow at most two decimal places).
+
+Server Actions, Route Handlers, APIs, CLI/admin mutations, and other trust boundaries must parse the complete input object with Zod before passing values into service/repository code. Do not validate only one or two fields ad hoc while leaving the rest as raw `FormData`.
+
+Dynamic fields such as entitlements must also be validated according to their registered domain type. For example, an integer entitlement must reject fractions and invalid negatives; a boolean entitlement must accept only its defined boolean representation.
+
+When adding or changing a form, the implementation checklist is mandatory:
+
+1. Define the domain type and semantics of every field.
+2. Select the correct HTML/control type and client constraints.
+3. Define or reuse the matching Zod schema.
+4. Normalize values deliberately.
+5. Parse the full mutation payload server-side before business logic.
+6. Add regression tests for valid values, invalid type/format, boundary values, and required-field behavior.
+
+Do not rely on manual QA to discover mismatched field types. Code review and tests must treat a generic or incorrectly typed field as a defect.
+
+Normalize identifiers such as email addresses consistently before comparisons.
 
 ### 3.3 Database access
 
@@ -213,6 +268,12 @@ Typical areas requiring explicit regression coverage:
 - domain lifecycle races
 - session invalidation
 - route redirects / fail-closed behavior
+- form field type contracts
+- required vs optional field behavior
+- integer vs decimal boundaries
+- server-side Zod rejection of forged/invalid payloads
+
+For any form or mutation touched by a PR, review all fields in that form as a unit. Do not validate only the newly added field and leave neighboring fields with weaker contracts.
 
 ## 10. Git and Pull Request Workflow
 
