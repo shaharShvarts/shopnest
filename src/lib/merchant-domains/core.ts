@@ -129,7 +129,8 @@ function nextCheckAt(lastCheckedAt: Date | null, now: Date) {
 
 export function merchantDomainViewFromRecord(
   record: MerchantDomainRecord,
-  now = new Date()
+  now = new Date(),
+  platformOrigin = "https://shopnest.co.il"
 ): MerchantDomainView {
   const redirectTarget =
     record.retiring && record.currentPrimary &&
@@ -140,7 +141,7 @@ export function merchantDomainViewFromRecord(
   return {
     storeId: record.storeId,
     storeSlug: record.storeSlug,
-    platformUrl: `https://shopnest.co.il/${record.storeSlug}`,
+    platformUrl: `${platformOrigin.replace(/\/+$/, "")}/${record.storeSlug}`,
     currentPrimary: record.currentPrimary
       ? { hostname: record.currentPrimary.hostname }
       : null,
