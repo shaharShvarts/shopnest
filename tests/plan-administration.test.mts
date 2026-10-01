@@ -4,6 +4,7 @@ import {
   createPlanSchema,
   formatMinorAmount,
   parseIlsToMinor,
+  planUpdateFormSchema,
   validateEntitlementValue,
 } from "../src/lib/plan-administration/core.ts";
 import {
@@ -36,7 +37,9 @@ test("ILS prices round-trip in minor units", () => {
   assert.equal(parseIlsToMinor("49"), 4900);
   assert.equal(parseIlsToMinor("49.90"), 4990);
   assert.equal(parseIlsToMinor("49,9"), 4990);
-  assert.equal(parseIlsToMinor(""), null);
+  assert.throws(() => parseIlsToMinor(""));
+  assert.throws(() => parseIlsToMinor("abc"));
+  assert.throws(() => parseIlsToMinor("9.999"));
   assert.equal(formatMinorAmount(4990), "49.90");
 });
 
@@ -47,4 +50,44 @@ test("entitlement values enforce integer and boolean semantics", () => {
   assert.equal(validateEntitlementValue("boolean", 1), 1);
   assert.throws(() => validateEntitlementValue("boolean", -1));
   assert.throws(() => validateEntitlementValue("boolean", 2));
+});
+
+
+test("plan update form requires complete prices and valid fixed fields", () => {
+  assert.deepEqual(
+    planUpdateFormSchema.parse({
+      planId: "1",
+      name: "Free",
+      status: "active",
+      monthlyPrice: "0",
+      annualPrice: "0.00",
+    }),
+    {
+      planId: 1,
+      name: "Free",
+      status: "active",
+      monthlyPrice: "0",
+      annualPrice: "0.00",
+    }
+  );
+
+  assert.throws(() =>
+    planUpdateFormSchema.parse({
+      planId: "1",
+      name: "Free",
+      status: "active",
+      monthlyPrice: "",
+      annualPrice: "0",
+    })
+  );
+
+  assert.throws(() =>
+    planUpdateFormSchema.parse({
+      planId: "1",
+      name: "Free",
+      status: "active",
+      monthlyPrice: "9.999",
+      annualPrice: "0",
+    })
+  );
 });
