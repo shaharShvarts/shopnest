@@ -43,11 +43,14 @@ export async function addPlanEntitlementAction(formData: FormData) {
   redirect(plansPath("ENTITLEMENT_ADDED"));
 }
 
-export async function removePlanEntitlementAction(formData: FormData) {
+export async function removePlanEntitlementAction(
+  planId: number,
+  entitlementId: number
+) {
   try {
     await removePlanEntitlementForAdmin({
-      planId: formData.get("planId"),
-      entitlementId: formData.get("entitlementId"),
+      planId,
+      entitlementId,
     });
   } catch {
     redirect(plansPath("ENTITLEMENT_REMOVE_FAILED"));
