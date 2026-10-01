@@ -1,6 +1,14 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { loadProjectEnv } from "./lib/load-project-env.mjs";
 
-loadProjectEnv();
+const runtimeEnvFile = [".env.dev", ".env.staging", ".env"]
+  .map((name) => resolve(process.cwd(), name))
+  .find((path) => existsSync(path));
+
+if (runtimeEnvFile) {
+  loadProjectEnv(runtimeEnvFile);
+}
 
 const actions = new Set([
   "start-claim",
