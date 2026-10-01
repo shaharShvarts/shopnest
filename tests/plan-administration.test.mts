@@ -24,7 +24,7 @@ test("plan codes are stable machine identifiers", () => {
 });
 
 test("supported entitlement registry exposes only implemented capabilities", () => {
-  assert.equal(SUPPORTED_ENTITLEMENTS.length, 4);
+  assert.equal(SUPPORTED_ENTITLEMENTS.length, 3);
   assert.deepEqual(supportedEntitlementByCode("store_managers"), {
     code: "store_managers",
     name: "Store Managers",
@@ -37,12 +37,7 @@ test("supported entitlement registry exposes only implemented capabilities", () 
     description: "Allow the Store to use its own custom domain.",
     valueType: "boolean",
   });
-  assert.deepEqual(supportedEntitlementByCode("media_storage_mb"), {
-    code: "media_storage_mb",
-    name: "Media Storage",
-    description: "Maximum media storage available to the Store, in megabytes.",
-    valueType: "integer",
-  });
+  assert.equal(supportedEntitlementByCode("media_storage_mb"), null);
   assert.deepEqual(supportedEntitlementByCode("products_limit"), {
     code: "products_limit",
     name: "Products",
