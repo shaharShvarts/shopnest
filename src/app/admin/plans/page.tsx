@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
 import {
   addPlanEntitlementAction,
   createPlanAction,
@@ -62,14 +63,20 @@ export default async function PlansPage() {
                   <p className="font-mono text-sm text-slate-500">{plan.code}</p>
                   <h2 className="text-2xl font-bold">{plan.name}</h2>
                 </div>
-                <select
-                  name="status"
-                  defaultValue={plan.status}
-                  className="h-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                >
-                  <option value="active">{t("active")}</option>
-                  <option value="inactive">{t("inactive")}</option>
-                </select>
+                <div className="relative">
+                  <select
+                    name="status"
+                    defaultValue={plan.status}
+                    className="h-10 min-w-28 appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  >
+                    <option value="active">{t("active")}</option>
+                    <option value="inactive">{t("inactive")}</option>
+                  </select>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                  />
+                </div>
               </div>
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -163,7 +170,7 @@ export default async function PlansPage() {
                             entitlement.id
                           )}
                           formNoValidate
-                          className="h-9 self-center border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
+                          className="h-9 self-start border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                         >
                           {t("removeFeature")}
                         </Button>
