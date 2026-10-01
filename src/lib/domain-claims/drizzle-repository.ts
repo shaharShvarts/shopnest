@@ -12,7 +12,9 @@ import {
 } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/control-db";
 import {
+  entitlements,
   organizationMemberships,
+  planEntitlements,
   plans,
   storeDomainClaims,
   storeDomains,
@@ -64,9 +66,9 @@ function entitledOwnedStoreWhere(
   return and(
     eq(stores.id, storeId),
     isNull(stores.deletedAt),
-    eq(plans.status, "active"),
-    sql`${plans.code} IN ('medium', 'large')`,
     sql`${subscriptions.status} IN ('pending', 'trialing', 'active')`,
+    eq(entitlements.code, "custom_domain"),
+    eq(planEntitlements.value, 1),
     eq(
       organizationMemberships.organizationId,
       stores.organizationId
@@ -219,6 +221,14 @@ export class DrizzleStoreDomainClaimRepository
         )
       )
       .innerJoin(plans, eq(plans.id, subscriptions.planId))
+      .innerJoin(
+        planEntitlements,
+        eq(planEntitlements.planId, plans.id)
+      )
+      .innerJoin(
+        entitlements,
+        eq(entitlements.id, planEntitlements.entitlementId)
+      )
       .where(
         and(
           entitledOwnedStoreWhere(
