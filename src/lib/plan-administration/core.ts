@@ -7,13 +7,6 @@ export const planCodeSchema = z
   .max(64)
   .regex(/^[a-z0-9][a-z0-9_-]*$/);
 
-export const entitlementCodeSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9][a-z0-9_.-]*$/);
-
 export const planMutationSchema = z.object({
   planId: z.coerce.number().int().positive(),
   name: z.string().trim().min(1).max(160),
@@ -29,13 +22,6 @@ export const planMutationSchema = z.object({
 export const createPlanSchema = z.object({
   code: planCodeSchema,
   name: z.string().trim().min(1).max(160),
-});
-
-export const createEntitlementSchema = z.object({
-  code: entitlementCodeSchema,
-  name: z.string().trim().min(1).max(160),
-  description: z.string().trim().max(1000).nullable(),
-  valueType: z.enum(["boolean", "integer"]),
 });
 
 export function parseIlsToMinor(value: FormDataEntryValue | null) {
@@ -70,3 +56,13 @@ export function validateEntitlementValue(
   }
   return value;
 }
+
+export const addPlanEntitlementSchema = z.object({
+  planId: z.coerce.number().int().positive(),
+  entitlementCode: z.string().trim().min(1).max(64),
+});
+
+export const removePlanEntitlementSchema = z.object({
+  planId: z.coerce.number().int().positive(),
+  entitlementId: z.coerce.number().int().positive(),
+});
