@@ -38,3 +38,22 @@ test("integer entitlement quota uses arrows and an unlimited control", async () 
   assert.match(source, /unlimitedLabel/);
   assert.doesNotMatch(source, /type="number"/);
 });
+
+
+test("plan price inputs reject free-form text and require explicit values", async () => {
+  const source = await readFile(
+    "src/app/admin/plans/PlanPriceInput.tsx",
+    "utf8"
+  );
+  assert.match(source, /type="text"/);
+  assert.match(source, /inputMode="decimal"/);
+  assert.match(source, /required/);
+  assert.match(source, /\[.,\]\\d\{0,2\}/);
+  assert.doesNotMatch(source, /type="number"/);
+});
+
+test("plan update action validates fixed fields with Zod", async () => {
+  const source = await readFile("src/app/admin/_actions/plans.ts", "utf8");
+  assert.match(source, /planUpdateFormSchema\.parse/);
+  assert.match(source, /validateEntitlementValue/);
+});
