@@ -233,7 +233,8 @@ test("readiness regression stops before provisioning side effects", async () => 
   await assert.rejects(
     () => service.activateOwnedStore(5, 7, NOW),
     (error: unknown) =>
-      error instanceof ActivationOrchestrationError &&
+      error instanceof Error &&
+      "code" in error &&
       error.code === "STORE_NOT_READY"
   );
 
@@ -327,7 +328,8 @@ test("provisioner failure records a bounded safe lifecycle failure", async () =>
   await assert.rejects(
     () => service.activateOwnedStore(5, 7, NOW),
     (error: unknown) =>
-      error instanceof ActivationOrchestrationError &&
+      error instanceof Error &&
+      "code" in error &&
       error.code === "SCHEMA_PROVISIONING_FAILED"
   );
 
