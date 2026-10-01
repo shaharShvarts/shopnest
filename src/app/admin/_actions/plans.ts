@@ -9,7 +9,11 @@ import {
   removePlanEntitlementForAdmin,
   updatePlanForAdmin,
 } from "@/lib/plan-administration/server";
-import { parseIlsToMinor } from "@/lib/plan-administration/core";
+import {
+  parseIlsToMinor,
+  planUpdateFormSchema,
+  validateEntitlementValue,
+} from "@/lib/plan-administration/core";
 
 function plansPath(result?: string) {
   return result ? `/admin/plans?result=${encodeURIComponent(result)}` : "/admin/plans";
@@ -61,33 +65,40 @@ export async function removePlanEntitlementAction(
 }
 
 export async function updatePlanAction(formData: FormData) {
-  const planId = Number(formData.get("planId"));
-  if (!Number.isSafeInteger(planId) || planId <= 0) {
-    redirect(plansPath("PLAN_UPDATE_FAILED"));
-  }
-
   try {
+    const parsed = planUpdateFormSchema.parse({
+      planId: formData.get("planId"),
+      name: formData.get("name"),
+      status: formData.get("status"),
+      monthlyPrice: formData.get("monthlyPrice"),
+      annualPrice: formData.get("annualPrice"),
+    });
+
     const plans = await listPlanAdministration();
-    const plan = plans.find((candidate) => candidate.id === planId);
+    const plan = plans.find((candidate) => candidate.id === parsed.planId);
     if (!plan) redirect(plansPath("PLAN_UPDATE_FAILED"));
 
     const entitlementValues: Record<string, number> = {};
     for (const entitlement of plan.entitlements) {
       const raw = formData.get(`entitlement_${entitlement.id}`);
-      if (typeof raw !== "string" || raw.trim() === "") continue;
-      const value = Number(raw);
-      if (!Number.isSafeInteger(value)) {
+      if (typeof raw !== "string" || raw.trim() === "") {
         redirect(plansPath("PLAN_UPDATE_FAILED"));
       }
+
+      const numericValue = Number(raw);
+      const value = validateEntitlementValue(
+        entitlement.valueType,
+        numericValue
+      );
       entitlementValues[String(entitlement.id)] = value;
     }
 
     await updatePlanForAdmin({
-      planId,
-      name: formData.get("name"),
-      status: formData.get("status"),
-      monthlyAmountMinor: parseIlsToMinor(formData.get("monthlyPrice")),
-      annualAmountMinor: parseIlsToMinor(formData.get("annualPrice")),
+      planId: parsed.planId,
+      name: parsed.name,
+      status: parsed.status,
+      monthlyAmountMinor: parseIlsToMinor(parsed.monthlyPrice),
+      annualAmountMinor: parseIlsToMinor(parsed.annualPrice),
       entitlementValues,
     });
   } catch {
