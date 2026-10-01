@@ -72,7 +72,6 @@ export async function updateControlPlaneStore(input: unknown) {
     .update(controlPlaneTenants)
     .set({
       status: update.status,
-      plan: update.plan,
       featured: update.featured,
       featuredRank: update.featured ? update.featuredRank : null,
       supportNotes: update.supportNotes,
