@@ -335,3 +335,143 @@ Relevant existing documentation includes:
 - feature specs/plans under `docs/superpowers/`
 
 These documents provide domain-specific detail. This file defines the standing development workflow and engineering guardrails.
+
+## 16. Business Model, Plans, Entitlements, and Upgrade Visibility
+
+ShopNest is a subscription SaaS. The commercial model is based on plans/packages that will be priced over time, with the possibility of paid add-ons that unlock individual capabilities outside a package.
+
+This is a product-wide architectural rule, not only a billing-page concern.
+
+### 16.1 Capabilities are entitlements
+
+Features that can differ by commercial tier must be modeled as server-authoritative entitlements/limits rather than scattered UI conditionals.
+
+Examples include:
+
+- number of Store Managers
+- custom domains
+- media/image storage quota
+- product or catalog limits
+- advanced analytics
+- payment-provider capabilities
+- automation/integration features
+- other future premium capabilities
+
+Plan entitlement data should be centralized so the same source of truth can drive authorization, limits, UI messaging, Super Admin configuration, billing, and future add-ons.
+
+### 16.2 Keep premium features visible
+
+When a Store does not currently have access to a premium feature, the default product behavior is **not** to hide that feature completely.
+
+Owners and Managers should normally be able to discover that the capability exists.
+
+The UI should present the feature in an appropriate locked, disabled, read-only, or quota-exhausted state and explain:
+
+- what the feature does
+- why it is unavailable for the current Store
+- which plan or entitlement enables it
+- the relevant limit on the current plan
+- the larger limit available on higher plans when applicable
+- whether a paid add-on can unlock the capability separately, when such an add-on exists
+
+The purpose is product discovery and transparent upgrade awareness. The UI must not misrepresent availability or allow client-side bypass of an entitlement.
+
+Examples:
+
+- A Store on a free plan may see the custom-domain capability disabled, with a message explaining which plan includes custom domains and, if supported commercially, that the feature can also be purchased as an add-on.
+- A Store that has consumed all included Manager seats should see its current usage and limit, such as `2 / 2 Managers`, together with the higher limits available on larger plans and the existence of an unlimited tier where applicable.
+- Media storage should show current usage, included quota, and higher storage availability instead of making additional storage capabilities invisible.
+
+### 16.3 Limits must be server-enforced
+
+Upgrade messaging is a UI concern; entitlement enforcement is a server/security concern.
+
+Every plan-gated mutation must re-check the effective entitlement on the server immediately before the protected operation.
+
+Do not rely on:
+
+- disabled buttons
+- hidden controls
+- browser-supplied plan identifiers
+- browser-supplied quota values
+- stale client state
+
+Concurrency-sensitive quotas must be enforced transactionally where necessary so concurrent requests cannot exceed a limit.
+
+### 16.4 Limit semantics
+
+For numeric entitlements, use explicit, documented semantics.
+
+For limits that support an unlimited state, ShopNest may use:
+
+- `0` = feature unavailable / zero included units
+- positive integer = maximum included units
+- `-1` = unlimited
+
+The database should reject other negative values.
+
+For Store Manager limits specifically:
+
+- the Store Owner is not counted as a Manager seat
+- each Store Manager assignment consumes one Manager seat for that Store
+- the same Manager assigned to two Stores consumes one seat in each Store
+- removing an assignment releases that Store's seat
+
+### 16.5 Downgrades must preserve data
+
+A plan downgrade must not silently delete customer data or revoke records merely to satisfy a lower quota.
+
+If current usage is above the new limit:
+
+- preserve existing data/assignments unless an approved feature-specific rule says otherwise
+- block creation/addition that would increase usage further
+- clearly show that the Store is over its included limit
+- provide a path to reduce usage or upgrade
+
+For example, if a Store has three Managers and moves to a plan that includes two, keep the existing three assignments active but prevent adding another Manager until usage is within the limit or the Store upgrades.
+
+### 16.6 Add-ons and effective entitlements
+
+The architecture must leave room for paid add-ons.
+
+A Store's effective entitlement should be resolvable from trusted server-side commercial state, conceptually:
+
+```text
+base plan entitlement
+    + active purchased add-ons
+    + approved promotional/administrative overrides, if supported
+    = effective Store entitlement
+```
+
+Do not hard-code UI logic that assumes a feature can only come from a particular plan. The same capability may later be granted by a higher plan, a standalone add-on, a promotion, or an administrative override.
+
+### 16.7 Entitlement-aware UI
+
+Reusable UI patterns should be preferred for plan-gated features so ShopNest communicates limits consistently.
+
+Useful states include:
+
+- available
+- locked by plan
+- quota available
+- quota exhausted
+- over quota after downgrade
+- unlimited
+- available through add-on
+
+Upgrade messaging should be informative and specific. It should identify concrete capabilities and limits rather than using vague generic upsell text.
+
+### 16.8 Commercial configuration must not weaken authorization
+
+Plans and add-ons decide whether a capability is commercially available; they do not replace identity, ownership, role, tenant, or Store authorization.
+
+A request must satisfy both:
+
+```text
+authorization permission
+AND
+effective commercial entitlement
+```
+
+For example, a Store Owner may have `team.manage` permission but still be prevented from adding a Manager if the Store's effective Manager limit is zero or exhausted. A Store Manager without `team.manage` remains forbidden even if the Store's plan includes Manager seats.
+
