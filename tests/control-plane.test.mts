@@ -301,6 +301,8 @@ function store(slug: string, schemaName: string, displayName: string): ControlPl
     displayName,
     status: "active",
     plan: "small",
+    subscriptionPlanCode: "small",
+    subscriptionPlanName: "Small",
     featured: false,
     featuredRank: null,
     supportNotes: null,
@@ -383,4 +385,19 @@ test("tenant plan snapshot migration accepts dynamic plan codes", async () => {
   assert.match(tenantSchema, /plan: varchar\("plan", \{ length: 64 \}\)/);
   assert.doesNotMatch(actionSource, /formData\.get\("plan"\)/);
   assert.doesNotMatch(pageSource, /name="plan"/);
+});
+
+
+test("Super Admin Store table uses subscription plan instead of Tenant snapshot", async () => {
+  const [serverSource, tableSource] = await Promise.all([
+    readFile("src/lib/control-plane/server.ts", "utf8"),
+    readFile("src/app/admin/_components/StoreTable.tsx", "utf8"),
+  ]);
+
+  assert.match(serverSource, /subscriptionPlanCode:\s*plans\.code/);
+  assert.match(serverSource, /subscriptionPlanName:\s*plans\.name/);
+  assert.match(serverSource, /leftJoin\(subscriptions/);
+  assert.match(serverSource, /leftJoin\(plans/);
+  assert.match(tableSource, /store\.subscriptionPlanName/);
+  assert.doesNotMatch(tableSource, /t\(store\.plan\)/);
 });
