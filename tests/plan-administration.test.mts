@@ -174,6 +174,8 @@ test("Control Plane language, status select, and entitlement action polish remai
   assert.match(language, /setShopNestLocaleAction/);
   assert.match(language, /router\.refresh\(\)/);
   assert.doesNotMatch(language, /document\.cookie/);
+  assert.match(language, /locale: "he" \| "en"/);
+  assert.match(layout, /<LanguageSelector locale=\{locale\} \/>/);
   assert.match(localeAction, /SHOPNEST_LOCALE/);
   assert.match(localeAction, /httpOnly: true/);
   assert.match(layout, /text-slate-300/);
