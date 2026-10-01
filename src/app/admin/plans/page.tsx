@@ -8,6 +8,7 @@ import {
 import { formatMinorAmount } from "@/lib/plan-administration/core";
 import { listPlanAdministration } from "@/lib/plan-administration/server";
 import EntitlementIntegerInput from "./EntitlementIntegerInput";
+import PlanPriceInput from "./PlanPriceInput";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +67,10 @@ export default async function PlansPage({
                   <span className="text-sm font-medium">{t("planName")}</span>
                   <input
                     name="name"
+                    type="text"
                     required
+                    minLength={1}
+                    maxLength={160}
                     defaultValue={plan.name}
                     className="min-h-11 w-full rounded-md border px-3 py-2"
                   />
@@ -76,12 +80,9 @@ export default async function PlansPage({
                   <span className="text-sm font-medium">
                     {t("monthlyPriceIls")}
                   </span>
-                  <input
+                  <PlanPriceInput
                     name="monthlyPrice"
-                    inputMode="decimal"
-                    defaultValue={formatMinorAmount(plan.prices.monthly)}
-                    placeholder="0.00"
-                    className="min-h-11 w-full rounded-md border px-3 py-2"
+                    initialValue={formatMinorAmount(plan.prices.monthly)}
                   />
                 </label>
 
@@ -89,12 +90,9 @@ export default async function PlansPage({
                   <span className="text-sm font-medium">
                     {t("annualPriceIls")}
                   </span>
-                  <input
+                  <PlanPriceInput
                     name="annualPrice"
-                    inputMode="decimal"
-                    defaultValue={formatMinorAmount(plan.prices.annual)}
-                    placeholder="0.00"
-                    className="min-h-11 w-full rounded-md border px-3 py-2"
+                    initialValue={formatMinorAmount(plan.prices.annual)}
                   />
                 </label>
               </div>
@@ -214,13 +212,20 @@ export default async function PlansPage({
         <form action={createPlanAction} className="mt-5 grid gap-3 md:grid-cols-2">
           <input
             name="code"
+            type="text"
             required
+            minLength={1}
+            maxLength={64}
+            pattern="[a-z0-9][a-z0-9_-]*"
             placeholder={t("planCode")}
             className="min-h-11 rounded-md border px-3 py-2"
           />
           <input
             name="name"
+            type="text"
             required
+            minLength={1}
+            maxLength={160}
             placeholder={t("planName")}
             className="min-h-11 rounded-md border px-3 py-2"
           />
