@@ -372,6 +372,16 @@ When guiding the user through server or terminal work:
 
 For design/review work, larger structured answers are acceptable.
 
+## 14.1 Management UI consistency
+
+All ShopNest management surfaces, including the ShopNest Control Plane, Merchant Dashboard, and Store Manager screens, must follow `docs/ADMIN_UI_STANDARDS.md`.
+
+Management UI consistency is an engineering requirement, not a page-by-page cosmetic preference.
+
+New management controls must reuse approved shared components and patterns where available. In particular, management selects must use the shared RTL/LTR-safe select control rather than browser-native arrow styling.
+
+When a repeated management pattern requires local CSS in more than one place, prefer extracting or extending a shared component instead of copying styles.
+
 ## 15. Documentation Rules
 
 - Project-wide rules belong in this document.
@@ -385,6 +395,7 @@ For design/review work, larger structured answers are acceptable.
 Relevant existing documentation includes:
 
 - `docs/TECHNICAL_SPEC.md`
+- `docs/ADMIN_UI_STANDARDS.md`
 - `docs/multi-tenancy.md`
 - `docs/control-plane.md`
 - `docs/admin-authentication.md`
