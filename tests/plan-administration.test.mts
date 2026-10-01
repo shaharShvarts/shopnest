@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   createPlanSchema,
@@ -108,4 +109,22 @@ test("plan update form requires complete prices and valid fixed fields", () => {
       annualPrice: "0",
     })
   );
+});
+
+
+test("marketing pricing reads the dynamic active plan catalog", async () => {
+  const [catalog, page, preview] = await Promise.all([
+    readFile("src/lib/public-plans/server.ts", "utf8"),
+    readFile("src/app/(marketing)/pricing/page.tsx", "utf8"),
+    readFile("src/app/(marketing)/_components/PricingPreview.tsx", "utf8"),
+  ]);
+
+  assert.match(catalog, /eq\(plans\.status, "active"\)/);
+  assert.match(catalog, /planPrices/);
+  assert.match(page, /listPublicPlans/);
+  assert.match(preview, /listPublicPlans/);
+  assert.doesNotMatch(page, /\["free","small","medium","large"\]/);
+  assert.doesNotMatch(preview, /\["free","small","medium","large"\]/);
+  assert.doesNotMatch(page, /pricing\.\$\{plan\}/);
+  assert.doesNotMatch(preview, /pricing\.\$\{plan\}/);
 });
