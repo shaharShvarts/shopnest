@@ -401,3 +401,13 @@ test("Super Admin Store table uses subscription plan instead of Tenant snapshot"
   assert.match(tableSource, /store\.subscriptionPlanName/);
   assert.doesNotMatch(tableSource, /t\(store\.plan\)/);
 });
+
+
+test("schema code no longer defines the legacy tenant plan enum", async () => {
+  const sharedSource = await readFile(
+    "src/drizzle/control-schema/shared.ts",
+    "utf8"
+  );
+
+  assert.doesNotMatch(sharedSource, /tenantPlanEnum|tenantPlans|type TenantPlan/);
+});
