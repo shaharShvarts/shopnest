@@ -11,7 +11,6 @@ import { validateClaimHostname } from "@/lib/domain-claims/core";
 const formSchema = z.object({
   slug: z.string().trim().min(1).max(63),
   status: z.enum(["active", "suspended", "disabled"]),
-  plan: z.enum(["small", "medium", "large"]),
   featured: z.boolean(),
   featuredRank: z.number().int().positive().nullable(),
   supportNotes: z.string().trim().max(4000).nullable(),
@@ -22,7 +21,6 @@ export async function updateStoreAction(formData: FormData) {
   const parsed = formSchema.safeParse({
     slug: formData.get("slug"),
     status: formData.get("status"),
-    plan: formData.get("plan"),
     featured: formData.get("featured") === "on",
     featuredRank:
       typeof rankValue === "string" && rankValue.trim()
