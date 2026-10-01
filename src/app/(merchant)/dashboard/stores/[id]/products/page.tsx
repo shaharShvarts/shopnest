@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { isNull } from "drizzle-orm";
 import { products } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
