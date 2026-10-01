@@ -72,3 +72,14 @@ test("merchant subscription translations stay aligned", async () => {
     assert.equal(typeof he.MerchantSubscription[key], "string");
   }
 });
+
+
+test("provisioned Store plan badge shows the selected plan instead of subscription lifecycle status", async () => {
+  const page = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
+    "utf8"
+  );
+
+  assert.match(page, /planDisplayName\(subscription\.plan\.code, subscription\.plan\.name\)/);
+  assert.match(page, /subscriptionStatus/);
+});
