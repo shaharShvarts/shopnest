@@ -5,6 +5,7 @@ import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 import { getMerchantSubscriptionRepository } from "@/lib/merchant-subscriptions/server";
+import { getMerchantDomainView } from "@/lib/merchant-domains/server";
 import { getStoreReadinessRepository } from "@/lib/store-readiness/server";
 import {
   activateStoreAction,
@@ -48,6 +49,7 @@ export default async function MerchantStoreDetailPage({
     activePlans,
     subscription,
     readiness,
+    domainView,
     query,
   ] = await Promise.all([
     getTranslations("MerchantStore"),
@@ -58,8 +60,17 @@ export default async function MerchantStoreDetailPage({
     subscriptionRepository.listActivePlans(),
     subscriptionRepository.findForOwnedStore(merchant.id, id),
     readinessRepository.evaluateForOwnedStore(merchant.id, id),
+    store.tenantId !== null
+      ? getMerchantDomainView(merchant.id, id)
+      : Promise.resolve(null),
     searchParams,
   ]);
+
+  const activeStoreAddress =
+    domainView?.currentPrimary
+      ? "https://" + domainView.currentPrimary.hostname
+      : domainView?.platformUrl ??
+        `${process.env.SHOPNEST_PLATFORM_ORIGIN?.replace(/\/+$/, "") || "https://shopnest.co.il"}/${store.slug}`;
 
   const planDisplayName = (code: string, fallback: string) => {
     switch (code) {
@@ -82,8 +93,8 @@ export default async function MerchantStoreDetailPage({
         <h1 className="text-3xl font-bold tracking-tight">
           {store.displayName}
         </h1>
-        <p className="mt-2 font-mono text-sm text-muted-foreground">
-          shopnest.co.il/{store.slug}
+        <p className="mt-2 break-all font-mono text-sm text-muted-foreground">
+          {activeStoreAddress}
         </p>
       </header>
 
@@ -91,7 +102,7 @@ export default async function MerchantStoreDetailPage({
         <dl className="grid gap-5 sm:grid-cols-2">
           <div>
             <dt className="text-sm font-medium text-muted-foreground">
-              {t("slug")}
+              {t("storeId")}
             </dt>
             <dd className="mt-1 font-mono">{store.slug}</dd>
           </div>
@@ -312,7 +323,7 @@ export default async function MerchantStoreDetailPage({
           </div>
           <div className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
             {subscription
-              ? tSubscription(subscription.status)
+              ? planDisplayName(subscription.plan.code, subscription.plan.name)
               : tSubscription("notSelected")}
           </div>
         </div>
