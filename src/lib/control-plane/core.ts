@@ -6,16 +6,13 @@ import {
   type TrustedTenant,
 } from "../tenant-registry/core.ts";
 
-export const tenantPlans = ["small", "medium", "large"] as const;
-export type TenantPlan = (typeof tenantPlans)[number];
-
 export type ControlPlaneStore = {
   id: number;
   slug: string;
   schemaName: string;
   displayName: string;
   status: TenantStatus;
-  plan: TenantPlan;
+  plan: string;
   featured: boolean;
   featuredRank: number | null;
   supportNotes: string | null;
@@ -42,7 +39,6 @@ export const storeMutationSchema = z
   .object({
     slug: z.string().trim().min(1).max(63),
     status: z.enum(["active", "suspended", "disabled"]),
-    plan: z.enum(tenantPlans),
     featured: z.boolean(),
     featuredRank: z.number().int().positive().nullable(),
     supportNotes: z.string().trim().max(4000).nullable(),
