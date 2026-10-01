@@ -16,7 +16,7 @@ export async function StoreTable({ stores }: { stores: StoreSummary[] }) {
             <TableRow key={store.slug}>
               <TableCell><Link className="font-semibold text-indigo-700 hover:underline" href={`/admin/stores/${store.slug}`}>{store.displayName}</Link><div className="font-mono text-xs text-slate-500">{store.slug}</div></TableCell>
               <TableCell><StoreStatusBadge status={store.status} label={t(store.status)} /></TableCell>
-              <TableCell>{t(store.plan)}</TableCell>
+              <TableCell>{store.subscriptionPlanName ?? "—"}</TableCell>
               <TableCell>{store.kind === "available" ? formatNumber(store.metrics.orderCount) : t("unavailable")}</TableCell>
               <TableCell>{store.kind === "available" ? formatCurrency(store.metrics.salesVolume) : t("unavailable")}</TableCell>
               <TableCell>{store.kind === "available" && store.metrics.lastActivity ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(store.metrics.lastActivity) : store.kind === "available" ? t("noActivity") : t("unavailable")}</TableCell>
