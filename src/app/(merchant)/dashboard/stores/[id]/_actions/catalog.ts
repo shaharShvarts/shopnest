@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
+import { count, eq, inArray, isNull, sql } from "drizzle-orm";
 import z from "zod";
 import { categories, images, productImages, products, subcategories } from "@/drizzle/schema";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
@@ -30,6 +30,11 @@ import { DrizzleInventoryTransaction } from "@/lib/inventory/drizzle-store";
 import { DatabaseOnlyInventoryNotificationService } from "@/lib/inventory/notifications";
 import { prefixTenantPath } from "@/lib/tenant";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
+import {
+  entitlementHasCapacity,
+  integerEntitlement,
+} from "@/lib/store-entitlements/core";
+import { getEffectiveStoreEntitlements } from "@/lib/store-entitlements/server";
 
 const imageSchema = z
   .custom<File>((file) => file instanceof File, {
@@ -199,6 +204,21 @@ function trustedMediaResolver(tenant: {
 }) {
   return (value: unknown) =>
     typeof value === "string" && value === tenant.slug ? tenant : null;
+}
+
+class ProductLimitReachedError extends Error {
+  constructor() {
+    super("Product limit reached for this Store plan.");
+    this.name = "ProductLimitReachedError";
+  }
+}
+
+async function currentProductUsage(db: any) {
+  const [row] = await db
+    .select({ value: count(products.id) })
+    .from(products)
+    .where(isNull(products.deletedAt));
+  return Number(row?.value ?? 0);
 }
 
 function managedPath(storeId: number, section: string) {
@@ -584,6 +604,21 @@ export async function addManagedProduct(
     };
   }
 
+  const entitlementState = await getEffectiveStoreEntitlements(storeId);
+  const productsLimit = integerEntitlement(
+    entitlementState,
+    "products_limit"
+  );
+  const usage = await currentProductUsage(db);
+  if (!entitlementHasCapacity(productsLimit, usage)) {
+    return {
+      success: false,
+      errors: {
+        _form: ["Product limit reached for this Store plan."],
+      },
+    };
+  }
+
   const { images: imageFiles, ...data } = parsed.data;
   const store = new DrizzleCatalogStore(db);
 
@@ -605,6 +640,15 @@ export async function addManagedProduct(
 
   try {
     await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`shopnest:store-products:${storeId}`}))`
+      );
+
+      const lockedUsage = await currentProductUsage(tx);
+      if (!entitlementHasCapacity(productsLimit, lockedUsage)) {
+        throw new ProductLimitReachedError();
+      }
+
       const [created] = await tx
         .insert(products)
         .values({ ...data, imageUrl: uploaded[0].imageUrl })
@@ -635,6 +679,14 @@ export async function addManagedProduct(
       tenant,
       uploaded.map((image) => image.imageUrl)
     );
+    if (error instanceof ProductLimitReachedError) {
+      return {
+        success: false,
+        errors: {
+          _form: ["Product limit reached for this Store plan."],
+        },
+      };
+    }
     const formError = catalogFormError(error, "product");
     return {
       success: false,
