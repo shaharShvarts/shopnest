@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
 import {
   addPlanEntitlementAction,
   createPlanAction,
@@ -13,6 +12,7 @@ import { listPlanAdministration } from "@/lib/plan-administration/server";
 import EntitlementIntegerInput from "./EntitlementIntegerInput";
 import PlanPriceInput from "./PlanPriceInput";
 import PlanFlashMessage from "./PlanFlashMessage";
+import { ManagementSelect } from "@/components/management/ManagementSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -63,20 +63,14 @@ export default async function PlansPage() {
                   <p className="font-mono text-sm text-slate-500">{plan.code}</p>
                   <h2 className="text-2xl font-bold">{plan.name}</h2>
                 </div>
-                <div className="relative">
-                  <select
-                    name="status"
-                    defaultValue={plan.status}
-                    className="h-10 min-w-28 appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                  >
-                    <option value="active">{t("active")}</option>
-                    <option value="inactive">{t("inactive")}</option>
-                  </select>
-                  <ChevronDown
-                    aria-hidden="true"
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500"
-                  />
-                </div>
+                <ManagementSelect
+                  name="status"
+                  defaultValue={plan.status}
+                  wrapperClassName="min-w-28"
+                >
+                  <option value="active">{t("active")}</option>
+                  <option value="inactive">{t("inactive")}</option>
+                </ManagementSelect>
               </div>
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -144,14 +138,13 @@ export default async function PlansPage() {
                         </div>
 
                         {entitlement.valueType === "boolean" ? (
-                          <select
+                          <ManagementSelect
                             name={`entitlement_${entitlement.id}`}
                             defaultValue={String(entitlement.value)}
-                            className="min-h-11 rounded-md border px-3 py-2"
                           >
                             <option value="0">{t("disabled")}</option>
                             <option value="1">{t("enabled")}</option>
-                          </select>
+                          </ManagementSelect>
                         ) : (
                           <EntitlementIntegerInput
                             name={`entitlement_${entitlement.id}`}
@@ -194,11 +187,11 @@ export default async function PlansPage() {
                 className="mt-4 flex flex-col gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/40 p-4 md:flex-row"
               >
                 <input type="hidden" name="planId" value={plan.id} />
-                <select
+                <ManagementSelect
                   name="entitlementCode"
                   required
                   defaultValue=""
-                  className="h-11 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  wrapperClassName="flex-1"
                 >
                   <option value="" disabled>
                     {t("chooseFeature")}
@@ -208,7 +201,7 @@ export default async function PlansPage() {
                       {t(`entitlements.${entitlement.code}.name`)}
                     </option>
                   ))}
-                </select>
+                </ManagementSelect>
                 <Button
                   type="submit"
                   variant="outline"
