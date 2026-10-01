@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { languages } from "@/lib/languages";
 import {
@@ -18,6 +18,7 @@ import {
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { setShopNestLocaleAction } from "@/app/_actions/locale";
 
 export type LanguageOption = {
   label: string;
@@ -29,6 +30,7 @@ export default function LanguageSelector() {
   const [selected, setSelected] = useState<LanguageOption | null>(null);
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     const cookieLocale = document.cookie
@@ -46,8 +48,9 @@ export default function LanguageSelector() {
       <PopoverTrigger asChild>
         <Button
           variant="outline"
+          disabled={pending}
           aria-label={`Language: ${selected?.label ?? "Select language"}`}
-          className="h-10 min-w-24 gap-2 border-slate-300 bg-white px-3 text-slate-950 shadow-sm hover:bg-slate-100 hover:text-slate-950 sm:w-[150px] sm:justify-between"
+          className="h-10 min-w-24 gap-2 border-slate-300 bg-white px-3 text-slate-950 shadow-sm hover:bg-slate-100 hover:text-slate-950 disabled:opacity-60 sm:w-[150px] sm:justify-between"
         >
           <Image
             src={selected?.flag ?? languages[0].flag}
@@ -69,11 +72,12 @@ export default function LanguageSelector() {
                 className="flex min-h-11 items-center justify-around"
                 key={lang.value}
                 onSelect={() => {
-                  setSelected(lang);
                   setOpen(false);
-                  // Optional: trigger i18n change here
-                  document.cookie = `SHOPNEST_LOCALE=${lang.value}; path=/; max-age=31536000; SameSite=Lax`;
-                  router.refresh();
+                  startTransition(async () => {
+                    await setShopNestLocaleAction(lang.value as "he" | "en");
+                    setSelected(lang);
+                    router.refresh();
+                  });
                 }}
               >
                 <CheckIcon
