@@ -81,7 +81,9 @@ export function resolveTrustedStore(
   });
 }
 
-export function hasValidTenantIdentity(store: ControlPlaneStore) {
+export function hasValidTenantIdentity(
+  store: Pick<ControlPlaneStore, "slug" | "schemaName">
+) {
   return Boolean(
     tenantIdentityFromRegistryRecord({
       slug: store.slug,
