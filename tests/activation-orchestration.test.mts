@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   ActivationOrchestrationError,
-  asProvisionableTenantPlan,
   tenantSchemaNameForStore,
 } from "../src/lib/activation-orchestration/core.ts";
 import {
@@ -70,7 +69,8 @@ const CONTEXT: ActivationProvisioningContext = {
   slug: "registry-store",
   schemaName: "tenant_7",
   subscriptionId: 11,
-  plan: "small",
+  planId: 4,
+  planCode: "free",
 };
 
 function lifecycleRepository(
@@ -150,14 +150,6 @@ test("Tenant schema identity is deterministic, safe and independent of slug", ()
   assert.equal(tenantSchemaNameForStore(42), "tenant_42");
   assert.throws(() => tenantSchemaNameForStore(0), ActivationOrchestrationError);
   assert.throws(() => tenantSchemaNameForStore(-1), ActivationOrchestrationError);
-});
-
-test("legacy Tenant plan compatibility fails closed for free", () => {
-  assert.equal(asProvisionableTenantPlan("small"), "small");
-  assert.equal(asProvisionableTenantPlan("medium"), "medium");
-  assert.equal(asProvisionableTenantPlan("large"), "large");
-  assert.equal(asProvisionableTenantPlan("free"), null);
-  assert.equal(asProvisionableTenantPlan("enterprise"), null);
 });
 
 test("successful activation provisions, finalizes and clears registry cache", async () => {
@@ -369,4 +361,19 @@ test("activation implementation keeps browser authority out of Tenant identity",
     /formData\.get\("(?:schema|schemaName|tenantId|status|ready|plan)"\)/
   );
   assert.doesNotMatch(repositorySource, /DROP SCHEMA|Host|TENANT_SCHEMA_HEADER/);
+});
+
+
+test("activation repository uses dynamic subscription plan identity", async () => {
+  const source = await readFile(
+    "src/lib/activation-orchestration/drizzle-repository.ts",
+    "utf8"
+  );
+
+  assert.match(source, /planId: plans\.id/);
+  assert.match(source, /planCode: plans\.code/);
+  assert.match(source, /plan: context\.planCode/);
+  assert.doesNotMatch(source, /asProvisionableTenantPlan/);
+  assert.doesNotMatch(source, /"small" \| "medium" \| "large"/);
+  assert.doesNotMatch(source, /PLAN_NOT_PROVISIONABLE/);
 });
