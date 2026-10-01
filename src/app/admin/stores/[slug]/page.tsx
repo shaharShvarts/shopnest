@@ -192,18 +192,6 @@ export default async function StoreDetailPage({
               <option value="disabled">{t("disabled")}</option>
             </select>
           </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">{t("plan")}</span>
-            <select
-              name="plan"
-              defaultValue={store.plan}
-              className="rounded-md border px-3 py-2"
-            >
-              <option value="small">{t("small")}</option>
-              <option value="medium">{t("medium")}</option>
-              <option value="large">{t("large")}</option>
-            </select>
-          </label>
           <label className="flex items-center gap-2">
             <input
               name="featured"
