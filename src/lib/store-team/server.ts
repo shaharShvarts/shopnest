@@ -1,6 +1,16 @@
 import "server-only";
 
+import { and, asc, eq } from "drizzle-orm";
+import { getControlPlaneDb } from "@/drizzle/db";
+import {
+  entitlements,
+  planEntitlements,
+  plans,
+} from "@/drizzle/control-plane-schema";
 import { requireOwnerStoreManagementContext } from "@/lib/store-management/server";
+import {
+  STORE_MANAGERS_ENTITLEMENT,
+} from "./core";
 import { DrizzleStoreTeamRepository } from "./drizzle-repository";
 
 const repository = new DrizzleStoreTeamRepository();
@@ -42,4 +52,29 @@ export async function removeOwnedStoreManager(
 
 export function getStoreTeamRepository() {
   return repository;
+}
+
+
+export async function listStoreManagerPlanOptions() {
+  const rows = await getControlPlaneDb()
+    .select({
+      planCode: plans.code,
+      planName: plans.name,
+      limit: planEntitlements.value,
+    })
+    .from(planEntitlements)
+    .innerJoin(plans, eq(plans.id, planEntitlements.planId))
+    .innerJoin(
+      entitlements,
+      eq(entitlements.id, planEntitlements.entitlementId)
+    )
+    .where(
+      and(
+        eq(entitlements.code, STORE_MANAGERS_ENTITLEMENT),
+        eq(plans.status, "active")
+      )
+    )
+    .orderBy(asc(plans.id));
+
+  return rows;
 }
