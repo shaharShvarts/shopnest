@@ -10,11 +10,16 @@ import {
 } from "@/drizzle/control-plane-schema";
 import { requireSuperAdmin } from "@/lib/admin-auth/server";
 import {
-  createEntitlementSchema,
+  addPlanEntitlementSchema,
   createPlanSchema,
   planMutationSchema,
+  removePlanEntitlementSchema,
   validateEntitlementValue,
 } from "./core";
+import {
+  SUPPORTED_ENTITLEMENTS,
+  supportedEntitlementByCode,
+} from "@/lib/store-entitlements/registry";
 
 export async function listPlanAdministration() {
   await requireSuperAdmin();
@@ -27,18 +32,36 @@ export async function listPlanAdministration() {
     db.select().from(planPrices),
   ]);
 
-  return planRows.map((plan) => ({
-    ...plan,
-    entitlements: entitlementRows.map((entitlement) => ({
-      ...entitlement,
-      value:
-        valueRows.find(
-          (row) =>
-            row.planId === plan.id &&
-            row.entitlementId === entitlement.id
-        )?.value ?? null,
-    })),
-    prices: {
+  const supportedCodes = new Set(
+    SUPPORTED_ENTITLEMENTS.map((item) => item.code)
+  );
+  const supportedRows = entitlementRows.filter((row) =>
+    supportedCodes.has(row.code as never)
+  );
+
+  return planRows.map((plan) => {
+    const assignedEntitlements = supportedRows
+      .map((entitlement) => ({
+        ...entitlement,
+        value:
+          valueRows.find(
+            (row) =>
+              row.planId === plan.id &&
+              row.entitlementId === entitlement.id
+          )?.value ?? null,
+      }))
+      .filter((entitlement) => entitlement.value !== null);
+
+    return {
+      ...plan,
+      entitlements: assignedEntitlements,
+      availableEntitlements: supportedRows.filter(
+        (entitlement) =>
+          !assignedEntitlements.some(
+            (assigned) => assigned.id === entitlement.id
+          )
+      ),
+      prices: {
       monthly:
         priceRows.find(
           (row) =>
@@ -53,8 +76,9 @@ export async function listPlanAdministration() {
             row.billingInterval === "annual" &&
             row.currency === "ILS"
         )?.amountMinor ?? null,
-    },
-  }));
+      },
+    };
+  });
 }
 
 export async function createPlanForAdmin(input: unknown) {
@@ -71,14 +95,48 @@ export async function createPlanForAdmin(input: unknown) {
   return created;
 }
 
-export async function createEntitlementForAdmin(input: unknown) {
+export async function addPlanEntitlementForAdmin(input: unknown) {
   await requireSuperAdmin();
-  const parsed = createEntitlementSchema.parse(input);
-  const [created] = await getControlPlaneDb()
-    .insert(entitlements)
-    .values(parsed)
-    .returning();
-  return created;
+  const parsed = addPlanEntitlementSchema.parse(input);
+  const definition = supportedEntitlementByCode(parsed.entitlementCode);
+  if (!definition) throw new Error("Unsupported entitlement");
+
+  await getControlPlaneDb().transaction(async (tx) => {
+    const [entitlement] = await tx
+      .select()
+      .from(entitlements)
+      .where(eq(entitlements.code, definition.code))
+      .limit(1);
+    if (!entitlement) {
+      throw new Error("Supported entitlement is not registered in the database");
+    }
+    if (entitlement.valueType !== definition.valueType) {
+      throw new Error("Supported entitlement type mismatch");
+    }
+
+    const defaultValue = definition.valueType === "boolean" ? 0 : 0;
+    await tx
+      .insert(planEntitlements)
+      .values({
+        planId: parsed.planId,
+        entitlementId: entitlement.id,
+        value: defaultValue,
+      })
+      .onConflictDoNothing();
+  });
+}
+
+export async function removePlanEntitlementForAdmin(input: unknown) {
+  await requireSuperAdmin();
+  const parsed = removePlanEntitlementSchema.parse(input);
+  await getControlPlaneDb()
+    .delete(planEntitlements)
+    .where(
+      and(
+        eq(planEntitlements.planId, parsed.planId),
+        eq(planEntitlements.entitlementId, parsed.entitlementId)
+      )
+    );
 }
 
 export async function updatePlanForAdmin(input: unknown) {
