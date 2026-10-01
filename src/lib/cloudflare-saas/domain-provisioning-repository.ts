@@ -230,8 +230,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
       }
 
       if (
-        claim.planStatus !== "active" ||
-        (claim.planCode !== "medium" && claim.planCode !== "large") ||
+        claim.customDomainEntitlement !== 1 ||
         !["pending", "trialing", "active"].includes(claim.subscriptionStatus)
       ) {
         throw new CloudflareDomainProvisioningError(
