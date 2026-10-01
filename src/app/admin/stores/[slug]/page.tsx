@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
+import { ManagementSelect } from "@/components/management/ManagementSelect";
+import { ManagementTextarea } from "@/components/management/ManagementTextarea";
 import { getControlPlaneStore } from "@/lib/control-plane/server";
 import { getCustomDomainAdminSummary } from "@/lib/custom-domain-lifecycle/server";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
@@ -59,12 +62,11 @@ export default async function StoreDetailPage({
             status={store.status}
             label={t(store.status)}
           />
-          <a
-            href={`/${store.slug}/admin`}
-            className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
-          >
-            {t("openTenantAdmin")}
-          </a>
+          <Button asChild variant="outline" className="h-11">
+            <a href={`/${store.slug}/admin`}>
+              {t("openTenantAdmin")}
+            </a>
+          </Button>
         </div>
       </header>
 
@@ -164,7 +166,7 @@ export default async function StoreDetailPage({
                   name="restoreHostname"
                   value={domainSummary.retiring.hostname}
                 />
-                <Button type="submit">
+                <Button type="submit" className="h-11 px-5">
                   {t("customDomainRollback")}
                 </Button>
               </form>
@@ -182,15 +184,14 @@ export default async function StoreDetailPage({
           <h2 className="text-xl font-bold">{t("storeSettings")}</h2>
           <label className="grid gap-2">
             <span className="text-sm font-medium">{t("status")}</span>
-            <select
+            <ManagementSelect
               name="status"
               defaultValue={store.status}
-              className="rounded-md border px-3 py-2"
             >
               <option value="active">{t("active")}</option>
               <option value="suspended">{t("suspended")}</option>
               <option value="disabled">{t("disabled")}</option>
-            </select>
+            </ManagementSelect>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -206,28 +207,28 @@ export default async function StoreDetailPage({
             <span className="text-sm font-medium">
               {t("featuredRank")}
             </span>
-            <input
+            <ManagementInput
               name="featuredRank"
               type="number"
               min="1"
               defaultValue={store.featuredRank ?? ""}
-              className="rounded-md border px-3 py-2"
             />
           </label>
           <label className="grid gap-2">
             <span className="text-sm font-medium">
               {t("supportNotes")}
             </span>
-            <textarea
+            <ManagementTextarea
               name="supportNotes"
               maxLength={4000}
               defaultValue={store.supportNotes ?? ""}
               rows={5}
-              className="rounded-md border px-3 py-2"
               placeholder={t("supportNotesPlaceholder")}
             />
           </label>
-          <Button type="submit">{t("saveChanges")}</Button>
+          <Button type="submit" className="h-11 px-5">
+            {t("saveChanges")}
+          </Button>
         </form>
 
         <aside className="space-y-3 rounded-xl border bg-white p-6 shadow-sm">
