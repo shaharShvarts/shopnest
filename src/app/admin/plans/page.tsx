@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import {
   addPlanEntitlementAction,
@@ -9,19 +10,29 @@ import { formatMinorAmount } from "@/lib/plan-administration/core";
 import { listPlanAdministration } from "@/lib/plan-administration/server";
 import EntitlementIntegerInput from "./EntitlementIntegerInput";
 import PlanPriceInput from "./PlanPriceInput";
+import PlanFlashMessage from "./PlanFlashMessage";
 
 export const dynamic = "force-dynamic";
 
-export default async function PlansPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ result?: string }>;
-}) {
-  const [plans, t, query] = await Promise.all([
+const PLAN_RESULTS = new Set([
+  "PLAN_CREATE_FAILED",
+  "PLAN_CREATED",
+  "ENTITLEMENT_ADD_FAILED",
+  "ENTITLEMENT_ADDED",
+  "ENTITLEMENT_REMOVE_FAILED",
+  "ENTITLEMENT_REMOVED",
+  "PLAN_UPDATE_FAILED",
+  "PLAN_UPDATED",
+]);
+
+export default async function PlansPage() {
+  const [plans, t, cookieStore] = await Promise.all([
     listPlanAdministration(),
     getTranslations("ControlPlane"),
-    searchParams,
+    cookies(),
   ]);
+  const rawResult = cookieStore.get("SHOPNEST_PLAN_RESULT")?.value;
+  const result = rawResult && PLAN_RESULTS.has(rawResult) ? rawResult : null;
 
   return (
     <div className="space-y-8">
@@ -32,10 +43,8 @@ export default async function PlansPage({
         </p>
       </header>
 
-      {query.result ? (
-        <p className="rounded-lg border bg-white px-4 py-3 text-sm shadow-sm">
-          {t(`planResult.${query.result}`)}
-        </p>
+      {result ? (
+        <PlanFlashMessage message={t(`planResult.${result}`)} />
       ) : null}
 
       <section className="space-y-5">
