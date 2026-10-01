@@ -154,7 +154,7 @@ test("Control Plane shell and plan controls have active navigation and consisten
 
   assert.match(layout, /AdminNavigation/);
   assert.match(layout, /text-white transition-opacity hover:opacity-90/);
-  assert.match(nav, /aria-current={active ? "page"/);
+  assert.match(nav, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(nav, /bg-slate-900 text-white shadow-sm/);
   assert.match(language, /h-10/);
   assert.match(plans, /hover:bg-red-50/);
