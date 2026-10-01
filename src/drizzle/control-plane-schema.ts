@@ -22,3 +22,5 @@ export * from "@/drizzle/control-schema/storePolicyDocument";
 export * from "@/drizzle/control-schema/storeDomain";
 
 export * from "@/drizzle/control-schema/storeDomainClaim";
+
+export * from "@/drizzle/control-schema/entitlement";
