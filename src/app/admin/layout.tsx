@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import LanguageSelector from "@/app/components/LanguageSelector";
@@ -19,7 +19,12 @@ export default async function ShopNestAdminLayout({ children }: Readonly<{ child
   const internalPath = (await headers()).get(INTERNAL_PATH_HEADER);
   if (internalPath === "/admin/login") return children;
   const admin = await requireSuperAdminPage();
-  const t = await getTranslations("ControlPlane");
+  const [t, cookieStore] = await Promise.all([
+    getTranslations("ControlPlane"),
+    cookies(),
+  ]);
+  const locale =
+    cookieStore.get("SHOPNEST_LOCALE")?.value === "en" ? "en" : "he";
   const links = [
     { href: "/admin", label: t("dashboard") },
     { href: "/admin/stores", label: t("stores") },
@@ -46,7 +51,7 @@ export default async function ShopNestAdminLayout({ children }: Readonly<{ child
           </div>
           <div className="flex items-center gap-2 text-sm">
             <span className="hidden text-slate-300 lg:inline">{admin.email}</span>
-            <LanguageSelector />
+            <LanguageSelector locale={locale} />
             <form action={logoutCurrentAdmin}>
               <Button
                 type="submit"
