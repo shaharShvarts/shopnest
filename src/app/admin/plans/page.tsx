@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
 import {
   addPlanEntitlementAction,
   createPlanAction,
@@ -51,7 +52,7 @@ export default async function PlansPage() {
         {plans.map((plan) => (
           <article
             key={plan.id}
-            className="rounded-xl border bg-white p-6 shadow-sm"
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
           >
             <form action={updatePlanAction}>
               <input type="hidden" name="planId" value={plan.id} />
@@ -64,7 +65,7 @@ export default async function PlansPage() {
                 <select
                   name="status"
                   defaultValue={plan.status}
-                  className="min-h-10 rounded-md border px-3 py-2"
+                  className="h-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 >
                   <option value="active">{t("active")}</option>
                   <option value="inactive">{t("inactive")}</option>
@@ -81,7 +82,7 @@ export default async function PlansPage() {
                     minLength={1}
                     maxLength={160}
                     defaultValue={plan.name}
-                    className="min-h-11 w-full rounded-md border px-3 py-2"
+                    className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
                   />
                 </label>
 
@@ -121,7 +122,7 @@ export default async function PlansPage() {
                     {plan.entitlements.map((entitlement) => (
                       <div
                         key={entitlement.id}
-                        className="grid gap-3 rounded-lg border p-4 md:grid-cols-[1fr_220px_auto]"
+                        className="grid items-center gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-colors hover:border-slate-300 hover:bg-slate-50 md:grid-cols-[1fr_220px_auto]"
                       >
                         <div>
                           <p className="font-semibold">
@@ -152,43 +153,45 @@ export default async function PlansPage() {
                           />
                         )}
 
-                        <button
+                        <Button
                           type="submit"
+                          variant="outline"
+                          size="sm"
                           formAction={removePlanEntitlementAction.bind(
                             null,
                             plan.id,
                             entitlement.id
                           )}
                           formNoValidate
-                          className="min-h-11 rounded-md border border-red-200 px-4 py-2 font-semibold text-red-700"
+                          className="h-9 self-center border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                         >
                           {t("removeFeature")}
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              <button
+              <Button
                 type="submit"
-                className="mt-6 min-h-11 rounded-md bg-slate-950 px-5 py-2.5 font-semibold text-white"
+                className="mt-6 h-11 bg-slate-900 px-5 text-white shadow-sm hover:bg-slate-800"
               >
                 {t("savePlanConfiguration")}
-              </button>
+              </Button>
             </form>
 
             {plan.availableEntitlements.length > 0 ? (
               <form
                 action={addPlanEntitlementAction}
-                className="mt-4 flex flex-col gap-3 rounded-lg border border-dashed p-4 md:flex-row"
+                className="mt-4 flex flex-col gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/40 p-4 md:flex-row"
               >
                 <input type="hidden" name="planId" value={plan.id} />
                 <select
                   name="entitlementCode"
                   required
                   defaultValue=""
-                  className="min-h-11 flex-1 rounded-md border px-3 py-2"
+                  className="h-11 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 >
                   <option value="" disabled>
                     {t("chooseFeature")}
@@ -199,12 +202,13 @@ export default async function PlansPage() {
                     </option>
                   ))}
                 </select>
-                <button
+                <Button
                   type="submit"
-                  className="min-h-11 rounded-md border px-5 py-2.5 font-semibold"
+                  variant="outline"
+                  className="h-11 px-5 hover:bg-slate-50"
                 >
                   + {t("addFeature")}
-                </button>
+                </Button>
               </form>
             ) : (
               <p className="mt-4 text-sm text-slate-500">
@@ -238,12 +242,12 @@ export default async function PlansPage() {
             placeholder={t("planName")}
             className="min-h-11 rounded-md border px-3 py-2"
           />
-          <button
+          <Button
             type="submit"
-            className="min-h-11 rounded-md bg-slate-950 px-4 py-2 font-semibold text-white md:col-span-2"
+            className="h-11 bg-slate-900 px-4 text-white shadow-sm hover:bg-slate-800 md:col-span-2"
           >
             {t("createPlan")}
-          </button>
+          </Button>
         </form>
       </section>
     </div>
