@@ -399,3 +399,47 @@ test("Storefront carousel keeps a stable image frame", async () => {
   assert.match(details, /object-contain p-3 sm:p-6/);
   assert.doesNotMatch(details, /h-auto max-h-\[72vh\]/);
 });
+
+
+test("Managed product creation enforces products_limit server-side with concurrency protection", async () => {
+  const actions = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
+    "utf8"
+  );
+
+  assert.match(actions, /getEffectiveStoreEntitlements\(storeId\)/);
+  assert.match(actions, /integerEntitlement\([\s\S]*"products_limit"/);
+  assert.match(actions, /entitlementHasCapacity/);
+  assert.match(actions, /pg_advisory_xact_lock/);
+  assert.match(actions, /shopnest:store-products:/);
+  assert.match(actions, /ProductLimitReachedError/);
+  assert.match(actions, /isNull\(products\.deletedAt\)/);
+});
+
+test("Managed products UI exposes quota and blocks create navigation at capacity", async () => {
+  const [productsPage, newPage, form, english, hebrew] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/products/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/products/new/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedProductForm.tsx",
+      "utf8"
+    ),
+    readFile("src/messages/en.json", "utf8").then(JSON.parse),
+    readFile("src/messages/he.json", "utf8").then(JSON.parse),
+  ]);
+
+  assert.match(productsPage, /productQuota/);
+  assert.match(productsPage, /canAddProduct/);
+  assert.match(productsPage, /aria-disabled="true"/);
+  assert.match(newPage, /productQuotaReachedTitle/);
+  assert.match(newPage, /entitlementHasCapacity/);
+  assert.match(form, /state\.errors\?\._form/);
+  assert.ok(english.StoreCatalogManagement.productQuotaReached);
+  assert.ok(hebrew.StoreCatalogManagement.productQuotaReached);
+});
