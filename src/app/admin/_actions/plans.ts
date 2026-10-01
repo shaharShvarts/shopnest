@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  createEntitlementForAdmin,
+  addPlanEntitlementForAdmin,
   createPlanForAdmin,
   listPlanAdministration,
+  removePlanEntitlementForAdmin,
   updatePlanForAdmin,
 } from "@/lib/plan-administration/server";
 import { parseIlsToMinor } from "@/lib/plan-administration/core";
@@ -28,24 +29,32 @@ export async function createPlanAction(formData: FormData) {
   redirect(plansPath("PLAN_CREATED"));
 }
 
-export async function createEntitlementAction(formData: FormData) {
+export async function addPlanEntitlementAction(formData: FormData) {
   try {
-    await createEntitlementForAdmin({
-      code: formData.get("code"),
-      name: formData.get("name"),
-      description:
-        typeof formData.get("description") === "string" &&
-        String(formData.get("description")).trim()
-          ? String(formData.get("description")).trim()
-          : null,
-      valueType: formData.get("valueType"),
+    await addPlanEntitlementForAdmin({
+      planId: formData.get("planId"),
+      entitlementCode: formData.get("entitlementCode"),
     });
   } catch {
-    redirect(plansPath("ENTITLEMENT_CREATE_FAILED"));
+    redirect(plansPath("ENTITLEMENT_ADD_FAILED"));
   }
 
   revalidatePath("/admin/plans");
-  redirect(plansPath("ENTITLEMENT_CREATED"));
+  redirect(plansPath("ENTITLEMENT_ADDED"));
+}
+
+export async function removePlanEntitlementAction(formData: FormData) {
+  try {
+    await removePlanEntitlementForAdmin({
+      planId: formData.get("planId"),
+      entitlementId: formData.get("entitlementId"),
+    });
+  } catch {
+    redirect(plansPath("ENTITLEMENT_REMOVE_FAILED"));
+  }
+
+  revalidatePath("/admin/plans");
+  redirect(plansPath("ENTITLEMENT_REMOVED"));
 }
 
 export async function updatePlanAction(formData: FormData) {
