@@ -16,6 +16,9 @@ export default async function NewMerchantStorePage() {
   }
 
   const t = await getTranslations("MerchantStore");
+  const platformOrigin =
+    process.env.SHOPNEST_PLATFORM_ORIGIN?.replace(/\/+$/, "") ||
+    "https://shopnest.co.il";
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
@@ -29,7 +32,7 @@ export default async function NewMerchantStorePage() {
       </header>
 
       <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
-        <StoreForm mode="create" />
+        <StoreForm mode="create" platformOrigin={platformOrigin} />
       </section>
     </main>
   );
