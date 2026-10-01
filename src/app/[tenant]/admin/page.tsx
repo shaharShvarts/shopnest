@@ -1,9 +1,13 @@
 import { ShoppingCart, UserRound } from "lucide-react";
+import { getLocale } from "next-intl/server";
 import LanguageSelector from "@/app/components/LanguageSelector";
 import { requireTenantAdmin } from "@/lib/admin-auth/server";
 
 export default async function AdminDashboard() {
-  const { controlTenant } = await requireTenantAdmin();
+  const [{ controlTenant }, locale] = await Promise.all([
+    requireTenantAdmin(),
+    getLocale(),
+  ]);
   return (
     <header className="sticky top-0 border-b border-gray-800 bg-white z-50">
       <div className="max-w-7xl mx-auto py-3 flex items-center justify-between">
@@ -14,7 +18,7 @@ export default async function AdminDashboard() {
           <h2 className="font-bold text-gray-500">Administration</h2>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <LanguageSelector />
+          <LanguageSelector locale={locale === "en" ? "en" : "he"} />
           <ShoppingCart className="w-8 h-8 text-gray-800" />
           <UserRound className="w-8 h-8 text-gray-800" />
         </div>
