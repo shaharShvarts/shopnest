@@ -546,7 +546,8 @@
     "activation_requested": "Activation requested",
     "provisioning": "Provisioning",
     "provisioning_failed": "Provisioning failed",
-    "manageDomain": "Manage custom domain"
+    "manageDomain": "Manage custom domain",
+    "manageTeam": "Manage managers"
   },
   "MerchantDashboard": {
     "workspace": "Merchant workspace",
@@ -765,5 +766,43 @@
     "removeImage": "Remove image",
     "productImageNumber": "Product image {number}",
     "newProductImageNumber": "New product image {number}"
+  },
+  "StoreTeam": {
+    "title": "Store managers",
+    "description": "Manage Manager accounts that can work in this Store according to role permissions and plan limits.",
+    "usageTitle": "Manager allowance",
+    "usageUnlimited": "{used} managers assigned — unlimited",
+    "usageFinite": "{used} of {limit} manager seats used. {remaining} remaining.",
+    "unlimited": "Unlimited",
+    "limitReachedTitle": "No manager seats remain on the current plan",
+    "limitReachedDescription": "Remove an existing manager or move to a plan that includes more manager seats.",
+    "unlimitedManagers": "Unlimited",
+    "managerCount": "{count} managers",
+    "planLimitsPending": "Plan limits have not yet been configured in the ShopNest administration UI.",
+    "assignedTitle": "Assigned managers",
+    "noManagers": "No manager is assigned to this Store yet.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "remove": "Remove assignment",
+    "createTitle": "Create a new Manager",
+    "createHelp": "A new Manager account will be created and assigned directly to this Store.",
+    "email": "Email",
+    "temporaryPassword": "Temporary password",
+    "passwordHelp": "At least 12 characters. The Manager should change it after first sign-in.",
+    "create": "Create Manager",
+    "assignTitle": "Assign an existing Manager",
+    "assignHelp": "If a Manager account already exists in ShopNest, it can also be assigned to this Store.",
+    "assign": "Assign manager",
+    "back": "Back to Store",
+    "result": {
+      "CREATED": "The Manager was created and assigned to the Store.",
+      "ASSIGNED": "The existing Manager was assigned to the Store.",
+      "REMOVED": "The Manager assignment was removed.",
+      "MANAGER_LIMIT_REACHED": "Another Manager cannot be added because the allowance is exhausted.",
+      "MANAGER_NOT_FOUND": "No suitable Manager account was found.",
+      "MANAGER_ALREADY_ASSIGNED": "This Manager is already assigned to the Store.",
+      "MANAGER_ACCOUNT_UNAVAILABLE": "An admin account already exists for this email.",
+      "INVALID_MANAGER_ACCOUNT": "The Manager details are invalid or the account cannot be used for Store management."
+    }
   }
 }
