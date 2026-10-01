@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { languages } from "@/lib/languages";
 import {
@@ -26,22 +26,18 @@ export type LanguageOption = {
   flag: string;
 };
 
-export default function LanguageSelector() {
-  const [selected, setSelected] = useState<LanguageOption | null>(null);
+export default function LanguageSelector({
+  locale,
+}: {
+  locale: "he" | "en";
+}) {
+  const initialSelection =
+    languages.find((lang) => lang.value === locale) ?? languages[0];
+  const [selected, setSelected] = useState<LanguageOption>(initialSelection);
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    const cookieLocale = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("SHOPNEST_LOCALE="))
-      ?.split("=")[1];
-
-    const initialLocale = cookieLocale || "he";
-    const match = languages.find((lang) => lang.value === initialLocale);
-    setSelected(match ?? languages[0]);
-  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,17 +45,17 @@ export default function LanguageSelector() {
         <Button
           variant="outline"
           disabled={pending}
-          aria-label={`Language: ${selected?.label ?? "Select language"}`}
+          aria-label={`Language: ${selected.label ?? "Select language"}`}
           className="h-10 min-w-24 gap-2 border-slate-300 bg-white px-3 text-slate-950 shadow-sm hover:bg-slate-100 hover:text-slate-950 disabled:opacity-60 sm:w-[150px] sm:justify-between"
         >
           <Image
-            src={selected?.flag ?? languages[0].flag}
+            src={selected.flag ?? languages[0].flag}
             width={26}
             height={20}
             alt=""
             className="shrink-0"
           />
-          <span className="hidden sm:inline">{selected?.label}</span>
+          <span className="hidden sm:inline">{selected.label}</span>
           <ChevronsUpDownIcon className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -83,7 +79,7 @@ export default function LanguageSelector() {
                 <CheckIcon
                   className={cn(
                     "h-4 w-4",
-                    lang.value === selected?.value ? "opacity-100" : "opacity-0"
+                    lang.value === selected.value ? "opacity-100" : "opacity-0"
                   )}
                 />
                 <Image
