@@ -471,6 +471,29 @@ test("Control Plane shell uses 44px shared utility controls and keyboard focus",
   assert.match(navigation, /focus-visible:ring-2/);
 });
 
+test("Plan entitlement removal refreshes in place without redirect navigation", async () => {
+  const [actions, page, removeButton] = await Promise.all([
+    readFile("src/app/admin/_actions/plans.ts", "utf8"),
+    readFile("src/app/admin/plans/page.tsx", "utf8"),
+    readFile("src/app/admin/plans/RemovePlanEntitlementButton.tsx", "utf8"),
+  ]);
+
+  assert.match(actions, /removePlanEntitlementInlineAction/);
+  assert.match(
+    actions,
+    /removePlanEntitlementInlineAction[\s\S]*?revalidatePath\("\/admin\/plans"\)[\s\S]*?return \{ ok: true as const \}/
+  );
+  assert.doesNotMatch(
+    actions,
+    /removePlanEntitlementInlineAction[\s\S]*?redirectWithPlanResult/
+  );
+  assert.match(page, /RemovePlanEntitlementButton/);
+  assert.doesNotMatch(page, /formAction=\{removePlanEntitlementAction/);
+  assert.match(removeButton, /useTransition/);
+  assert.match(removeButton, /router\.refresh\(\)/);
+  assert.doesNotMatch(removeButton, /router\.push|router\.replace|window\.location/);
+});
+
 test("Control Plane store settings use shared management controls", async () => {
   const [page, input, select, textarea] = await Promise.all([
     readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
