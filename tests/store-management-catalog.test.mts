@@ -440,6 +440,37 @@ test("Storefront carousel keeps a stable image frame", async () => {
 });
 
 
+test("Catalog lists and gallery use shared management actions", async () => {
+  const [categoriesPage, productsPage, subcategoriesPage, gallery] =
+    await Promise.all([
+      readFile(
+        "src/app/(merchant)/dashboard/stores/[id]/categories/page.tsx",
+        "utf8"
+      ),
+      readFile(
+        "src/app/(merchant)/dashboard/stores/[id]/products/page.tsx",
+        "utf8"
+      ),
+      readFile(
+        "src/app/(merchant)/dashboard/stores/[id]/subcategories/page.tsx",
+        "utf8"
+      ),
+      readFile(
+        "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedProductImages.tsx",
+        "utf8"
+      ),
+    ]);
+
+  for (const source of [categoriesPage, productsPage, subcategoriesPage]) {
+    assert.match(source, /size="management"/);
+    assert.doesNotMatch(source, /<button\\b/);
+  }
+
+  assert.match(gallery, /<Button/);
+  assert.match(gallery, /size="management"/);
+  assert.doesNotMatch(gallery, /size-8 items-center justify-center/);
+});
+
 test("Managed product creation enforces products_limit server-side with concurrency protection", async () => {
   const actions = await readFile(
     "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
