@@ -183,6 +183,46 @@ Within one form:
 
 Do not solve individual fields with one-off CSS that conflicts with neighboring fields.
 
+## 10.1 Same-page mutation behavior
+
+Management actions that change data on the **current screen** must preserve the current workspace.
+
+Examples include:
+
+- deleting a row or feature from a list
+- changing a plan or status shown on the same page
+- assigning or removing a Store Manager
+- saving settings whose destination is still the current screen
+- activation/check actions that update status in place
+
+For these actions:
+
+- do not use a redirect back to the same route as the success path
+- do not rely on a native Server Action form submission that replaces the current route and resets scroll position
+- use the shared in-place management mutation pattern or an existing equivalent client interaction
+- prevent duplicate submission while pending
+- refresh Server Component data with `router.refresh()` after a successful mutation when fresh server data is required
+- show success/failure feedback in the current context
+- preserve scroll position and surrounding UI state
+
+Current shared implementation:
+
+`src/components/management/ManagementMutation.tsx`
+
+It provides:
+
+- `ManagementMutationForm` for same-page forms
+- `ManagementMutationButton` for same-page button actions
+
+A redirect remains correct when the action **intentionally changes destination**, for example:
+
+- create form -> newly created Store
+- edit form -> list/detail destination
+- login/logout
+- explicit navigation to another management screen
+
+The rule is not "never redirect"; the rule is **never navigate away and back to the same workspace merely to refresh data**.
+
 ## 11. Tables and dense lists
 
 For dense management data:
