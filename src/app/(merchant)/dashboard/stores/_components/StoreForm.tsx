@@ -2,6 +2,8 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
 import {
   suggestStoreSlug,
   validateStoreSlug,
@@ -14,11 +16,6 @@ import {
 } from "../_actions";
 
 const initialState: StoreFormActionState = { success: false };
-
-const inputClass =
-  "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring";
-const buttonClass =
-  "min-h-11 rounded-lg bg-foreground px-5 py-2 font-semibold text-background disabled:cursor-not-allowed disabled:opacity-60";
 
 type StoreFormValues = {
   id?: number;
@@ -157,7 +154,7 @@ export function StoreForm({
         >
           {t("storeName")}
         </label>
-        <input
+        <ManagementInput
           id="store-display-name"
           name="displayName"
           required
@@ -166,7 +163,6 @@ export function StoreForm({
           onChange={(event) =>
             handleDisplayNameChange(event.target.value)
           }
-          className={inputClass}
         />
         {state.errors?.displayName?.[0] ? (
           <p className="mt-1 text-xs text-destructive">
@@ -182,7 +178,7 @@ export function StoreForm({
         >
           {slugLocked ? t("storeId") : t("slug")}
         </label>
-        <input
+        <ManagementInput
           id="store-slug"
           name="slug"
           required
@@ -192,7 +188,6 @@ export function StoreForm({
             handleSlugChange(event.target.value)
           }
           readOnly={slugLocked}
-          className={inputClass}
         />
         {!slugLocked && !slug && displayName ? (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -234,10 +229,11 @@ export function StoreForm({
         </p>
       ) : null}
 
-      <button
+      <Button
         type="submit"
+        size="management"
         disabled={pending}
-        className={buttonClass}
+        className="px-5"
       >
         {pending
           ? t(
@@ -246,7 +242,7 @@ export function StoreForm({
                 : "savingStore"
             )
           : t(mode === "create" ? "createStore" : "saveStore")}
-      </button>
+      </Button>
     </form>
   );
 }
