@@ -147,7 +147,7 @@ Required migration:
 
 #### `src/app/(merchant)/dashboard/stores/[id]/_components/ManagedProductForm.tsx`
 
-Status: **high-priority migration**
+Status: **migrated in Wave 2**
 
 Observed drift:
 
@@ -168,7 +168,7 @@ Required migration:
 
 #### `src/app/(merchant)/dashboard/stores/[id]/_components/ManagedSubcategoryForm.tsx`
 
-Status: **high-priority migration**
+Status: **migrated in Wave 2**
 
 Observed drift:
 
@@ -180,7 +180,7 @@ Required migration to the same primitives used by ManagedProductForm.
 
 #### `src/app/(merchant)/dashboard/stores/[id]/_components/ManagedCategoryForm.tsx`
 
-Status: **medium-priority migration**
+Status: **migrated in Wave 2**
 
 Observed drift:
 
@@ -214,7 +214,7 @@ Required migration:
 
 #### `src/app/(merchant)/dashboard/stores/_components/StoreForm.tsx`
 
-Status: **medium-priority migration**
+Status: **migrated in Wave 2**
 
 Observed drift:
 
@@ -307,10 +307,10 @@ Reason: the Control Plane is smaller and establishes the canonical management la
 
 ### Wave 2 — core Merchant catalog
 
-1. ManagedProductForm
-2. ManagedSubcategoryForm
-3. ManagedCategoryForm
-4. StoreForm
+1. ManagedProductForm ✅
+2. ManagedSubcategoryForm ✅
+3. ManagedCategoryForm ✅
+4. StoreForm ✅
 
 Reason: these are frequent merchant CRUD surfaces and currently contain raw selects/inputs/buttons.
 
