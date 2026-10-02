@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import {
   addPlanEntitlementAction,
   createPlanAction,
-  removePlanEntitlementAction,
   updatePlanAction,
 } from "@/app/admin/_actions/plans";
 import { formatMinorAmount } from "@/lib/plan-administration/core";
@@ -12,6 +11,7 @@ import { listPlanAdministration } from "@/lib/plan-administration/server";
 import EntitlementIntegerInput from "./EntitlementIntegerInput";
 import PlanPriceInput from "./PlanPriceInput";
 import PlanFlashMessage from "./PlanFlashMessage";
+import RemovePlanEntitlementButton from "./RemovePlanEntitlementButton";
 import { ManagementInput } from "@/components/management/ManagementInput";
 import { ManagementSelect } from "@/components/management/ManagementSelect";
 
@@ -153,20 +153,14 @@ export default async function PlansPage() {
                           />
                         )}
 
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          size="management"
-                          formAction={removePlanEntitlementAction.bind(
-                            null,
-                            plan.id,
-                            entitlement.id
+                        <RemovePlanEntitlementButton
+                          planId={plan.id}
+                          entitlementId={entitlement.id}
+                          label={t("removeFeature")}
+                          failureMessage={t(
+                            "planResult.ENTITLEMENT_REMOVE_FAILED"
                           )}
-                          formNoValidate
-                          className="border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
-                        >
-                          {t("removeFeature")}
-                        </Button>
+                        />
                       </div>
                     ))}
                   </div>
