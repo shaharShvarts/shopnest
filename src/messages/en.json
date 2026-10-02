@@ -724,6 +724,7 @@
     "title": "Custom domain",
     "backToStore": "Back to store",
     "currentAddress": "Current store address",
+    "featureUnavailable": "Custom Domain is not enabled for this Store plan. Existing domain cleanup remains available.",
     "setupIntro": "Connect a domain you already own. Your current store address keeps working until setup is complete.",
     "dnsProviderHelp": "Create these DNS records at your domain registrar or DNS provider. DNS changes can take minutes or hours.",
     "dnsFieldHelp": "DNS providers label fields differently. Some expect the full hostname and others only the part before your domain.",
