@@ -1,10 +1,10 @@
 "use client";
 
 import type { FormEvent, ReactNode } from "react";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { toast } from "react-toastify";
 
 export type ManagementMutationResult =
   | void
@@ -46,23 +46,18 @@ export function ManagementMutationForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [status, setStatus] = useState<
-    | { kind: "success" | "error"; message: string }
-    | null
-  >(null);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
 
-    setStatus(null);
     startTransition(async () => {
       try {
         const result = await action(formData);
         if (result && !result.ok) {
           const message = resolveMessage(result, messages, failureMessage);
-          if (message) setStatus({ kind: "error", message });
+          if (message) toast.error(message);
           return;
         }
 
@@ -72,12 +67,12 @@ export function ManagementMutationForm({
           result && result.ok
             ? resolveMessage(result, messages, successMessage)
             : successMessage;
-        if (message) setStatus({ kind: "success", message });
+        if (message) toast.success(message);
 
         router.refresh();
       } catch {
         if (failureMessage) {
-          setStatus({ kind: "error", message: failureMessage });
+          toast.error(failureMessage);
         }
       }
     });
@@ -92,19 +87,6 @@ export function ManagementMutationForm({
       <fieldset disabled={pending} className="contents">
         {children}
       </fieldset>
-      {status ? (
-        <p
-          role={status.kind === "error" ? "alert" : "status"}
-          className={cn(
-            "fixed inset-x-4 top-4 z-[100] mx-auto w-fit max-w-[calc(100vw-2rem)] rounded-lg border px-4 py-3 text-sm shadow-lg",
-            status.kind === "error"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-emerald-200 bg-emerald-50 text-emerald-900"
-          )}
-        >
-          {status.message}
-        </p>
-      ) : null}
     </form>
   );
 }
@@ -130,10 +112,6 @@ export function ManagementMutationButton({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [status, setStatus] = useState<
-    | { kind: "success" | "error"; message: string }
-    | null
-  >(null);
 
   return (
     <div className="inline-flex flex-col items-start gap-1">
@@ -144,13 +122,12 @@ export function ManagementMutationButton({
         disabled={pending}
         aria-busy={pending}
         onClick={() => {
-          setStatus(null);
-          startTransition(async () => {
+                startTransition(async () => {
             try {
               const result = await action();
               if (result && !result.ok) {
                 const message = resolveMessage(result, messages, failureMessage);
-                if (message) setStatus({ kind: "error", message });
+                if (message) toast.error(message);
                 return;
               }
 
@@ -158,12 +135,12 @@ export function ManagementMutationButton({
                 result && result.ok
                   ? resolveMessage(result, messages, successMessage)
                   : successMessage;
-              if (message) setStatus({ kind: "success", message });
+              if (message) toast.success(message);
 
               router.refresh();
             } catch {
               if (failureMessage) {
-                setStatus({ kind: "error", message: failureMessage });
+                toast.error(failureMessage);
               }
             }
           });
@@ -172,19 +149,6 @@ export function ManagementMutationButton({
       >
         {pending ? pendingLabel : label}
       </Button>
-      {status ? (
-        <span
-          role={status.kind === "error" ? "alert" : "status"}
-          className={cn(
-            "fixed inset-x-4 top-4 z-[100] mx-auto w-fit max-w-[calc(100vw-2rem)] rounded-lg border px-4 py-3 text-sm shadow-lg",
-            status.kind === "error"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-emerald-200 bg-emerald-50 text-emerald-900"
-          )}
-        >
-          {status.message}
-        </span>
-      ) : null}
     </div>
   );
 }
