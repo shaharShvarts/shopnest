@@ -26,9 +26,9 @@ export default function EntitlementIntegerInput({
     <div className="flex items-center gap-2">
       <input type="hidden" name={name} value={value} />
 
-      <div className="flex h-11 min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm transition-[border-color,box-shadow] hover:border-slate-400 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200">
+      <div className="flex h-11 min-w-28 items-stretch overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm transition-[border-color,box-shadow] hover:border-slate-400 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200">
         <div className="flex min-w-0 flex-1 items-center px-3 py-2">
-          <span className="truncate tabular-nums">
+          <span className="whitespace-nowrap tabular-nums">
             {unlimited ? unlimitedLabel : value}
           </span>
         </div>
