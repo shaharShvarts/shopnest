@@ -123,7 +123,7 @@ export default async function PlansPage() {
                     {plan.entitlements.map((entitlement) => (
                       <div
                         key={entitlement.id}
-                        className="grid items-center gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-colors hover:border-slate-300 hover:bg-slate-50 md:grid-cols-[1fr_220px_auto]"
+                        className="grid items-center gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-colors hover:border-slate-300 hover:bg-slate-50 md:grid-cols-[minmax(0,1fr)_minmax(220px,max-content)_auto]"
                       >
                         <div>
                           <p className="font-semibold">
