@@ -395,6 +395,26 @@ test("Merchant dashboard shell uses shared 44px utility controls and focus state
   assert.match(navigation, /focus-visible:ring-2/);
 });
 
+test("Store detail and Store list use shared management controls", async () => {
+  const [detail, list] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/_components/StoreList.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(detail, /ManagementSelect/);
+  assert.match(detail, /size="management"/);
+  assert.doesNotMatch(detail, /<select\\b/);
+  assert.doesNotMatch(detail, /<button\\b/);
+  assert.match(list, /size="management"/);
+  assert.doesNotMatch(list, /<button\\b/);
+});
+
 class FakeRepository implements StoreManagementRepository {
   owned = new Map<string, StoreManagementRecord>();
   managed = new Map<string, StoreManagementRecord>();
