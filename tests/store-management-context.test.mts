@@ -461,6 +461,7 @@ test("plan feature gates are entitlement-driven instead of package-name checks",
     readFile("src/app/(merchant)/dashboard/stores/[id]/products/page.tsx", "utf8"),
     readFile("src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts", "utf8"),
     readFile("src/lib/store-team/drizzle-repository.ts", "utf8"),
+    readFile("src/lib/store-team/core.ts", "utf8"),
   ]);
 
   const combined = sources.join("\n");
