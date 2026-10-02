@@ -2,6 +2,10 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
+import { ManagementSelect } from "@/components/management/ManagementSelect";
+import { ManagementTextarea } from "@/components/management/ManagementTextarea";
 import type { Category, Product, Subcategory } from "@/drizzle/schema";
 import {
   addManagedProduct,
@@ -55,13 +59,12 @@ export function ManagedProductForm({
             <label htmlFor="name" className="mb-2 block text-sm font-semibold">
               {t("name")}
             </label>
-            <input
+            <ManagementInput
               id="name"
               name="name"
               required
               autoFocus
               defaultValue={product?.name ?? ""}
-              className="min-h-12 w-full rounded-xl border border-border bg-background px-4 py-3 text-base"
             />
             {state.errors?.name?.map((message) => (
               <p key={message} className="mt-2 text-sm text-destructive">
@@ -77,11 +80,11 @@ export function ManagedProductForm({
             >
               {t("description")}
             </label>
-            <textarea
+            <ManagementTextarea
               id="description"
               name="description"
               defaultValue={product?.description ?? ""}
-              className="min-h-44 w-full rounded-xl border border-border bg-background px-4 py-3 text-base"
+              className="min-h-44"
             />
           </div>
         </div>
@@ -94,12 +97,11 @@ export function ManagedProductForm({
             >
               {t("category")}
             </label>
-            <select
+            <ManagementSelect
               id="categoryId"
               name="categoryId"
               required
               defaultValue={product?.categoryId ?? ""}
-              className="min-h-12 w-full rounded-xl border border-border bg-background px-4 py-3 text-base"
             >
               <option value="" disabled>
                 {t("selectCategory")}
@@ -109,7 +111,7 @@ export function ManagedProductForm({
                   {category.name}
                 </option>
               ))}
-            </select>
+            </ManagementSelect>
             {state.errors?.categoryId?.map((message) => (
               <p key={message} className="mt-2 text-sm text-destructive">
                 {message}
@@ -124,11 +126,10 @@ export function ManagedProductForm({
             >
               {t("subcategory")}
             </label>
-            <select
+            <ManagementSelect
               id="subcategoryId"
               name="subcategoryId"
               defaultValue={product?.subcategoryId ?? ""}
-              className="min-h-12 w-full rounded-xl border border-border bg-background px-4 py-3 text-base"
             >
               <option value="">{t("noSubcategory")}</option>
               {subcategories.map((subcategory) => (
@@ -136,7 +137,7 @@ export function ManagedProductForm({
                   {subcategory.name}
                 </option>
               ))}
-            </select>
+            </ManagementSelect>
             {state.errors?.subcategoryId?.map((message) => (
               <p key={message} className="mt-2 text-sm text-destructive">
                 {message}
@@ -184,13 +185,14 @@ export function ManagedProductForm({
         </p>
       ))}
 
-      <button
+      <Button
         type="submit"
+        size="management"
         disabled={pending}
-        className="min-h-12 rounded-xl bg-foreground px-6 py-3 font-semibold text-background disabled:opacity-50"
+        className="px-6"
       >
         {pending ? t("saving") : t("save")}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -211,14 +213,13 @@ function NumberField({
       <label htmlFor={name} className="mb-2 block text-sm font-semibold">
         {label}
       </label>
-      <input
+      <ManagementInput
         id={name}
         name={name}
         type="number"
         min="0"
         required
         defaultValue={defaultValue ?? ""}
-        className="min-h-12 w-full rounded-xl border border-border bg-background px-4 py-3 text-base"
       />
       {error?.map((message) => (
         <p key={message} className="mt-2 text-sm text-destructive">
