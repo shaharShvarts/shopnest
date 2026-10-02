@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import {
   hasStoreManagementPermission,
@@ -476,6 +476,39 @@ test("plan feature gates are entitlement-driven instead of package-name checks",
   assert.doesNotMatch(
     combined,
     /["'](?:free|small|medium|large)["']\s*(?:===|!==|==|!=)\s*(?:planCode|plan\.code)/i
+  );
+});
+
+test("runtime code contains no hard-coded commercial package codes", async () => {
+  const roots = ["src", "scripts"];
+  const runtimeFiles: string[] = [];
+
+  for (const root of roots) {
+    const entries = await readdir(root, { recursive: true });
+    for (const entry of entries) {
+      const path = `${root}/${entry}`;
+      if (/\.(?:ts|tsx|js|jsx|mts|mjs)$/.test(path)) {
+        runtimeFiles.push(path);
+      }
+    }
+  }
+
+  const tierLiteral = /["'`](?:free|small|medium|large)["'`]/gi;
+  const violations: string[] = [];
+
+  for (const path of runtimeFiles) {
+    const source = await readFile(path, "utf8");
+    const matches = source.match(tierLiteral);
+    if (matches?.length) {
+      violations.push(`${path}: ${[...new Set(matches)].join(", ")}`);
+    }
+  }
+
+  assert.deepEqual(
+    violations,
+    [],
+    "Commercial package codes must stay data-driven; use plan entitlements instead:\n" +
+      violations.join("\n")
   );
 });
 
