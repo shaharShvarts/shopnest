@@ -22,7 +22,7 @@ export type StoreDashboardPrincipal =
       email: string;
       displayName: string;
       phoneE164: string | null;
-      status: "active" | "disabled";
+      status: "active";
     }
   | {
       kind: "manager";
@@ -40,7 +40,7 @@ export async function getCurrentStoreDashboardPrincipal(): Promise<StoreDashboar
       email: merchant.email,
       displayName: merchant.displayName,
       phoneE164: merchant.phoneE164,
-      status: merchant.status,
+      status: "active",
     };
   }
 
