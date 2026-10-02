@@ -325,13 +325,13 @@ Reason: these contain many repeated actions and will benefit strongly from the s
 
 ### Wave 4 — shell convergence and final audit
 
-1. Control Plane shell
-2. Merchant Dashboard shell
-3. navigation states
-4. language/logout utility alignment
-5. table/action consistency
-6. Hebrew/English visual verification
-7. responsive verification
+1. Control Plane shell ✅
+2. Merchant Dashboard shell ✅
+3. navigation states ✅
+4. language/logout utility alignment ✅
+5. table/action consistency ✅
+6. Hebrew/English visual verification ⏳
+7. responsive verification ⏳
 
 ## 6. Regression strategy
 
@@ -349,6 +349,8 @@ Add focused source/regression tests for project-wide invariants where practical:
 Tests should protect the design-system contract without becoming brittle snapshots of every Tailwind class.
 
 ## 7. Definition of done
+
+The management UI migration is code-complete through Wave 4. Manual visual verification remains before final sign-off.
 
 The management UI migration is complete when:
 
