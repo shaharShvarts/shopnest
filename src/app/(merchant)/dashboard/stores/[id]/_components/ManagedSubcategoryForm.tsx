@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
+import { ManagementSelect } from "@/components/management/ManagementSelect";
 import type { Category, Subcategory } from "@/drizzle/schema";
 import {
   addManagedSubcategory,
@@ -35,13 +38,12 @@ export function ManagedSubcategoryForm({
           <label htmlFor="name" className="mb-2 block text-sm font-semibold">
             {t("name")}
           </label>
-          <input
+          <ManagementInput
             id="name"
             name="name"
             required
             autoFocus
             defaultValue={subcategory?.name ?? ""}
-            className="min-h-12 w-full rounded-xl border border-border bg-background px-4 py-3 text-base"
           />
           {state.errors?.name?.map((message) => (
             <p key={message} className="mt-2 text-sm text-destructive">
@@ -54,18 +56,17 @@ export function ManagedSubcategoryForm({
           <label htmlFor="categoryId" className="mb-2 block text-sm font-semibold">
             {t("category")}
           </label>
-          <select
+          <ManagementSelect
             id="categoryId"
             name="categoryId"
             required
             defaultValue={subcategory?.categoryId ?? ""}
-            className="min-h-12 w-full rounded-xl border border-border bg-background px-4 py-3 text-base"
           >
             <option value="" disabled>{t("selectCategory")}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
-          </select>
+          </ManagementSelect>
           {state.errors?.categoryId?.map((message) => (
             <p key={message} className="mt-2 text-sm text-destructive">
               {message}
@@ -73,13 +74,14 @@ export function ManagedSubcategoryForm({
           ))}
         </div>
 
-        <button
+        <Button
           type="submit"
+          size="management"
           disabled={pending}
-          className="min-h-12 rounded-xl bg-foreground px-6 py-3 font-semibold text-background disabled:opacity-50"
+          className="px-6"
         >
           {pending ? t("saving") : t("save")}
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-2">
