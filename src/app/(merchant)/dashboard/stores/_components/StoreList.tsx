@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast, type Id } from "react-toastify";
+import { Button } from "@/components/ui/button";
 import type { MerchantStoreStatus } from "@/lib/merchant-stores/core";
 import {
   deleteStoreAction,
@@ -137,26 +138,26 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Link
-                href={"/dashboard/stores/" + store.id}
-                className="min-h-11 rounded-lg border border-border px-4 py-2 font-semibold"
-              >
-                {t("viewStore")}
-              </Link>
-              <Link
-                href={"/dashboard/stores/" + store.id + "/edit"}
-                className="min-h-11 rounded-lg border border-border px-4 py-2 font-semibold"
-              >
-                {t("editStore")}
-              </Link>
-              <button
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id}>
+                  {t("viewStore")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id + "/edit"}>
+                  {t("editStore")}
+                </Link>
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="management"
                 disabled={store.tenantId !== null}
                 onClick={() => void handleDelete(store)}
-                className="min-h-11 rounded-lg border border-destructive/30 px-4 py-2 font-semibold text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+                className="border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
               >
                 {t("deleteStore")}
-              </button>
+              </Button>
             </div>
           </div>
 
