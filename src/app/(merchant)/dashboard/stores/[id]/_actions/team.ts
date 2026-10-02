@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   assignExistingOwnedStoreManager,
@@ -30,14 +29,9 @@ function teamResultCode(error: unknown) {
   throw error;
 }
 
-function teamPath(storeId: number, result?: string) {
-  const base = `/dashboard/stores/${storeId}/team`;
-  return result ? `${base}?result=${encodeURIComponent(result)}` : base;
-}
-
 function revalidateTeam(storeId: number) {
   revalidatePath(`/dashboard/stores/${storeId}`);
-  revalidatePath(teamPath(storeId));
+  revalidatePath(`/dashboard/stores/${storeId}/team`);
 }
 
 export async function createStoreManagerAction(
@@ -46,7 +40,7 @@ export async function createStoreManagerAction(
 ) {
   const parsed = createSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    redirect(teamPath(storeId, "INVALID_MANAGER_ACCOUNT"));
+    return { ok: false as const, code: "INVALID_MANAGER_ACCOUNT" };
   }
 
   try {
@@ -56,11 +50,11 @@ export async function createStoreManagerAction(
       parsed.data.password
     );
   } catch (error) {
-    redirect(teamPath(storeId, teamResultCode(error)));
+    return { ok: false as const, code: teamResultCode(error) };
   }
 
   revalidateTeam(storeId);
-  redirect(teamPath(storeId, "CREATED"));
+  return { ok: true as const, code: "CREATED" };
 }
 
 export async function assignExistingStoreManagerAction(
@@ -69,17 +63,17 @@ export async function assignExistingStoreManagerAction(
 ) {
   const parsed = assignSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    redirect(teamPath(storeId, "INVALID_MANAGER_ACCOUNT"));
+    return { ok: false as const, code: "INVALID_MANAGER_ACCOUNT" };
   }
 
   try {
     await assignExistingOwnedStoreManager(storeId, parsed.data.email);
   } catch (error) {
-    redirect(teamPath(storeId, teamResultCode(error)));
+    return { ok: false as const, code: teamResultCode(error) };
   }
 
   revalidateTeam(storeId);
-  redirect(teamPath(storeId, "ASSIGNED"));
+  return { ok: true as const, code: "ASSIGNED" };
 }
 
 export async function removeStoreManagerAction(
@@ -88,10 +82,15 @@ export async function removeStoreManagerAction(
 ) {
   const adminUserId = Number(formData.get("adminUserId"));
   if (!Number.isSafeInteger(adminUserId) || adminUserId <= 0) {
-    redirect(teamPath(storeId, "MANAGER_NOT_FOUND"));
+    return { ok: false as const, code: "MANAGER_NOT_FOUND" };
   }
 
-  await removeOwnedStoreManager(storeId, adminUserId);
+  try {
+    await removeOwnedStoreManager(storeId, adminUserId);
+  } catch (error) {
+    return { ok: false as const, code: teamResultCode(error) };
+  }
+
   revalidateTeam(storeId);
-  redirect(teamPath(storeId, "REMOVED"));
+  return { ok: true as const, code: "REMOVED" };
 }
