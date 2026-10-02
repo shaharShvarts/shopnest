@@ -306,6 +306,19 @@ test("Server Store Management context uses authenticated principals and trusted 
   );
 });
 
+test("Merchant Store form uses shared management controls", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/_components/StoreForm.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /ManagementInput/);
+  assert.match(source, /size="management"/);
+  assert.doesNotMatch(source, /const inputClass/);
+  assert.doesNotMatch(source, /const buttonClass/);
+  assert.doesNotMatch(source, /<button\\b/);
+});
+
 class FakeRepository implements StoreManagementRepository {
   owned = new Map<string, StoreManagementRecord>();
   managed = new Map<string, StoreManagementRecord>();
