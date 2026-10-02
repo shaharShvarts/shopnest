@@ -831,7 +831,10 @@
     "addImages": "הוספת תמונות",
     "removeImage": "הסרת תמונה",
     "productImageNumber": "תמונת מוצר {number}",
-    "newProductImageNumber": "תמונת מוצר חדשה {number}"
+    "newProductImageNumber": "תמונת מוצר חדשה {number}",
+    "productDeleted": "המוצר נמחק.",
+    "undo": "ביטול",
+    "undoFailed": "לא ניתן היה לשחזר את המוצר."
   },
   "StoreTeam": {
     "title": "מנהלי החנות",
