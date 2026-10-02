@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ManagementInput } from "@/components/management/ManagementInput";
 import { ManagementSelect } from "@/components/management/ManagementSelect";
 import { ManagementTextarea } from "@/components/management/ManagementTextarea";
+import { ManagementMutationForm } from "@/components/management/ManagementMutation";
 import { getControlPlaneStore } from "@/lib/control-plane/server";
 import { getCustomDomainAdminSummary } from "@/lib/custom-domain-lifecycle/server";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
@@ -19,17 +20,11 @@ export const dynamic = "force-dynamic";
 
 export default async function StoreDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{
-    saved?: string;
-    domainRollback?: string;
-  }>;
 }) {
-  const [{ slug }, query, t] = await Promise.all([
+  const [{ slug }, t] = await Promise.all([
     params,
-    searchParams,
     getTranslations("ControlPlane"),
   ]);
 
@@ -70,23 +65,6 @@ export default async function StoreDetailPage({
         </div>
       </header>
 
-      {query.saved === "1" ? (
-        <p
-          role="status"
-          className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-emerald-900"
-        >
-          {t("storeSaved")}
-        </p>
-      ) : null}
-
-      {query.domainRollback === "1" ? (
-        <p
-          role="status"
-          className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-emerald-900"
-        >
-          {t("domainRollbackComplete")}
-        </p>
-      ) : null}
 
       {store.kind === "available" ? (
         <section className="grid gap-4 sm:grid-cols-3">
@@ -152,8 +130,10 @@ export default async function StoreDetailPage({
               <p className="mt-2 text-sm text-amber-950">
                 {t("customDomainRollbackHelp")}
               </p>
-              <form
+              <ManagementMutationForm
                 action={rollbackCustomDomainAction}
+                successMessage={t("domainRollbackComplete")}
+                failureMessage={t("domainRollbackFailed")}
                 className="mt-4"
               >
                 <input
@@ -169,15 +149,17 @@ export default async function StoreDetailPage({
                 <Button type="submit" size="management" className="px-5">
                   {t("customDomainRollback")}
                 </Button>
-              </form>
+              </ManagementMutationForm>
             </div>
           ) : null}
         </section>
       ) : null}
 
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <form
+        <ManagementMutationForm
           action={updateStoreAction}
+          successMessage={t("storeSaved")}
+          failureMessage={t("storeSaveFailed")}
           className="space-y-5 rounded-xl border bg-white p-6 shadow-sm"
         >
           <input type="hidden" name="slug" value={store.slug} />
@@ -229,7 +211,7 @@ export default async function StoreDetailPage({
           <Button type="submit" size="management" className="px-5">
             {t("saveChanges")}
           </Button>
-        </form>
+        </ManagementMutationForm>
 
         <aside className="space-y-3 rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="font-bold">{t("storeIdentity")}</h2>
