@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
@@ -12,15 +11,12 @@ import { getMerchantSubscriptionRepository } from "@/lib/merchant-subscriptions/
 import { ActivationOrchestrationError } from "@/lib/activation-orchestration/core";
 import { getActivationOrchestrationService } from "@/lib/activation-orchestration/server";
 
-function redirectForPlanError(storeId: number, error: unknown): never {
-  const reason =
-    error instanceof MerchantSubscriptionError &&
+function planErrorCode(error: unknown) {
+  return error instanceof MerchantSubscriptionError &&
     (error.code === "STORE_PROVISIONED" ||
       error.code === "SUBSCRIPTION_LOCKED")
-      ? "locked"
-      : "unavailable";
-
-  redirect("/dashboard/stores/" + storeId + "?plan=" + reason);
+    ? "locked"
+    : "unavailable";
 }
 
 export async function selectStorePlanAction(formData: FormData) {
@@ -32,7 +28,7 @@ export async function selectStorePlanAction(formData: FormData) {
     storeId = parseStoreId(formData.get("storeId"));
     selection = parsePlanSelection(Object.fromEntries(formData));
   } catch {
-    redirect("/dashboard/stores");
+    return { ok: false as const, code: "unavailable" };
   }
 
   try {
@@ -42,15 +38,14 @@ export async function selectStorePlanAction(formData: FormData) {
       selection
     );
   } catch (error) {
-    redirectForPlanError(storeId, error);
+    return { ok: false as const, code: planErrorCode(error) };
   }
 
   revalidatePath("/dashboard/stores/" + storeId);
-  redirect("/dashboard/stores/" + storeId + "?plan=saved");
+  return { ok: true as const, code: "saved" };
 }
 
-
-function activationRedirectReason(error: unknown) {
+function activationResultCode(error: unknown) {
   if (error instanceof ActivationOrchestrationError) {
     if (
       error.code === "STORE_NOT_READY" ||
@@ -70,7 +65,7 @@ export async function activateStoreAction(formData: FormData) {
   try {
     storeId = parseStoreId(formData.get("storeId"));
   } catch {
-    redirect("/dashboard/stores");
+    return { ok: false as const, code: "failed" };
   }
 
   try {
@@ -79,14 +74,9 @@ export async function activateStoreAction(formData: FormData) {
       storeId
     );
   } catch (error) {
-    redirect(
-      "/dashboard/stores/" +
-        storeId +
-        "?activation=" +
-        activationRedirectReason(error)
-    );
+    return { ok: false as const, code: activationResultCode(error) };
   }
 
   revalidatePath("/dashboard/stores/" + storeId);
-  redirect("/dashboard/stores/" + storeId + "?activation=success");
+  return { ok: true as const, code: "success" };
 }
