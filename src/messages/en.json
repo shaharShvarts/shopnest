@@ -835,7 +835,10 @@
     "addImages": "Add images",
     "removeImage": "Remove image",
     "productImageNumber": "Product image {number}",
-    "newProductImageNumber": "New product image {number}"
+    "newProductImageNumber": "New product image {number}",
+    "productDeleted": "Product deleted.",
+    "undo": "Undo",
+    "undoFailed": "The product could not be restored."
   },
   "StoreTeam": {
     "title": "Store managers",
