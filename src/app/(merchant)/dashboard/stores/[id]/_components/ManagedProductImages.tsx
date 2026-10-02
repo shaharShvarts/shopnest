@@ -3,6 +3,7 @@
 import { ImageOff, Plus, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 import { isValidImage } from "@/lib/isValidImage";
 import { resolveTenantImageUrl } from "@/lib/images/image-url.mjs";
 
@@ -147,10 +148,12 @@ export function ManagedProductImages({
               alt={t("newProductImageNumber", { number: index + 1 })}
               className="aspect-square w-full rounded-lg object-contain"
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="management"
               aria-label={t("removeImage")}
-              className="absolute end-3 top-3 inline-flex size-8 items-center justify-center rounded-full bg-background/90 shadow"
+              className="absolute end-3 top-3 w-11 rounded-full bg-background/90 px-0 shadow"
               onClick={() => {
                 const next = newImages.filter((_, itemIndex) => itemIndex !== index);
                 URL.revokeObjectURL(image.url);
@@ -158,7 +161,7 @@ export function ManagedProductImages({
               }}
             >
               <X className="size-4" />
-            </button>
+            </Button>
           </div>
         ))}
 
