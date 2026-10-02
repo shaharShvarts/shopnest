@@ -27,15 +27,23 @@ export default async function MerchantStoreDomainPage({
     notFound();
   }
 
-  const [store, view, customDomainEnabled, t, query] = await Promise.all([
-    getMerchantStoreRepository().findOwnedById(merchant.id, storeId),
+  const store = await getMerchantStoreRepository().findOwnedById(
+    merchant.id,
+    storeId
+  );
+
+  if (!store || store.tenantId === null) {
+    notFound();
+  }
+
+  const [view, customDomainEnabled, t, query] = await Promise.all([
     getMerchantDomainView(merchant.id, storeId),
     storeHasBooleanEntitlement(storeId, "custom_domain"),
     getTranslations("MerchantDomain"),
     searchParams,
   ]);
 
-  if (!store || !view || store.tenantId === null) {
+  if (!view) {
     notFound();
   }
 
