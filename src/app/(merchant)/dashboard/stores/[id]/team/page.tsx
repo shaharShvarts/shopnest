@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import { ManagementInput } from "@/components/management/ManagementInput";
+import { ManagementMutationForm } from "@/components/management/ManagementMutation";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import {
   getOwnedStoreManagerQuota,
@@ -17,10 +18,8 @@ import {
 
 export default async function StoreTeamPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ result?: string }>;
 }) {
   let storeId: number;
   try {
@@ -29,13 +28,23 @@ export default async function StoreTeamPage({
     notFound();
   }
 
-  const [t, managers, quota, planOptions, query] = await Promise.all([
+  const [t, managers, quota, planOptions] = await Promise.all([
     getTranslations("StoreTeam"),
     listOwnedStoreManagers(storeId),
     getOwnedStoreManagerQuota(storeId),
     listStoreManagerPlanOptions(),
-    searchParams,
   ]);
+
+  const resultMessages = {
+    CREATED: t("result.CREATED"),
+    ASSIGNED: t("result.ASSIGNED"),
+    REMOVED: t("result.REMOVED"),
+    MANAGER_LIMIT_REACHED: t("result.MANAGER_LIMIT_REACHED"),
+    MANAGER_NOT_FOUND: t("result.MANAGER_NOT_FOUND"),
+    MANAGER_ALREADY_ASSIGNED: t("result.MANAGER_ALREADY_ASSIGNED"),
+    MANAGER_ACCOUNT_UNAVAILABLE: t("result.MANAGER_ACCOUNT_UNAVAILABLE"),
+    INVALID_MANAGER_ACCOUNT: t("result.INVALID_MANAGER_ACCOUNT"),
+  };
 
   const canAdd = quota.unlimited || quota.used < quota.limit;
   const createAction = createStoreManagerAction.bind(null, storeId);
@@ -51,15 +60,6 @@ export default async function StoreTeamPage({
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="mt-2 text-muted-foreground">{t("description")}</p>
       </header>
-
-      {query.result ? (
-        <p
-          role="status"
-          className="mb-6 rounded-xl bg-muted px-4 py-3 text-sm"
-        >
-          {t(`result.${query.result}`)}
-        </p>
-      ) : null}
 
       <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -125,7 +125,10 @@ export default async function StoreTeamPage({
                     {manager.isActive ? t("active") : t("inactive")}
                   </p>
                 </div>
-                <form action={removeAction}>
+                <ManagementMutationForm
+                  action={removeAction}
+                  messages={resultMessages}
+                >
                   <input
                     type="hidden"
                     name="adminUserId"
@@ -139,7 +142,7 @@ export default async function StoreTeamPage({
                   >
                     {t("remove")}
                   </Button>
-                </form>
+                </ManagementMutationForm>
               </div>
             ))}
           </div>
@@ -149,7 +152,12 @@ export default async function StoreTeamPage({
       <section className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
         <h2 className="text-xl font-bold">{t("createTitle")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{t("createHelp")}</p>
-        <form action={createAction} className="mt-5 space-y-4">
+        <ManagementMutationForm
+          action={createAction}
+          messages={resultMessages}
+          resetOnSuccess
+          className="mt-5 space-y-4"
+        >
           <div>
             <label htmlFor="manager-email" className="mb-1 block text-sm font-medium">
               {t("email")}
@@ -186,13 +194,18 @@ export default async function StoreTeamPage({
           >
             {t("create")}
           </Button>
-        </form>
+        </ManagementMutationForm>
       </section>
 
       <section className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
         <h2 className="text-xl font-bold">{t("assignTitle")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{t("assignHelp")}</p>
-        <form action={assignAction} className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <ManagementMutationForm
+          action={assignAction}
+          messages={resultMessages}
+          resetOnSuccess
+          className="mt-5 flex flex-col gap-3 sm:flex-row"
+        >
           <ManagementInput
             name="email"
             type="email"
@@ -210,7 +223,7 @@ export default async function StoreTeamPage({
           >
             {t("assign")}
           </Button>
-        </form>
+        </ManagementMutationForm>
       </section>
 
       <Button asChild variant="outline" size="management" className="mt-6">
