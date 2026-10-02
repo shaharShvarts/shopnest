@@ -62,7 +62,7 @@ export default async function StoreDetailPage({
             status={store.status}
             label={t(store.status)}
           />
-          <Button asChild variant="outline" className="h-11">
+          <Button asChild variant="outline" size="management">
             <a href={`/${store.slug}/admin`}>
               {t("openTenantAdmin")}
             </a>
@@ -166,7 +166,7 @@ export default async function StoreDetailPage({
                   name="restoreHostname"
                   value={domainSummary.retiring.hostname}
                 />
-                <Button type="submit" className="h-11 px-5">
+                <Button type="submit" size="management" className="px-5">
                   {t("customDomainRollback")}
                 </Button>
               </form>
@@ -226,7 +226,7 @@ export default async function StoreDetailPage({
               placeholder={t("supportNotesPlaceholder")}
             />
           </label>
-          <Button type="submit" className="h-11 px-5">
+          <Button type="submit" size="management" className="px-5">
             {t("saveChanges")}
           </Button>
         </form>
