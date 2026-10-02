@@ -2,25 +2,60 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("merchant signup collects only identity fields and creates a merchant session", async () => {
-  const [page, actions] = await Promise.all([
+test("merchant signup collects identity only and sends a verification link", async () => {
+  const [page, forms, actions] = await Promise.all([
     readFile("src/app/(marketing)/signup/page.tsx", "utf8"),
+    readFile("src/app/(marketing)/_components/MerchantAuthForms.tsx", "utf8"),
     readFile("src/app/(marketing)/_actions/merchant-auth.ts", "utf8"),
   ]);
+
   assert.match(page, /MerchantSignupForm/);
-  assert.match(actions, /name:[\s\S]*email:[\s\S]*phone:[\s\S]*password:/);
-  assert.match(actions, /registerMerchant/);
-  assert.match(actions, /createMerchantSession/);
-  assert.match(actions, /MERCHANT_SESSION_COOKIE/);
-  assert.match(actions, /redirect\("\/dashboard"\)/);
-  const signupBoundary = actions.slice(
+  assert.match(actions, /beginMerchantSignup/);
+  assert.match(actions, /createMerchantSignupDelivery/);
+  assert.match(actions, /\/complete-signup\?token=/);
+
+  const signupSchema = actions.slice(
     actions.indexOf("const signupSchema"),
     actions.indexOf("const loginSchema")
   );
+  assert.match(signupSchema, /name:[\s\S]*email:[\s\S]*phone:/);
+  assert.doesNotMatch(signupSchema, /password/);
   assert.doesNotMatch(
-    signupBoundary,
+    signupSchema,
     /schemaName|tenantSlug|organization|subscription|planId|storeSlug/
   );
+
+  const signupForm = forms.slice(
+    forms.indexOf("export function MerchantSignupForm"),
+    forms.indexOf("export function MerchantCompleteSignupForm")
+  );
+  assert.match(signupForm, /merchant-signup-name/);
+  assert.match(signupForm, /merchant-signup-email/);
+  assert.match(signupForm, /merchant-signup-phone/);
+  assert.doesNotMatch(signupForm, /type="password"/);
+});
+
+test("merchant signup completion sets password and creates the authenticated session", async () => {
+  const [page, forms, actions] = await Promise.all([
+    readFile("src/app/(marketing)/complete-signup/page.tsx", "utf8"),
+    readFile("src/app/(marketing)/_components/MerchantAuthForms.tsx", "utf8"),
+    readFile("src/app/(marketing)/_actions/merchant-auth.ts", "utf8"),
+  ]);
+
+  assert.match(page, /inspectMerchantSignupToken/);
+  assert.match(page, /MerchantCompleteSignupForm/);
+  assert.match(page, /MerchantSignupResendForm/);
+  assert.match(page, /state\.kind === "completed"/);
+  assert.match(page, /current\?\.id === state\.merchantId/);
+  assert.match(page, /redirect\("\/dashboard"\)/);
+  assert.match(page, /redirect\("\/login"\)/);
+
+  assert.match(forms, /name="password"/);
+  assert.match(forms, /name="passwordConfirmation"/);
+  assert.match(actions, /completeMerchantSignup/);
+  assert.match(actions, /createMerchantSession/);
+  assert.match(actions, /setMerchantSessionCookie/);
+  assert.match(actions, /resendMerchantSignupVerification/);
 });
 
 test("shared login authenticates Owner first and then an eligible Manager", async () => {
@@ -58,15 +93,17 @@ test("dashboard logout invalidates both Owner and Manager workspace sessions", a
   assert.doesNotMatch(action, /CUSTOMER_SESSION_COOKIE|logoutCustomer/);
 });
 
-test("merchant auth pages are accessible forms with password recovery", async () => {
-  const [signup, login, forgot, reset, forms] = await Promise.all([
+test("merchant auth pages are accessible forms with verified signup and recovery", async () => {
+  const [signup, complete, login, forgot, reset, forms] = await Promise.all([
     readFile("src/app/(marketing)/signup/page.tsx", "utf8"),
+    readFile("src/app/(marketing)/complete-signup/page.tsx", "utf8"),
     readFile("src/app/(marketing)/login/page.tsx", "utf8"),
     readFile("src/app/(marketing)/forgot-password/page.tsx", "utf8"),
     readFile("src/app/(marketing)/reset-password/page.tsx", "utf8"),
     readFile("src/app/(marketing)/_components/MerchantAuthForms.tsx", "utf8"),
   ]);
   assert.match(signup, /MerchantSignupForm/);
+  assert.match(complete, /MerchantCompleteSignupForm/);
   assert.match(login, /MerchantLoginForm/);
   assert.match(forgot, /MerchantForgotPasswordForm/);
   assert.match(reset, /MerchantResetPasswordForm/);
