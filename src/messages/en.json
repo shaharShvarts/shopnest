@@ -802,6 +802,7 @@
     "no": "No",
     "edit": "Edit",
     "delete": "Delete",
+    "deleteFailed": "The item could not be deleted. It may still be in use.",
     "noCategories": "No categories yet.",
     "noSubcategories": "No subcategories yet.",
     "noProducts": "No products yet.",
