@@ -4,15 +4,23 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  completeMerchantSignupAction,
   loginMerchantAction,
   requestMerchantPasswordResetAction,
+  resendMerchantSignupAction,
   resetMerchantPasswordAction,
   signupMerchantAction,
   type MerchantAuthActionState,
+  type MerchantCompleteSignupActionState,
   type MerchantForgotPasswordActionState,
+  type MerchantSignupActionState,
+  type MerchantSignupResendActionState,
 } from "../_actions/merchant-auth";
 
 const initialAuthState: MerchantAuthActionState = { success: false };
+const initialSignupState: MerchantSignupActionState = { submitted: false };
+const initialCompleteSignupState: MerchantCompleteSignupActionState = { success: false };
+const initialSignupResendState: MerchantSignupResendActionState = { submitted: false };
 const initialForgotState: MerchantForgotPasswordActionState = { submitted: false };
 
 const inputClass =
@@ -31,7 +39,32 @@ function ErrorMessage({ message }: { message?: string }) {
 
 export function MerchantSignupForm() {
   const t = useTranslations("MerchantAuth");
-  const [state, action, pending] = useActionState(signupMerchantAction, initialAuthState);
+  const [state, action, pending] = useActionState(
+    signupMerchantAction,
+    initialSignupState
+  );
+
+  if (state.submitted) {
+    return (
+      <div className="space-y-5">
+        <p
+          role="status"
+          className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+        >
+          {t("signupVerificationSent")}
+        </p>
+        <p className="text-center text-sm text-muted-foreground">
+          {t("hasAccount")}{" "}
+          <Link
+            href="/login"
+            className="min-h-11 font-semibold text-foreground underline underline-offset-4"
+          >
+            {t("signIn")}
+          </Link>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form action={action} className="space-y-5">
@@ -47,19 +80,79 @@ export function MerchantSignupForm() {
         <label htmlFor="merchant-signup-phone" className="mb-1 block text-sm font-medium">{t("phone")}</label>
         <input id="merchant-signup-phone" name="phone" type="tel" autoComplete="tel" required maxLength={64} className={inputClass} />
       </div>
-      <div>
-        <label htmlFor="merchant-signup-password" className="mb-1 block text-sm font-medium">{t("password")}</label>
-        <input id="merchant-signup-password" name="password" type="password" autoComplete="new-password" required minLength={12} maxLength={256} className={inputClass} />
-        <p className="mt-1 text-xs text-muted-foreground">{t("passwordHint")}</p>
-      </div>
       <ErrorMessage message={state.message ? t(state.message) : undefined} />
       <button type="submit" disabled={pending} className={buttonClass}>
-        {pending ? t("creatingAccount") : t("createAccount")}
+        {pending ? t("sendingVerificationLink") : t("createAccount")}
       </button>
       <p className="text-center text-sm text-muted-foreground">
         {t("hasAccount")}{" "}
         <Link href="/login" className="min-h-11 font-semibold text-foreground underline underline-offset-4">{t("signIn")}</Link>
       </p>
+    </form>
+  );
+}
+
+export function MerchantCompleteSignupForm({ token }: { token: string }) {
+  const t = useTranslations("MerchantAuth");
+  const [state, action, pending] = useActionState(
+    completeMerchantSignupAction,
+    initialCompleteSignupState
+  );
+
+  return (
+    <form action={action} className="space-y-5">
+      <input type="hidden" name="token" value={token} />
+      <div>
+        <label htmlFor="merchant-signup-password" className="mb-1 block text-sm font-medium">{t("newPassword")}</label>
+        <input id="merchant-signup-password" name="password" type="password" autoComplete="new-password" required minLength={12} maxLength={256} className={inputClass} />
+        <p className="mt-1 text-xs text-muted-foreground">{t("passwordHint")}</p>
+      </div>
+      <div>
+        <label htmlFor="merchant-signup-password-confirmation" className="mb-1 block text-sm font-medium">{t("confirmPassword")}</label>
+        <input id="merchant-signup-password-confirmation" name="passwordConfirmation" type="password" autoComplete="new-password" required minLength={12} maxLength={256} className={inputClass} />
+      </div>
+      <ErrorMessage message={state.message ? t(state.message) : undefined} />
+      <button type="submit" disabled={pending} className={buttonClass}>
+        {pending ? t("completingSignup") : t("completeSignup")}
+      </button>
+    </form>
+  );
+}
+
+export function MerchantSignupResendForm({
+  token,
+  email,
+}: {
+  token: string;
+  email: string;
+}) {
+  const t = useTranslations("MerchantAuth");
+  const [state, action, pending] = useActionState(
+    resendMerchantSignupAction,
+    initialSignupResendState
+  );
+
+  if (state.submitted) {
+    return (
+      <p
+        role="status"
+        className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+      >
+        {t("signupVerificationResent")}
+      </p>
+    );
+  }
+
+  return (
+    <form action={action} className="space-y-5">
+      <input type="hidden" name="token" value={token} />
+      <p className="text-sm text-muted-foreground">
+        {t("signupLinkExpiredDetail", { email })}
+      </p>
+      <ErrorMessage message={state.message ? t(state.message) : undefined} />
+      <button type="submit" disabled={pending} className={buttonClass}>
+        {pending ? t("sendingVerificationLink") : t("resendVerificationLink")}
+      </button>
     </form>
   );
 }
