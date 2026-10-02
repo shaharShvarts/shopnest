@@ -319,6 +319,19 @@ test("Merchant Store form uses shared management controls", async () => {
   assert.doesNotMatch(source, /<button\\b/);
 });
 
+test("Store team page uses shared management controls", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/team/page.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /ManagementInput/);
+  assert.match(source, /size="management"/);
+  assert.match(source, /<Button asChild variant="outline" size="management"/);
+  assert.doesNotMatch(source, /<button\\b/);
+  assert.doesNotMatch(source, /min-h-10/);
+});
+
 class FakeRepository implements StoreManagementRepository {
   owned = new Map<string, StoreManagementRecord>();
   managed = new Map<string, StoreManagementRecord>();
