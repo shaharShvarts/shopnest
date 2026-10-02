@@ -427,8 +427,10 @@ test("management Button size and Plans form use the shared 44px controls", async
   assert.doesNotMatch(plans, /<input\\b[^>]*\\bname="(?:code|name)"[^>]*>/);
   assert.match(priceInput, /<ManagementInput/);
   assert.doesNotMatch(priceInput, /className="min-h-11/);
-  assert.match(integerInput, /className="flex h-11 items-stretch overflow-hidden rounded-lg/);
-  assert.match(integerInput, /<Button[\s\S]*?variant="link"/);
+  assert.match(integerInput, /className="flex h-11 min-w-0 flex-1 items-stretch overflow-hidden rounded-lg/);
+  assert.match(integerInput, /<Button[\s\S]*?variant="outline"[\s\S]*?size="management"/);
+  assert.match(integerInput, /className="shrink-0 px-3 text-sm text-blue-700"/);
+  assert.doesNotMatch(integerInput, /space-y-1/);
   assert.doesNotMatch(plans, /self-start border-red-200/);
 });
 
