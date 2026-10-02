@@ -415,6 +415,45 @@ test("Store detail and Store list use shared management controls", async () => {
   assert.doesNotMatch(list, /<button\\b/);
 });
 
+test("Merchant same-page mutations preserve the current management workspace", async () => {
+  const [
+    mutation,
+    detail,
+    detailActions,
+    team,
+    teamActions,
+    domain,
+    policies,
+    storeList,
+  ] = await Promise.all([
+    readFile("src/components/management/ManagementMutation.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/_actions.ts", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/team/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/_actions/team.ts", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/domain/DomainManager.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/policies/PolicyDocumentForm.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/_components/StoreList.tsx", "utf8"),
+  ]);
+
+  assert.match(mutation, /event\.preventDefault\(\)/);
+  assert.match(mutation, /router\.refresh\(\)/);
+  assert.doesNotMatch(mutation, /router\.push|router\.replace|window\.location/);
+
+  assert.match(detail, /ManagementMutationForm/);
+  assert.doesNotMatch(detailActions, /next\/navigation/);
+  assert.doesNotMatch(detailActions, /redirect\(/);
+
+  assert.match(team, /ManagementMutationForm/);
+  assert.doesNotMatch(teamActions, /next\/navigation/);
+  assert.doesNotMatch(teamActions, /redirect\(/);
+
+  assert.match(domain, /event\.preventDefault\(\)/);
+  assert.match(domain, /router\.refresh\(\)/);
+  assert.match(policies, /useActionState/);
+  assert.match(storeList, /router\.refresh\(\)/);
+});
+
 class FakeRepository implements StoreManagementRepository {
   owned = new Map<string, StoreManagementRecord>();
   managed = new Map<string, StoreManagementRecord>();
