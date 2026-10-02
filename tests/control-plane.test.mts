@@ -484,6 +484,8 @@ test("Control Plane same-page mutations use the shared in-place interaction", as
   assert.match(mutation, /event\.preventDefault\(\)/);
   assert.match(mutation, /useTransition/);
   assert.match(mutation, /router\.refresh\(\)/);
+  assert.match(mutation, /fixed inset-x-4 top-4/);
+  assert.doesNotMatch(mutation, /basis-full|col-span-full/);
   assert.doesNotMatch(mutation, /router\.push|router\.replace|window\.location/);
 
   assert.match(plansPage, /ManagementMutationForm/);
