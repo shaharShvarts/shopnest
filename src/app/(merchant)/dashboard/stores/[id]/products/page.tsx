@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { products } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
@@ -48,12 +49,9 @@ export default async function ManagedProductsPage({
           <h1 className="text-3xl font-bold tracking-tight">{t("products")}</h1>
         </div>
         {canAddProduct ? (
-          <Link
-            href={`/dashboard/stores/${storeId}/products/new`}
-            className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-          >
-            {t("addProduct")}
-          </Link>
+          <Button asChild size="management">
+            <Link href={`/dashboard/stores/${storeId}/products/new`}>{t("addProduct")}</Link>
+        </Button>
         ) : (
           <span
             aria-disabled="true"
@@ -102,19 +100,20 @@ export default async function ManagedProductsPage({
                 <td className="px-4 py-3 text-start">{product.isActive ? t("yes") : t("no")}</td>
                 <td className="px-4 py-3 text-end">
                   <div className="flex justify-end gap-2">
-                    <Link
-                      href={`/dashboard/stores/${storeId}/products/${product.id}/edit`}
-                      className="rounded-lg border border-border px-3 py-2 font-semibold"
-                    >
-                      {t("edit")}
-                    </Link>
+                    <Button asChild variant="outline" size="management" className="px-3">
+                      <Link href={`/dashboard/stores/${storeId}/products/${product.id}/edit`}>
+                        {t("edit")}
+                      </Link>
+                    </Button>
                     <form action={deleteManagedProduct.bind(null, storeId, product.id)}>
-                      <button
+                      <Button
                         type="submit"
-                        className="rounded-lg border border-destructive px-3 py-2 font-semibold text-destructive"
+                        variant="outline"
+                        size="management"
+                        className="border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                       >
                         {t("delete")}
-                      </button>
+                      </Button>
                     </form>
                   </div>
                 </td>
