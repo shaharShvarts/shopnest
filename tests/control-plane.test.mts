@@ -413,6 +413,24 @@ test("schema code no longer defines the legacy tenant plan enum", async () => {
 });
 
 
+test("management Button size and Plans form use the shared 44px controls", async () => {
+  const [button, plans, priceInput, integerInput] = await Promise.all([
+    readFile("src/components/ui/button.tsx", "utf8"),
+    readFile("src/app/admin/plans/page.tsx", "utf8"),
+    readFile("src/app/admin/plans/PlanPriceInput.tsx", "utf8"),
+    readFile("src/app/admin/plans/EntitlementIntegerInput.tsx", "utf8"),
+  ]);
+
+  assert.match(button, /management:\s*"h-11 rounded-lg/);
+  assert.match(plans, /ManagementInput/);
+  assert.match(plans, /size="management"/);
+  assert.doesNotMatch(plans, /<input\s+[\s\S]*?name="(?:code|name)"[\s\S]*?className=/);
+  assert.match(priceInput, /<ManagementInput/);
+  assert.doesNotMatch(priceInput, /className="min-h-11/);
+  assert.match(integerInput, /className="flex h-11 items-stretch overflow-hidden rounded-lg/);
+  assert.match(integerInput, /<Button[\s\S]*?variant="link"/);
+});
+
 test("Control Plane store settings use shared management controls", async () => {
   const [page, input, select, textarea] = await Promise.all([
     readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
