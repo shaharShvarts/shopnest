@@ -463,6 +463,8 @@ test("Catalog lists and gallery use shared management actions", async () => {
 
   for (const source of [categoriesPage, productsPage, subcategoriesPage]) {
     assert.match(source, /size="management"/);
+    assert.match(source, /ManagementMutationButton/);
+    assert.doesNotMatch(source, /<form action=\\{deleteManaged/);
     assert.doesNotMatch(source, /<button\\b/);
   }
 
