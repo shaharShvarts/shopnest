@@ -23,17 +23,17 @@ export default function EntitlementIntegerInput({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="flex items-center gap-2">
       <input type="hidden" name={name} value={value} />
 
-      <div className="flex h-11 items-stretch overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm transition-[border-color,box-shadow] hover:border-slate-400 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200">
+      <div className="flex h-11 min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm transition-[border-color,box-shadow] hover:border-slate-400 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200">
         <div className="flex min-w-0 flex-1 items-center px-3 py-2">
-          <span className="tabular-nums">
+          <span className="truncate tabular-nums">
             {unlimited ? unlimitedLabel : value}
           </span>
         </div>
 
-        <div className="flex w-10 flex-col border-s">
+        <div className="flex w-10 shrink-0 flex-col border-s">
           <button
             type="button"
             aria-label="Increase"
@@ -56,10 +56,11 @@ export default function EntitlementIntegerInput({
 
       <Button
         type="button"
-        variant="link"
-        size="sm"
+        variant="outline"
+        size="management"
+        aria-pressed={unlimited}
         onClick={() => setValue(-1)}
-        className="h-auto p-0 text-sm font-medium text-blue-700"
+        className="shrink-0 px-3 text-sm text-blue-700"
       >
         {unlimitedLabel}
       </Button>
