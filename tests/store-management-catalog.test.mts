@@ -242,6 +242,30 @@ test("Managed product form uses shared management controls and 44px actions", as
   assert.doesNotMatch(source, /min-h-12/);
 });
 
+test("Managed category and subcategory forms use shared management controls", async () => {
+  const [categoryForm, subcategoryForm] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedCategoryForm.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedSubcategoryForm.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(categoryForm, /ManagementInput/);
+  assert.match(categoryForm, /size="management"/);
+  assert.doesNotMatch(categoryForm, /<input\\b/);
+  assert.doesNotMatch(categoryForm, /min-h-12/);
+
+  assert.match(subcategoryForm, /ManagementInput/);
+  assert.match(subcategoryForm, /ManagementSelect/);
+  assert.match(subcategoryForm, /size="management"/);
+  assert.doesNotMatch(subcategoryForm, /<select\\b/);
+  assert.doesNotMatch(subcategoryForm, /min-h-12/);
+});
+
 test("Managed catalog edit keeps the existing image unless a replacement is selected", async () => {
   const [actions, upload, categoryForm, editPage] = await Promise.all([
     readFile(
