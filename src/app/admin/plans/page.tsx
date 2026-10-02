@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,32 +9,31 @@ import { formatMinorAmount } from "@/lib/plan-administration/core";
 import { listPlanAdministration } from "@/lib/plan-administration/server";
 import EntitlementIntegerInput from "./EntitlementIntegerInput";
 import PlanPriceInput from "./PlanPriceInput";
-import PlanFlashMessage from "./PlanFlashMessage";
-import RemovePlanEntitlementButton from "./RemovePlanEntitlementButton";
 import { ManagementInput } from "@/components/management/ManagementInput";
 import { ManagementSelect } from "@/components/management/ManagementSelect";
+import {
+  ManagementMutationButton,
+  ManagementMutationForm,
+} from "@/components/management/ManagementMutation";
 
 export const dynamic = "force-dynamic";
 
-const PLAN_RESULTS = new Set([
-  "PLAN_CREATE_FAILED",
-  "PLAN_CREATED",
-  "ENTITLEMENT_ADD_FAILED",
-  "ENTITLEMENT_ADDED",
-  "ENTITLEMENT_REMOVE_FAILED",
-  "ENTITLEMENT_REMOVED",
-  "PLAN_UPDATE_FAILED",
-  "PLAN_UPDATED",
-]);
-
 export default async function PlansPage() {
-  const [plans, t, cookieStore] = await Promise.all([
+  const [plans, t] = await Promise.all([
     listPlanAdministration(),
     getTranslations("ControlPlane"),
-    cookies(),
   ]);
-  const rawResult = cookieStore.get("SHOPNEST_PLAN_RESULT")?.value;
-  const result = rawResult && PLAN_RESULTS.has(rawResult) ? rawResult : null;
+
+  const planMessages = {
+    PLAN_CREATE_FAILED: t("planResult.PLAN_CREATE_FAILED"),
+    PLAN_CREATED: t("planResult.PLAN_CREATED"),
+    ENTITLEMENT_ADD_FAILED: t("planResult.ENTITLEMENT_ADD_FAILED"),
+    ENTITLEMENT_ADDED: t("planResult.ENTITLEMENT_ADDED"),
+    ENTITLEMENT_REMOVE_FAILED: t("planResult.ENTITLEMENT_REMOVE_FAILED"),
+    ENTITLEMENT_REMOVED: t("planResult.ENTITLEMENT_REMOVED"),
+    PLAN_UPDATE_FAILED: t("planResult.PLAN_UPDATE_FAILED"),
+    PLAN_UPDATED: t("planResult.PLAN_UPDATED"),
+  };
 
   return (
     <div className="space-y-8">
@@ -46,17 +44,13 @@ export default async function PlansPage() {
         </p>
       </header>
 
-      {result ? (
-        <PlanFlashMessage message={t(`planResult.${result}`)} />
-      ) : null}
-
       <section className="space-y-5">
         {plans.map((plan) => (
           <article
             key={plan.id}
             className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
           >
-            <form action={updatePlanAction}>
+            <ManagementMutationForm action={updatePlanAction} messages={planMessages}>
               <input type="hidden" name="planId" value={plan.id} />
 
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -153,13 +147,16 @@ export default async function PlansPage() {
                           />
                         )}
 
-                        <RemovePlanEntitlementButton
-                          planId={plan.id}
-                          entitlementId={entitlement.id}
-                          label={t("removeFeature")}
-                          failureMessage={t(
-                            "planResult.ENTITLEMENT_REMOVE_FAILED"
+                        <ManagementMutationButton
+                          action={removePlanEntitlementAction.bind(
+                            null,
+                            plan.id,
+                            entitlement.id
                           )}
+                          label={t("removeFeature")}
+                          messages={planMessages}
+                          failureMessage={t("planResult.ENTITLEMENT_REMOVE_FAILED")}
+                          className="border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                         />
                       </div>
                     ))}
@@ -174,11 +171,13 @@ export default async function PlansPage() {
               >
                 {t("savePlanConfiguration")}
               </Button>
-            </form>
+            </ManagementMutationForm>
 
             {plan.availableEntitlements.length > 0 ? (
-              <form
+              <ManagementMutationForm
                 action={addPlanEntitlementAction}
+                messages={planMessages}
+                resetOnSuccess
                 className="mt-4 flex flex-col gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/40 p-4 md:flex-row"
               >
                 <input type="hidden" name="planId" value={plan.id} />
@@ -205,7 +204,7 @@ export default async function PlansPage() {
                 >
                   + {t("addFeature")}
                 </Button>
-              </form>
+              </ManagementMutationForm>
             ) : (
               <p className="mt-4 text-sm text-slate-500">
                 {t("allSupportedFeaturesAdded")}
@@ -218,7 +217,12 @@ export default async function PlansPage() {
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold">{t("createPlan")}</h2>
         <p className="mt-2 text-sm text-slate-600">{t("createPlanHelp")}</p>
-        <form action={createPlanAction} className="mt-5 grid gap-3 md:grid-cols-2">
+        <ManagementMutationForm
+          action={createPlanAction}
+          messages={planMessages}
+          resetOnSuccess
+          className="mt-5 grid gap-3 md:grid-cols-2"
+        >
           <ManagementInput
             name="code"
             type="text"
@@ -243,7 +247,7 @@ export default async function PlansPage() {
           >
             {t("createPlan")}
           </Button>
-        </form>
+        </ManagementMutationForm>
       </section>
     </div>
   );
