@@ -111,7 +111,16 @@ Files to normalize after the Store detail form:
 - `src/app/admin/page.tsx`
 - `src/app/admin/stores/page.tsx`
 
-These are lower risk because the first audit pass found fewer editable raw form controls, but shell, card, table, links-as-actions, spacing, badge treatment, and responsive behavior still need visual review against the standard.
+These are lower risk because the first audit pass found fewer editable raw form controls.
+
+Wave 1 review completed:
+
+- Super Admin login fields -> `ManagementInput`
+- Super Admin login action -> shared `Button size="management"`
+- login card -> standard management card border/radius/background/shadow
+- Store table -> horizontal overflow protection and visible keyboard focus on Store links
+- Featured Store cards -> standard border/shadow treatment and visible keyboard focus
+- dashboard/store listing pages require no additional form-control migration at this stage
 
 ### B. Merchant / Store management
 
@@ -292,7 +301,7 @@ Do not extract abstractions solely for theoretical completeness. Extract where r
 3. standardize management Button sizing convention ✅
 4. migrate `/admin/stores/[slug]` ✅
 5. finish remaining Plan inputs/integer control ✅
-6. review Control Plane tables/cards/login
+6. review Control Plane tables/cards/login ✅
 
 Reason: the Control Plane is smaller and establishes the canonical management language.
 
