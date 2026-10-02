@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   addPlanEntitlementAction,
   createPlanAction,
+  removePlanEntitlementAction,
   updatePlanAction,
 } from "@/app/admin/_actions/plans";
 import { formatMinorAmount } from "@/lib/plan-administration/core";
