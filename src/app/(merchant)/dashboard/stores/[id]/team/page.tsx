@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import {
   getOwnedStoreManagerQuota,
@@ -129,12 +131,14 @@ export default async function StoreTeamPage({
                     name="adminUserId"
                     value={manager.adminUserId}
                   />
-                  <button
+                  <Button
                     type="submit"
-                    className="min-h-10 rounded-lg border border-destructive/30 px-4 py-2 font-semibold text-destructive"
+                    variant="outline"
+                    size="management"
+                    className="border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                   >
                     {t("remove")}
-                  </button>
+                  </Button>
                 </form>
               </div>
             ))}
@@ -150,39 +154,38 @@ export default async function StoreTeamPage({
             <label htmlFor="manager-email" className="mb-1 block text-sm font-medium">
               {t("email")}
             </label>
-            <input
+            <ManagementInput
               id="manager-email"
               name="email"
               type="email"
               required
               disabled={!canAdd}
-              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 disabled:opacity-50"
             />
           </div>
           <div>
             <label htmlFor="manager-password" className="mb-1 block text-sm font-medium">
               {t("temporaryPassword")}
             </label>
-            <input
+            <ManagementInput
               id="manager-password"
               name="password"
               type="password"
               minLength={12}
               required
               disabled={!canAdd}
-              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 disabled:opacity-50"
             />
             <p className="mt-1 text-xs text-muted-foreground">
               {t("passwordHelp")}
             </p>
           </div>
-          <button
+          <Button
             type="submit"
+            size="management"
             disabled={!canAdd}
-            className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50"
+            className="px-5"
           >
             {t("create")}
-          </button>
+          </Button>
         </form>
       </section>
 
@@ -190,30 +193,29 @@ export default async function StoreTeamPage({
         <h2 className="text-xl font-bold">{t("assignTitle")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{t("assignHelp")}</p>
         <form action={assignAction} className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <input
+          <ManagementInput
             name="email"
             type="email"
             required
             disabled={!canAdd}
             placeholder={t("email")}
-            className="min-h-11 flex-1 rounded-lg border border-border bg-background px-3 py-2 disabled:opacity-50"
+            className="flex-1"
           />
-          <button
+          <Button
             type="submit"
+            variant="outline"
+            size="management"
             disabled={!canAdd}
-            className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className="px-5"
           >
             {t("assign")}
-          </button>
+          </Button>
         </form>
       </section>
 
-      <Link
-        href={`/dashboard/stores/${storeId}`}
-        className="mt-6 inline-flex min-h-11 items-center rounded-lg border border-border px-5 py-2.5 font-semibold"
-      >
-        {t("back")}
-      </Link>
+      <Button asChild variant="outline" size="management" className="mt-6">
+        <Link href={`/dashboard/stores/${storeId}`}>{t("back")}</Link>
+      </Button>
     </main>
   );
 }
