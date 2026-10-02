@@ -8,13 +8,13 @@ import { StoreStatusBadge } from "./StoreStatusBadge";
 export async function StoreTable({ stores }: { stores: StoreSummary[] }) {
   const t = await getTranslations("ControlPlane");
   return (
-    <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
       <Table>
         <TableHeader><TableRow><TableHead>{t("store")}</TableHead><TableHead>{t("status")}</TableHead><TableHead>{t("plan")}</TableHead><TableHead>{t("orders")}</TableHead><TableHead>{t("sales")}</TableHead><TableHead>{t("lastActivity")}</TableHead></TableRow></TableHeader>
         <TableBody>
           {stores.map((store) => (
             <TableRow key={store.slug}>
-              <TableCell><Link className="font-semibold text-indigo-700 hover:underline" href={`/admin/stores/${store.slug}`}>{store.displayName}</Link><div className="font-mono text-xs text-slate-500">{store.slug}</div></TableCell>
+              <TableCell><Link className="font-semibold text-indigo-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200" href={`/admin/stores/${store.slug}`}>{store.displayName}</Link><div className="font-mono text-xs text-slate-500">{store.slug}</div></TableCell>
               <TableCell><StoreStatusBadge status={store.status} label={t(store.status)} /></TableCell>
               <TableCell>{store.subscriptionPlanName ?? "—"}</TableCell>
               <TableCell>{store.kind === "available" ? formatNumber(store.metrics.orderCount) : t("unavailable")}</TableCell>
