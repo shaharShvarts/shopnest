@@ -227,6 +227,21 @@ test("Unified catalog UI has Hebrew and English translations and dashboard langu
 });
 
 
+test("Managed product form uses shared management controls and 44px actions", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_components/ManagedProductForm.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /ManagementInput/);
+  assert.match(source, /ManagementSelect/);
+  assert.match(source, /ManagementTextarea/);
+  assert.match(source, /size="management"/);
+  assert.doesNotMatch(source, /<select\\b/);
+  assert.doesNotMatch(source, /<textarea\\b/);
+  assert.doesNotMatch(source, /min-h-12/);
+});
+
 test("Managed catalog edit keeps the existing image unless a replacement is selected", async () => {
   const [actions, upload, categoryForm, editPage] = await Promise.all([
     readFile(
