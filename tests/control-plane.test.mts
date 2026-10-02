@@ -471,28 +471,30 @@ test("Control Plane shell uses 44px shared utility controls and keyboard focus",
   assert.match(navigation, /focus-visible:ring-2/);
 });
 
-test("Plan entitlement removal refreshes in place without redirect navigation", async () => {
-  const [actions, page, removeButton] = await Promise.all([
-    readFile("src/app/admin/_actions/plans.ts", "utf8"),
-    readFile("src/app/admin/plans/page.tsx", "utf8"),
-    readFile("src/app/admin/plans/RemovePlanEntitlementButton.tsx", "utf8"),
-  ]);
+test("Control Plane same-page mutations use the shared in-place interaction", async () => {
+  const [mutation, planActions, plansPage, storeActions, storePage] =
+    await Promise.all([
+      readFile("src/components/management/ManagementMutation.tsx", "utf8"),
+      readFile("src/app/admin/_actions/plans.ts", "utf8"),
+      readFile("src/app/admin/plans/page.tsx", "utf8"),
+      readFile("src/app/admin/_actions/stores.ts", "utf8"),
+      readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
+    ]);
 
-  assert.match(actions, /removePlanEntitlementInlineAction/);
-  assert.match(
-    actions,
-    /removePlanEntitlementInlineAction[\s\S]*?revalidatePath\("\/admin\/plans"\)[\s\S]*?return \{ ok: true as const \}/
-  );
-  const inlineRemoveAction = actions.match(
-    /export async function removePlanEntitlementInlineAction[\s\S]*?\n}\n/
-  )?.[0];
-  assert.ok(inlineRemoveAction);
-  assert.doesNotMatch(inlineRemoveAction, /redirectWithPlanResult/);
-  assert.match(page, /RemovePlanEntitlementButton/);
-  assert.doesNotMatch(page, /formAction=\{removePlanEntitlementAction/);
-  assert.match(removeButton, /useTransition/);
-  assert.match(removeButton, /router\.refresh\(\)/);
-  assert.doesNotMatch(removeButton, /router\.push|router\.replace|window\.location/);
+  assert.match(mutation, /event\.preventDefault\(\)/);
+  assert.match(mutation, /useTransition/);
+  assert.match(mutation, /router\.refresh\(\)/);
+  assert.doesNotMatch(mutation, /router\.push|router\.replace|window\.location/);
+
+  assert.match(plansPage, /ManagementMutationForm/);
+  assert.match(plansPage, /ManagementMutationButton/);
+  assert.doesNotMatch(plansPage, /formAction=\{removePlanEntitlementAction/);
+  assert.doesNotMatch(planActions, /next\/navigation/);
+  assert.doesNotMatch(planActions, /redirect\(/);
+
+  assert.match(storePage, /ManagementMutationForm/);
+  assert.doesNotMatch(storeActions, /next\/navigation/);
+  assert.doesNotMatch(storeActions, /redirect\(/);
 });
 
 test("Control Plane store settings use shared management controls", async () => {
