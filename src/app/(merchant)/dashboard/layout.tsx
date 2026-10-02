@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
 import { requireStoreDashboardPrincipal } from "@/lib/store-management/server";
 import { logoutDashboardAction } from "./_actions";
 import { DashboardNavigation } from "./_components/DashboardNavigation";
@@ -44,12 +45,14 @@ export default async function MerchantDashboardLayout({
             <DashboardLanguageSwitcher locale={locale === "en" ? "en" : "he"} />
 
             <form action={logoutDashboardAction}>
-              <button
+              <Button
                 type="submit"
-                className="min-h-11 rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted"
+                variant="outline"
+                size="management"
+                className="px-4"
               >
                 {tAuth("logout")}
-              </button>
+              </Button>
             </form>
           </div>
         </div>
