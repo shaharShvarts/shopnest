@@ -12,6 +12,7 @@ import { listPlanAdministration } from "@/lib/plan-administration/server";
 import EntitlementIntegerInput from "./EntitlementIntegerInput";
 import PlanPriceInput from "./PlanPriceInput";
 import PlanFlashMessage from "./PlanFlashMessage";
+import { ManagementInput } from "@/components/management/ManagementInput";
 import { ManagementSelect } from "@/components/management/ManagementSelect";
 
 export const dynamic = "force-dynamic";
@@ -76,14 +77,13 @@ export default async function PlansPage() {
               <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <label className="space-y-1">
                   <span className="text-sm font-medium">{t("planName")}</span>
-                  <input
+                  <ManagementInput
                     name="name"
                     type="text"
                     required
                     minLength={1}
                     maxLength={160}
                     defaultValue={plan.name}
-                    className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm transition-colors hover:border-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
                   />
                 </label>
 
@@ -156,14 +156,14 @@ export default async function PlansPage() {
                         <Button
                           type="submit"
                           variant="outline"
-                          size="sm"
+                          size="management"
                           formAction={removePlanEntitlementAction.bind(
                             null,
                             plan.id,
                             entitlement.id
                           )}
                           formNoValidate
-                          className="h-11 self-start border-red-200 px-4 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
+                          className="self-start border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                         >
                           {t("removeFeature")}
                         </Button>
@@ -175,7 +175,8 @@ export default async function PlansPage() {
 
               <Button
                 type="submit"
-                className="mt-6 h-11 bg-slate-900 px-5 text-white shadow-sm hover:bg-slate-800"
+                size="management"
+                className="mt-6 bg-slate-900 px-5 text-white shadow-sm hover:bg-slate-800"
               >
                 {t("savePlanConfiguration")}
               </Button>
@@ -205,7 +206,8 @@ export default async function PlansPage() {
                 <Button
                   type="submit"
                   variant="outline"
-                  className="h-11 px-5 hover:bg-slate-50"
+                  size="management"
+                  className="px-5 hover:bg-slate-50"
                 >
                   + {t("addFeature")}
                 </Button>
@@ -223,7 +225,7 @@ export default async function PlansPage() {
         <h2 className="text-xl font-bold">{t("createPlan")}</h2>
         <p className="mt-2 text-sm text-slate-600">{t("createPlanHelp")}</p>
         <form action={createPlanAction} className="mt-5 grid gap-3 md:grid-cols-2">
-          <input
+          <ManagementInput
             name="code"
             type="text"
             required
@@ -231,20 +233,19 @@ export default async function PlansPage() {
             maxLength={64}
             pattern="[a-z0-9][a-z0-9_-]*"
             placeholder={t("planCode")}
-            className="min-h-11 rounded-md border px-3 py-2"
           />
-          <input
+          <ManagementInput
             name="name"
             type="text"
             required
             minLength={1}
             maxLength={160}
             placeholder={t("planName")}
-            className="min-h-11 rounded-md border px-3 py-2"
           />
           <Button
             type="submit"
-            className="h-11 bg-slate-900 px-4 text-white shadow-sm hover:bg-slate-800 md:col-span-2"
+            size="management"
+            className="bg-slate-900 px-4 text-white shadow-sm hover:bg-slate-800 md:col-span-2"
           >
             {t("createPlan")}
           </Button>
