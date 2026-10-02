@@ -41,7 +41,7 @@ export function DashboardNavigation({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-11 w-full items-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+                  "inline-flex min-h-11 w-full items-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   active
                     ? "bg-foreground text-background"
                     : "text-foreground hover:bg-muted"
