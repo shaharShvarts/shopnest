@@ -190,6 +190,12 @@ export class DrizzleMerchantAuthRepository implements MerchantAuthRepository {
     };
   }
 
+  async deleteSignupTokenByHash(tokenHash: string) {
+    await getControlPlaneDb()
+      .delete(merchantSignupTokens)
+      .where(eq(merchantSignupTokens.tokenHash, tokenHash));
+  }
+
   completeSignupToken(input: {
     tokenHash: string;
     passwordHash: string;
