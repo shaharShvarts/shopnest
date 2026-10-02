@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import z from "zod";
 import { categories, images, productImages, products, subcategories } from "@/drizzle/schema";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
