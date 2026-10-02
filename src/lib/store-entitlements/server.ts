@@ -10,10 +10,12 @@ import {
   subscriptions,
 } from "@/drizzle/control-plane-schema";
 import {
+  booleanEntitlement,
   effectiveStoreEntitlementsFromRows,
   type EffectiveStoreEntitlements,
   type StoreEntitlementRow,
 } from "./core";
+import type { SupportedEntitlementCode } from "./registry";
 
 export async function getEffectiveStoreEntitlements(
   storeId: number
@@ -51,4 +53,13 @@ export async function getEffectiveStoreEntitlements(
     storeId,
     rows as StoreEntitlementRow[]
   );
+}
+
+
+export async function storeHasBooleanEntitlement(
+  storeId: number,
+  code: SupportedEntitlementCode
+) {
+  const state = await getEffectiveStoreEntitlements(storeId);
+  return booleanEntitlement(state, code);
 }
