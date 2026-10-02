@@ -96,7 +96,7 @@ export function ManagementMutationForm({
         <p
           role={status.kind === "error" ? "alert" : "status"}
           className={cn(
-            "col-span-full mt-3 w-full basis-full rounded-lg border px-4 py-3 text-sm",
+            "fixed inset-x-4 top-4 z-[100] mx-auto w-fit max-w-[calc(100vw-2rem)] rounded-lg border px-4 py-3 text-sm shadow-lg",
             status.kind === "error"
               ? "border-red-200 bg-red-50 text-red-800"
               : "border-emerald-200 bg-emerald-50 text-emerald-900"
@@ -176,8 +176,10 @@ export function ManagementMutationButton({
         <span
           role={status.kind === "error" ? "alert" : "status"}
           className={cn(
-            "text-xs",
-            status.kind === "error" ? "text-red-700" : "text-emerald-700"
+            "fixed inset-x-4 top-4 z-[100] mx-auto w-fit max-w-[calc(100vw-2rem)] rounded-lg border px-4 py-3 text-sm shadow-lg",
+            status.kind === "error"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-900"
           )}
         >
           {status.message}
