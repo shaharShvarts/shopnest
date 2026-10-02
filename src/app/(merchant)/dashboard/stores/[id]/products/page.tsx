@@ -2,8 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ManagementMutationButton } from "@/components/management/ManagementMutation";
 import { products } from "@/drizzle/schema";
+import { isNull } from "drizzle-orm";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/lib/store-entitlements/core";
 import { getEffectiveStoreEntitlements } from "@/lib/store-entitlements/server";
 import { CatalogNavigation } from "../_components/CatalogNavigation";
-import { deleteManagedProduct } from "../_actions/catalog";
+import { ProductDeleteButton } from "./ProductDeleteButton";
 
 export default async function ManagedProductsPage({
   params,
@@ -32,7 +32,7 @@ export default async function ManagedProductsPage({
     getTranslations("StoreCatalogManagement"),
   ]);
   const [rows, entitlementState] = await Promise.all([
-    db.select().from(products).orderBy(products.name),
+    db.select().from(products).where(isNull(products.deletedAt)).orderBy(products.name),
     getEffectiveStoreEntitlements(storeId),
   ]);
   const productsLimit = integerEntitlement(
@@ -106,11 +106,14 @@ export default async function ManagedProductsPage({
                         {t("edit")}
                       </Link>
                     </Button>
-                    <ManagementMutationButton
-                      action={deleteManagedProduct.bind(null, storeId, product.id)}
-                      label={t("delete")}
-                      failureMessage={t("deleteFailed")}
-                      className="border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
+                    <ProductDeleteButton
+                      storeId={storeId}
+                      productId={product.id}
+                      deleteLabel={t("delete")}
+                      deletedMessage={t("productDeleted")}
+                      undoLabel={t("undo")}
+                      deleteFailedMessage={t("deleteFailed")}
+                      undoFailedMessage={t("undoFailed")}
                     />
                   </div>
                 </td>
