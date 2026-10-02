@@ -167,7 +167,14 @@
       "idx": 23,
       "version": "7",
       "when": 1790992800000,
-      "tag": "0023_merchant_verified_signup",
+      "tag": "0023_merchant_pending_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790996400000,
+      "tag": "0024_merchant_verified_signup",
       "breakpoints": true
     }
   ]
