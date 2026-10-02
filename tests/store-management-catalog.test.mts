@@ -461,16 +461,46 @@ test("Catalog lists and gallery use shared management actions", async () => {
       ),
     ]);
 
-  for (const source of [categoriesPage, productsPage, subcategoriesPage]) {
+  for (const source of [categoriesPage, subcategoriesPage]) {
     assert.match(source, /size="management"/);
     assert.match(source, /ManagementMutationButton/);
     assert.doesNotMatch(source, /<form action=\\{deleteManaged/);
     assert.doesNotMatch(source, /<button\\b/);
   }
 
+  assert.match(productsPage, /ProductDeleteButton/);
+  assert.doesNotMatch(productsPage, /ManagementMutationButton/);
+  assert.doesNotMatch(productsPage, /<form action=\\{deleteManaged/);
+
   assert.match(gallery, /<Button/);
   assert.match(gallery, /size="management"/);
   assert.doesNotMatch(gallery, /size-8 items-center justify-center/);
+});
+
+test("Managed product deletion uses soft delete, react-toastify, and undo", async () => {
+  const [actions, productsPage, deleteButton] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/products/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/products/ProductDeleteButton.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(actions, /deleteManagedProduct[\s\S]*\.update\(products\)[\s\S]*deletedAt/);
+  assert.match(actions, /undoManagedProductDelete[\s\S]*deletedAt:\s*null/);
+  assert.doesNotMatch(actions, /deleteManagedProduct[\s\S]*\.delete\(products\)/);
+  assert.match(productsPage, /where\(isNull\(products\.deletedAt\)\)/);
+  assert.match(deleteButton, /from "react-toastify"/);
+  assert.match(deleteButton, /toast\.info/);
+  assert.match(deleteButton, /undoManagedProductDelete/);
+  assert.match(deleteButton, /autoClose:\s*10_000/);
 });
 
 test("Managed product creation enforces products_limit server-side with concurrency protection", async () => {
