@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
 import type { OrganizationProfile } from "@/lib/merchant-organizations/core";
 import {
   createOrganizationAction,
@@ -11,10 +13,6 @@ import {
 
 const initialState: OrganizationActionState = { success: false };
 
-const inputClass =
-  "min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring";
-const buttonClass =
-  "min-h-11 rounded-lg bg-foreground px-5 py-2 font-semibold text-background disabled:cursor-not-allowed disabled:opacity-60";
 
 export function OrganizationForm({
   mode,
@@ -101,11 +99,11 @@ export function OrganizationForm({
         </p>
       ) : null}
 
-      <button type="submit" disabled={pending} className={buttonClass}>
+      <Button type="submit" size="management" disabled={pending} className="px-5">
         {pending
           ? t(mode === "create" ? "creatingBusiness" : "savingBusiness")
           : t(mode === "create" ? "createBusiness" : "saveBusiness")}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -143,7 +141,7 @@ function Field({
       <label htmlFor={id} className="mb-1 block text-sm font-medium">
         {label}
       </label>
-      <input
+      <ManagementInput
         id={id}
         name={name}
         type={type}
@@ -151,7 +149,6 @@ function Field({
         minLength={minLength}
         maxLength={maxLength}
         defaultValue={defaultValue}
-        className={inputClass}
       />
       {error ? (
         <p className="mt-1 text-xs text-destructive">{error}</p>
