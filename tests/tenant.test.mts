@@ -21,6 +21,11 @@ test("admin remains a legacy route", () => {
   assert.deepEqual(resolveTenantRoute("/admin"), { kind: "legacy" });
 });
 
+
+test("merchant signup completion remains a platform route", () => {
+  assert.deepEqual(resolveTenantRoute("/complete-signup"), { kind: "legacy" });
+});
+
 test("unknown tenant routes resolve to not-found", () => {
   assert.deepEqual(resolveTenantRoute("/random-store"), { kind: "not-found" });
   assert.deepEqual(resolveTenantRoute("/test123"), { kind: "not-found" });
