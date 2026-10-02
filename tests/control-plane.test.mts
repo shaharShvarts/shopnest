@@ -429,6 +429,7 @@ test("management Button size and Plans form use the shared 44px controls", async
   assert.doesNotMatch(priceInput, /className="min-h-11/);
   assert.match(integerInput, /className="flex h-11 items-stretch overflow-hidden rounded-lg/);
   assert.match(integerInput, /<Button[\s\S]*?variant="link"/);
+  assert.doesNotMatch(plans, /self-start border-red-200/);
 });
 
 test("Control Plane remaining Wave 1 surfaces follow management UI standards", async () => {
