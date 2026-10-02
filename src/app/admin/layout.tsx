@@ -56,7 +56,8 @@ export default async function ShopNestAdminLayout({ children }: Readonly<{ child
               <Button
                 type="submit"
                 variant="outline"
-                className="h-10 min-w-24 border-slate-600 bg-slate-900 px-4 text-white hover:bg-slate-800 hover:text-white"
+                size="management"
+                className="min-w-24 border-slate-600 bg-slate-900 px-4 text-white hover:bg-slate-800 hover:text-white"
               >
                 {t("logout")}
               </Button>
