@@ -44,9 +44,10 @@ export default function LanguageSelector({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
+          size="management"
           disabled={pending}
           aria-label={`Language: ${selected.label ?? "Select language"}`}
-          className="h-10 min-w-24 gap-2 border-slate-300 bg-white px-3 text-slate-950 shadow-sm hover:bg-slate-100 hover:text-slate-950 disabled:opacity-60 sm:w-[150px] sm:justify-between"
+          className="min-w-24 gap-2 border-slate-300 bg-white px-3 text-slate-950 shadow-sm hover:bg-slate-100 hover:text-slate-950 disabled:opacity-60 sm:w-[150px] sm:justify-between"
         >
           <Image
             src={selected.flag ?? languages[0].flag}
