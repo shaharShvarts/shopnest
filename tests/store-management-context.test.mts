@@ -504,13 +504,23 @@ test("runtime feature gates contain no hard-coded commercial package codes", asy
     for (let index = 0; index < lines.length; index += 1) {
       if (!tierLiteral.test(lines[index] ?? "")) continue;
 
+      const line = lines[index] ?? "";
+
+      if (/dateStyle\s*:\s*["'`]medium["'`]/.test(line)) {
+        continue;
+      }
+
+      if (/shippingPrice\s*===\s*0\s*\?\s*["'`]Free["'`]/.test(line)) {
+        continue;
+      }
+
       const context = lines
         .slice(Math.max(0, index - 3), Math.min(lines.length, index + 4))
         .join("\n");
 
       if (commercialContext.test(context)) {
         violations.push(
-          `${path}:${index + 1}: ${(lines[index] ?? "").trim()}`
+          `${path}:${index + 1}: ${line.trim()}`
         );
       }
     }
