@@ -236,14 +236,14 @@ If repeated page-specific styling is found, extract a shared component instead o
 
 Current foundation:
 
-- `src/components/ui/button.tsx` — shared Button behavior/variants
+- `src/components/ui/button.tsx` — shared Button behavior/variants; normal management actions use `size="management"` for the 44px standard
+- `src/components/management/ManagementInput.tsx` — shared 44px management input
+- `src/components/management/ManagementTextarea.tsx` — shared management textarea
 - `src/components/management/ManagementSelect.tsx` — mandatory management select
 - `src/app/components/LanguageSelector.tsx` — shared language selector
 
 Additional management-specific controls should be extracted as repeated patterns become clear, especially:
 
-- management input
-- management textarea
 - form field wrapper
 - status badge
 - section/card shell
