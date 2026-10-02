@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 import { setDashboardLocaleAction } from "../_actions";
 
 export function DashboardLanguageSwitcher({
@@ -16,8 +17,10 @@ export function DashboardLanguageSwitcher({
   const nextLocale = locale === "he" ? "en" : "he";
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="management"
       disabled={pending}
       aria-label={t("language")}
       onClick={() => {
@@ -26,9 +29,9 @@ export function DashboardLanguageSwitcher({
           router.refresh();
         });
       }}
-      className="min-h-11 rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
+      className="px-4"
     >
       {nextLocale === "he" ? t("hebrew") : t("english")}
-    </button>
+    </Button>
   );
 }
