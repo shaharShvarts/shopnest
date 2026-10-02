@@ -424,7 +424,7 @@ test("management Button size and Plans form use the shared 44px controls", async
   assert.match(button, /management:\s*"h-11 rounded-lg/);
   assert.match(plans, /ManagementInput/);
   assert.match(plans, /size="management"/);
-  assert.doesNotMatch(plans, /<input\s+[\s\S]*?name="(?:code|name)"[\s\S]*?className=/);
+  assert.doesNotMatch(plans, /<input\\b[^>]*\\bname="(?:code|name)"[^>]*>/);
   assert.match(priceInput, /<ManagementInput/);
   assert.doesNotMatch(priceInput, /className="min-h-11/);
   assert.match(integerInput, /className="flex h-11 items-stretch overflow-hidden rounded-lg/);
