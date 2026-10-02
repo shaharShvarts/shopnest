@@ -454,6 +454,26 @@ test("Merchant same-page mutations preserve the current management workspace", a
   assert.match(storeList, /router\.refresh\(\)/);
 });
 
+test("plan feature gates are entitlement-driven instead of package-name checks", async () => {
+  const sources = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/stores/[id]/domain/_actions.ts", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/domain/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/products/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/_actions/catalog.ts", "utf8"),
+    readFile("src/lib/store-team/drizzle-repository.ts", "utf8"),
+  ]);
+
+  const combined = sources.join("\n");
+
+  assert.match(combined, /custom_domain/);
+  assert.match(combined, /products_limit/);
+  assert.match(combined, /store_managers/);
+  assert.doesNotMatch(
+    combined,
+    /(?:planCode|plan\.code|planName|plan\.name)[\s\S]{0,80}["'](?:free|small|medium|large)["']/i
+  );
+});
+
 class FakeRepository implements StoreManagementRepository {
   owned = new Map<string, StoreManagementRecord>();
   managed = new Map<string, StoreManagementRecord>();
