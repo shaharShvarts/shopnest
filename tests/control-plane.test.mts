@@ -431,6 +431,23 @@ test("management Button size and Plans form use the shared 44px controls", async
   assert.match(integerInput, /<Button[\s\S]*?variant="link"/);
 });
 
+test("Control Plane remaining Wave 1 surfaces follow management UI standards", async () => {
+  const [loginForm, loginPage, storeTable, featuredPage] = await Promise.all([
+    readFile("src/app/[tenant]/admin/_components/AdminLoginForm.tsx", "utf8"),
+    readFile("src/app/admin/login/page.tsx", "utf8"),
+    readFile("src/app/admin/_components/StoreTable.tsx", "utf8"),
+    readFile("src/app/admin/featured/page.tsx", "utf8"),
+  ]);
+
+  assert.match(loginForm, /ManagementInput/);
+  assert.doesNotMatch(loginForm, /<input\\b/);
+  assert.match(loginForm, /size="management"/);
+  assert.match(loginPage, /rounded-xl border border-slate-200 bg-white/);
+  assert.match(storeTable, /overflow-x-auto/);
+  assert.match(storeTable, /focus-visible:ring-2/);
+  assert.match(featuredPage, /focus-visible:ring-2/);
+});
+
 test("Control Plane store settings use shared management controls", async () => {
   const [page, input, select, textarea] = await Promise.all([
     readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
