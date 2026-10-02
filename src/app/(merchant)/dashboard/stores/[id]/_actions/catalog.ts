@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import { count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import z from "zod";
 import { categories, images, productImages, products, subcategories } from "@/drizzle/schema";
 import { DrizzleCatalogStore } from "@/lib/drizzle-catalog-store";
@@ -838,58 +838,78 @@ export async function editManagedProduct(
 export async function deleteManagedProduct(
   storeId: number,
   productId: number
-): Promise<void> {
+): Promise<{ ok: true; undoVersion: string } | { ok: false; code: string }> {
   const { db, tenant } = await requireStoreManagementDb(
     storeId,
     "catalog.manage"
   );
 
-  const gallery = await db
-    .select({
-      imageId: images.id,
-      imageUrl: images.imageUrl,
-    })
-    .from(productImages)
-    .innerJoin(images, eq(productImages.imageId, images.id))
-    .where(eq(productImages.productId, productId));
-
-  let product;
-  try {
-    product = await db.transaction(async (tx) => {
-      const [deleted] = await tx
-        .delete(products)
-        .where(eq(products.id, productId))
-        .returning();
-
-      if (deleted && gallery.length > 0) {
-        await tx
-          .delete(images)
-          .where(inArray(images.id, gallery.map((image) => image.imageId)));
-      }
-
-      return deleted;
+  const deletedAt = new Date();
+  const [product] = await db
+    .update(products)
+    .set({ deletedAt })
+    .where(
+      and(
+        eq(products.id, productId),
+        isNull(products.deletedAt)
+      )
+    )
+    .returning({
+      id: products.id,
+      categoryId: products.categoryId,
     });
-  } catch (error) {
-    if (isForeignKeyViolation(error)) {
-      throw new Error(
-        "Product cannot be deleted because it is referenced by an order."
-      );
-    }
-    throw error;
+
+  if (!product) {
+    return { ok: false, code: "DELETE_FAILED" };
   }
-
-  if (!product) notFound();
-
-  const mediaUrls =
-    gallery.length > 0
-      ? gallery.map((image) => image.imageUrl)
-      : [product.imageUrl];
-
-  await deleteManagedProductFiles(tenant, mediaUrls);
 
   revalidateManagedCatalog(storeId, tenant, [
     "/",
     "/products",
     `/categories/${product.categoryId}/products`,
   ]);
+
+  return { ok: true, undoVersion: deletedAt.toISOString() };
+}
+
+export async function undoManagedProductDelete(
+  storeId: number,
+  productId: number,
+  undoVersion: string
+): Promise<{ ok: true } | { ok: false; code: string }> {
+  const { db, tenant } = await requireStoreManagementDb(
+    storeId,
+    "catalog.manage"
+  );
+
+  const deletedAt = new Date(undoVersion);
+  if (Number.isNaN(deletedAt.getTime())) {
+    return { ok: false, code: "UNDO_FAILED" };
+  }
+
+  const [product] = await db
+    .update(products)
+    .set({ deletedAt: null })
+    .where(
+      and(
+        eq(products.id, productId),
+        eq(products.deletedAt, deletedAt)
+      )
+    )
+    .returning({
+      id: products.id,
+      categoryId: products.categoryId,
+    });
+
+  if (!product) {
+    return { ok: false, code: "UNDO_FAILED" };
+  }
+
+  revalidateManagedCatalog(storeId, tenant, [
+    "/",
+    "/products",
+    `/categories/${product.categoryId}/products`,
+  ]);
+
+  return { ok: true };
 }
