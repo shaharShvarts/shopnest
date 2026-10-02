@@ -126,7 +126,7 @@ Wave 1 review completed:
 
 #### `src/app/(merchant)/dashboard/stores/[id]/domain/DomainManager.tsx`
 
-Status: **high-priority migration**
+Status: **migrated in Wave 3**
 
 Observed drift:
 
@@ -190,7 +190,7 @@ Observed drift:
 
 #### `src/app/(merchant)/dashboard/stores/[id]/team/page.tsx`
 
-Status: **medium/high-priority migration**
+Status: **migrated in Wave 3**
 
 Observed drift:
 
@@ -224,7 +224,7 @@ Observed drift:
 
 #### `src/app/(merchant)/dashboard/business/_components/OrganizationForm.tsx`
 
-Status: **medium-priority migration**
+Status: **migrated in Wave 3**
 
 Observed drift:
 
@@ -235,7 +235,7 @@ Controls are already close to standard dimensions but should reuse shared primit
 
 #### `src/app/(merchant)/dashboard/stores/[id]/policies/PolicyDocumentForm.tsx`
 
-Status: **medium-priority migration**
+Status: **migrated in Wave 3**
 
 Observed drift:
 
@@ -316,10 +316,10 @@ Reason: these are frequent merchant CRUD surfaces and currently contain raw sele
 
 ### Wave 3 — Merchant operational screens
 
-1. Team
-2. Domain Manager
-3. Policies
-4. Business / Organization
+1. Team ✅
+2. Domain Manager ✅
+3. Policies ✅
+4. Business / Organization ✅
 
 Reason: these contain many repeated actions and will benefit strongly from the shared primitives established in Waves 1–2.
 
