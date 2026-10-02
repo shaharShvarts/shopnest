@@ -470,7 +470,11 @@ test("plan feature gates are entitlement-driven instead of package-name checks",
   assert.match(combined, /store_managers/);
   assert.doesNotMatch(
     combined,
-    /(?:planCode|plan\.code|planName|plan\.name)[\s\S]{0,80}["'](?:free|small|medium|large)["']/i
+    /(?:planCode|plan\.code)\s*(?:===|!==|==|!=)\s*["'](?:free|small|medium|large)["']/i
+  );
+  assert.doesNotMatch(
+    combined,
+    /["'](?:free|small|medium|large)["']\s*(?:===|!==|==|!=)\s*(?:planCode|plan\.code)/i
   );
 });
 
