@@ -100,6 +100,43 @@ test("signup creates a pending merchant and stores only a 24-hour token hash", a
   );
 });
 
+test("failed signup delivery removes the unsent token so retry is possible", async () => {
+  const repository = new FakeMerchantRepository();
+  const now = new Date("2026-10-03T00:00:00Z");
+  const failingDelivery: MerchantSignupDelivery = {
+    async deliverSignupVerification() {
+      throw new Error("provider unavailable");
+    },
+  };
+
+  await assert.rejects(
+    beginMerchantSignup(repository, failingDelivery, {
+      email: "merchant@example.com",
+      displayName: "Merchant",
+      phone: "050-1234567",
+      buildVerificationUrl: (token) =>
+        `https://example.test/complete-signup?token=${token}`,
+      now,
+    }),
+    /provider unavailable/
+  );
+  assert.equal(repository.signupTokens.size, 0);
+
+  const retryDelivery = new FakeMerchantSignupDelivery();
+  assert.deepEqual(
+    await beginMerchantSignup(repository, retryDelivery, {
+      email: "merchant@example.com",
+      displayName: "Merchant",
+      phone: "050-1234567",
+      buildVerificationUrl: (token) =>
+        `https://example.test/complete-signup?token=${token}`,
+      now: new Date(now.getTime() + 1_000),
+    }),
+    { kind: "sent" }
+  );
+  assert.equal(retryDelivery.messages.length, 1);
+});
+
 test("pending merchant cannot authenticate before email verification", async () => {
   const repository = new FakeMerchantRepository();
   const delivery = new FakeMerchantSignupDelivery();
@@ -483,6 +520,10 @@ class FakeMerchantRepository implements MerchantAuthRepository {
       email: merchant.email,
       expiresAt: token.expiresAt,
     };
+  }
+
+  async deleteSignupTokenByHash(tokenHash: string) {
+    this.signupTokens.delete(tokenHash);
   }
 
   async completeSignupToken(input: {
