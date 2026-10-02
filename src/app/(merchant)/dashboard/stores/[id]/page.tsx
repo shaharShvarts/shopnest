@@ -9,6 +9,7 @@ import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 import { getMerchantSubscriptionRepository } from "@/lib/merchant-subscriptions/server";
 import { getMerchantDomainView } from "@/lib/merchant-domains/server";
+import { storeHasBooleanEntitlement } from "@/lib/store-entitlements/server";
 import { getStoreReadinessRepository } from "@/lib/store-readiness/server";
 import {
   activateStoreAction,
@@ -51,6 +52,7 @@ export default async function MerchantStoreDetailPage({
     subscription,
     readiness,
     domainView,
+    customDomainEnabled,
   ] = await Promise.all([
     getTranslations("MerchantStore"),
     getTranslations("MerchantSubscription"),
@@ -63,6 +65,7 @@ export default async function MerchantStoreDetailPage({
     store.tenantId !== null
       ? getMerchantDomainView(merchant.id, id)
       : Promise.resolve(null),
+    storeHasBooleanEntitlement(id, "custom_domain"),
   ]);
 
   const activeStoreAddress =
@@ -70,6 +73,15 @@ export default async function MerchantStoreDetailPage({
       ? "https://" + domainView.currentPrimary.hostname
       : domainView?.platformUrl ??
         `${process.env.SHOPNEST_PLATFORM_ORIGIN?.replace(/\/+$/, "") || "https://shopnest.co.il"}/${store.slug}`;
+
+  const canManageDomain =
+    customDomainEnabled ||
+    Boolean(
+      domainView?.currentPrimary ||
+        domainView?.retiring ||
+        domainView?.candidate ||
+        domainView?.claim
+    );
 
 
   const planMessages = {
@@ -139,11 +151,13 @@ export default async function MerchantStoreDetailPage({
                   {tCatalog("manageCatalog")}
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="management">
-                <Link href={"/dashboard/stores/" + store.id + "/domain"}>
-                  {t("manageDomain")}
-                </Link>
-              </Button>
+              {canManageDomain ? (
+                <Button asChild variant="outline" size="management">
+                  <Link href={"/dashboard/stores/" + store.id + "/domain"}>
+                    {t("manageDomain")}
+                  </Link>
+                </Button>
+              ) : null}
               <Button asChild variant="outline" size="management">
                 <Link href={"/dashboard/stores/" + store.id + "/team"}>
                   {t("manageTeam")}
