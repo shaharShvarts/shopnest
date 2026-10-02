@@ -100,6 +100,7 @@ export interface MerchantAuthRepository {
     tokenHash: string;
     now: Date;
   }): Promise<MerchantSignupTokenState>;
+  deleteSignupTokenByHash(tokenHash: string): Promise<void>;
   completeSignupToken(input: {
     tokenHash: string;
     passwordHash: string;
@@ -159,12 +160,19 @@ export async function beginMerchantSignup(
   }
 
   if (!merchant) {
-    merchant = await repository.createPendingMerchant({
-      email: emailNormalized,
-      emailNormalized,
-      displayName,
-      phoneE164,
-    });
+    try {
+      merchant = await repository.createPendingMerchant({
+        email: emailNormalized,
+        emailNormalized,
+        displayName,
+        phoneE164,
+      });
+    } catch {
+      merchant = await repository.findMerchantByNormalizedEmail(emailNormalized);
+      if (!merchant || merchant.status !== "pending_verification") {
+        throw new Error("account_unavailable");
+      }
+    }
   }
 
   const token = generateMerchantSignupToken();
@@ -179,10 +187,15 @@ export async function beginMerchantSignup(
 
   if (issue.kind !== "issued") return issue;
 
-  await delivery.deliverSignupVerification({
-    email: merchant.email,
-    verificationUrl: input.buildVerificationUrl(token),
-  });
+  try {
+    await delivery.deliverSignupVerification({
+      email: merchant.email,
+      verificationUrl: input.buildVerificationUrl(token),
+    });
+  } catch (error) {
+    await repository.deleteSignupTokenByHash(hashMerchantSignupToken(token));
+    throw error;
+  }
 
   return { kind: "sent" as const };
 }
@@ -213,10 +226,15 @@ export async function resendMerchantSignupVerification(
 
   if (issue.kind !== "issued") return issue;
 
-  await delivery.deliverSignupVerification({
-    email: state.email,
-    verificationUrl: input.buildVerificationUrl(token),
-  });
+  try {
+    await delivery.deliverSignupVerification({
+      email: state.email,
+      verificationUrl: input.buildVerificationUrl(token),
+    });
+  } catch (error) {
+    await repository.deleteSignupTokenByHash(hashMerchantSignupToken(token));
+    throw error;
+  }
 
   return { kind: "sent" as const };
 }
