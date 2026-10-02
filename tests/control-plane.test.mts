@@ -448,6 +448,21 @@ test("Control Plane remaining Wave 1 surfaces follow management UI standards", a
   assert.match(featuredPage, /focus-visible:ring-2/);
 });
 
+test("Control Plane shell uses 44px shared utility controls and keyboard focus", async () => {
+  const [layout, languageSelector, navigation] = await Promise.all([
+    readFile("src/app/admin/layout.tsx", "utf8"),
+    readFile("src/app/components/LanguageSelector.tsx", "utf8"),
+    readFile("src/app/admin/_components/AdminNavigation.tsx", "utf8"),
+  ]);
+
+  assert.match(layout, /size="management"/);
+  assert.doesNotMatch(layout, /className="h-10/);
+  assert.match(languageSelector, /size="management"/);
+  assert.doesNotMatch(languageSelector, /className="h-10/);
+  assert.match(navigation, /min-h-11/);
+  assert.match(navigation, /focus-visible:ring-2/);
+});
+
 test("Control Plane store settings use shared management controls", async () => {
   const [page, input, select, textarea] = await Promise.all([
     readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
