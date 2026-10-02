@@ -1,8 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import {
   addPlanEntitlementForAdmin,
   createPlanForAdmin,
@@ -16,20 +14,6 @@ import {
   validateEntitlementValue,
 } from "@/lib/plan-administration/core";
 
-const PLAN_RESULT_COOKIE = "SHOPNEST_PLAN_RESULT";
-
-async function redirectWithPlanResult(result: string): Promise<never> {
-  const cookieStore = await cookies();
-  cookieStore.set(PLAN_RESULT_COOKIE, result, {
-    httpOnly: false,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/admin/plans",
-    maxAge: 60,
-  });
-  redirect("/admin/plans");
-}
-
 export async function createPlanAction(formData: FormData) {
   try {
     await createPlanForAdmin({
@@ -37,11 +21,11 @@ export async function createPlanAction(formData: FormData) {
       name: formData.get("name"),
     });
   } catch {
-    await redirectWithPlanResult("PLAN_CREATE_FAILED");
+    return { ok: false as const, code: "PLAN_CREATE_FAILED" };
   }
 
   revalidatePath("/admin/plans");
-  await redirectWithPlanResult("PLAN_CREATED");
+  return { ok: true as const, code: "PLAN_CREATED" };
 }
 
 export async function addPlanEntitlementAction(formData: FormData) {
@@ -51,11 +35,11 @@ export async function addPlanEntitlementAction(formData: FormData) {
       entitlementCode: formData.get("entitlementCode"),
     });
   } catch {
-    await redirectWithPlanResult("ENTITLEMENT_ADD_FAILED");
+    return { ok: false as const, code: "ENTITLEMENT_ADD_FAILED" };
   }
 
   revalidatePath("/admin/plans");
-  await redirectWithPlanResult("ENTITLEMENT_ADDED");
+  return { ok: true as const, code: "ENTITLEMENT_ADDED" };
 }
 
 export async function removePlanEntitlementAction(
@@ -68,28 +52,11 @@ export async function removePlanEntitlementAction(
       entitlementId,
     });
   } catch {
-    await redirectWithPlanResult("ENTITLEMENT_REMOVE_FAILED");
+    return { ok: false as const, code: "ENTITLEMENT_REMOVE_FAILED" };
   }
 
   revalidatePath("/admin/plans");
-  await redirectWithPlanResult("ENTITLEMENT_REMOVED");
-}
-
-export async function removePlanEntitlementInlineAction(
-  planId: number,
-  entitlementId: number
-) {
-  try {
-    await removePlanEntitlementForAdmin({
-      planId,
-      entitlementId,
-    });
-  } catch {
-    return { ok: false as const };
-  }
-
-  revalidatePath("/admin/plans");
-  return { ok: true as const };
+  return { ok: true as const, code: "ENTITLEMENT_REMOVED" };
 }
 
 export async function updatePlanAction(formData: FormData) {
@@ -105,14 +72,14 @@ export async function updatePlanAction(formData: FormData) {
     const plans = await listPlanAdministration();
     const plan = plans.find((candidate) => candidate.id === parsed.planId);
     if (!plan) {
-      return await redirectWithPlanResult("PLAN_UPDATE_FAILED");
+      return { ok: false as const, code: "PLAN_UPDATE_FAILED" };
     }
 
     const entitlementValues: Record<string, number> = {};
     for (const entitlement of plan.entitlements) {
       const raw = formData.get(`entitlement_${entitlement.id}`);
       if (typeof raw !== "string" || raw.trim() === "") {
-        await redirectWithPlanResult("PLAN_UPDATE_FAILED");
+        return { ok: false as const, code: "PLAN_UPDATE_FAILED" };
       }
 
       const numericValue = Number(raw);
@@ -132,10 +99,10 @@ export async function updatePlanAction(formData: FormData) {
       entitlementValues,
     });
   } catch {
-    await redirectWithPlanResult("PLAN_UPDATE_FAILED");
+    return { ok: false as const, code: "PLAN_UPDATE_FAILED" };
   }
 
   revalidatePath("/admin/plans");
   revalidatePath("/dashboard/stores");
-  await redirectWithPlanResult("PLAN_UPDATED");
+  return { ok: true as const, code: "PLAN_UPDATED" };
 }
