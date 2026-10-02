@@ -96,7 +96,7 @@ export function ManagementMutationForm({
         <p
           role={status.kind === "error" ? "alert" : "status"}
           className={cn(
-            "mt-3 rounded-lg border px-4 py-3 text-sm",
+            "col-span-full mt-3 w-full basis-full rounded-lg border px-4 py-3 text-sm",
             status.kind === "error"
               ? "border-red-200 bg-red-50 text-red-800"
               : "border-emerald-200 bg-emerald-50 text-emerald-900"
