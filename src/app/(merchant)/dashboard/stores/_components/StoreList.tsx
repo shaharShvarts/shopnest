@@ -68,15 +68,16 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
     const toastId: Id = toast.info(
       <span className="flex items-center gap-3">
         <span>{t("storeDeleted")}</span>
-        <button
+        <Button
           type="button"
-          className="font-semibold underline"
+          variant="link"
+          className="h-auto p-0 font-semibold"
           onClick={() =>
             void handleUndo(storeId, undoVersion, toastId)
           }
         >
           {t("undo")}
-        </button>
+        </Button>
       </span>,
       {
         autoClose: 10_000,
