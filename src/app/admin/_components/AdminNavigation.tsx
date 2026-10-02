@@ -36,7 +36,7 @@ export function AdminNavigation({
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150",
+                "inline-flex min-h-11 items-center rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2",
                 active
                   ? "bg-slate-900 text-white shadow-sm"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
