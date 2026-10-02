@@ -373,6 +373,28 @@ test("Business organization screens use shared management controls", async () =>
   assert.match(page, /<Button asChild variant="outline" size="management"/);
 });
 
+test("Merchant dashboard shell uses shared 44px utility controls and focus states", async () => {
+  const [layout, languageSwitcher, navigation] = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/layout.tsx", "utf8"),
+    readFile(
+      "src/app/(merchant)/dashboard/_components/DashboardLanguageSwitcher.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/_components/DashboardNavigation.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(layout, /<Button[\s\S]*?size="management"/);
+  assert.doesNotMatch(layout, /<button\\b/);
+  assert.match(languageSwitcher, /<Button/);
+  assert.match(languageSwitcher, /size="management"/);
+  assert.doesNotMatch(languageSwitcher, /<button\\b/);
+  assert.match(navigation, /min-h-11/);
+  assert.match(navigation, /focus-visible:ring-2/);
+});
+
 class FakeRepository implements StoreManagementRepository {
   owned = new Map<string, StoreManagementRecord>();
   managed = new Map<string, StoreManagementRecord>();
