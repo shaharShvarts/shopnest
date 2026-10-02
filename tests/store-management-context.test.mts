@@ -479,7 +479,7 @@ test("plan feature gates are entitlement-driven instead of package-name checks",
   );
 });
 
-test("runtime code contains no hard-coded commercial package codes", async () => {
+test("runtime feature gates contain no hard-coded commercial package codes", async () => {
   const roots = ["src", "scripts"];
   const runtimeFiles: string[] = [];
 
@@ -493,23 +493,56 @@ test("runtime code contains no hard-coded commercial package codes", async () =>
     }
   }
 
-  const tierLiteral = /["'`](?:free|small|medium|large)["'`]/gi;
+  const tierLiteral = /["'`](?:free|small|medium|large)["'`]/i;
+  const commercialContext =
+    /plan|tier|package|subscription|entitlement|feature|capability/i;
   const violations: string[] = [];
 
   for (const path of runtimeFiles) {
-    const source = await readFile(path, "utf8");
-    const matches = source.match(tierLiteral);
-    if (matches?.length) {
-      violations.push(`${path}: ${[...new Set(matches)].join(", ")}`);
+    const lines = (await readFile(path, "utf8")).split("\n");
+
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!tierLiteral.test(lines[index] ?? "")) continue;
+
+      const context = lines
+        .slice(Math.max(0, index - 3), Math.min(lines.length, index + 4))
+        .join("\n");
+
+      if (commercialContext.test(context)) {
+        violations.push(
+          `${path}:${index + 1}: ${(lines[index] ?? "").trim()}`
+        );
+      }
     }
   }
 
   assert.deepEqual(
     violations,
     [],
-    "Commercial package codes must stay data-driven; use plan entitlements instead:\n" +
+    "Commercial package codes must not drive runtime feature behavior; use plan entitlements instead:\n" +
       violations.join("\n")
   );
+});
+
+test("tenant plan snapshot has no package-code default", async () => {
+  const [tenantSchema, migration] = await Promise.all([
+    readFile("src/drizzle/control-schema/tenant.ts", "utf8"),
+    readFile(
+      "src/drizzle/control-migrations/0022_drop_tenant_plan_default.sql",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(tenantSchema, /plan:\s*varchar\("plan", \{ length: 64 \}\)\.notNull\(\)/);
+  assert.doesNotMatch(tenantSchema, /plan:[^\n]*default\(["'](?:free|small|medium|large)["']\)/i);
+  assert.match(migration, /ALTER COLUMN "plan" DROP DEFAULT/);
+});
+
+test("domain claim core has no legacy package-code custom-domain gate", async () => {
+  const source = await readFile("src/lib/domain-claims/core.ts", "utf8");
+
+  assert.doesNotMatch(source, /CUSTOM_DOMAIN_PLAN_CODES|planAllowsCustomDomain|CustomDomainPlanCode/);
+  assert.doesNotMatch(source, /["'](?:free|small|medium|large)["']/i);
 });
 
 class FakeRepository implements StoreManagementRepository {
