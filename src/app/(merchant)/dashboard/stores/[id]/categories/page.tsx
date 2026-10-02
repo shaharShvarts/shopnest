@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ManagementMutationButton } from "@/components/management/ManagementMutation";
 import { categories } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
@@ -63,16 +64,12 @@ export default async function ManagedCategoriesPage({
                         {t("edit")}
                       </Link>
                     </Button>
-                    <form action={deleteManagedCategory.bind(null, storeId, category.id)}>
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        size="management"
-                        className="border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
-                      >
-                        {t("delete")}
-                      </Button>
-                    </form>
+                    <ManagementMutationButton
+                      action={deleteManagedCategory.bind(null, storeId, category.id)}
+                      label={t("delete")}
+                      failureMessage={t("deleteFailed")}
+                      className="border-red-200 px-3 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
+                    />
                   </div>
                 </td>
               </tr>
