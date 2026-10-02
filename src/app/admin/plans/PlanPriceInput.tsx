@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ManagementInput } from "@/components/management/ManagementInput";
 
 export default function PlanPriceInput({
   name,
@@ -12,7 +13,7 @@ export default function PlanPriceInput({
   const [value, setValue] = useState(initialValue);
 
   return (
-    <input
+    <ManagementInput
       name={name}
       type="text"
       inputMode="decimal"
@@ -29,7 +30,6 @@ export default function PlanPriceInput({
         }
       }}
       placeholder="0.00"
-      className="min-h-11 w-full rounded-md border px-3 py-2"
     />
   );
 }
