@@ -443,7 +443,7 @@ test("Control Plane store settings use shared management controls", async () => 
   assert.match(page, /ManagementSelect/);
   assert.match(page, /ManagementTextarea/);
   assert.doesNotMatch(page, /<select\b/);
-  assert.match(page, /<Button asChild variant="outline" className="h-11">/);
+  assert.match(page, /<Button asChild variant="outline" size="management">/);
   assert.match(input, /"h-11 w-full/);
   assert.match(select, /"h-11 w-full appearance-none/);
   assert.match(textarea, /"min-h-28 w-full/);
