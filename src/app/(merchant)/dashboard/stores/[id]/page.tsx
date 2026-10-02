@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
+import { ManagementSelect } from "@/components/management/ManagementSelect";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
@@ -119,40 +121,31 @@ export default async function MerchantStoreDetailPage({
         ) : null}
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard/business/edit"
-            className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-          >
-            {t("editStore")}
-          </Link>
+          <Button asChild size="management">
+            <Link href="/dashboard/business/edit">{t("editStore")}</Link>
+          </Button>
           {store.tenantId !== null ? (
             <>
-              <Link
-                href={"/dashboard/stores/" + store.id + "/products"}
-                className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-              >
-                {tCatalog("manageCatalog")}
-              </Link>
-              <Link
-                href={"/dashboard/stores/" + store.id + "/domain"}
-                className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-              >
-                {t("manageDomain")}
-              </Link>
-              <Link
-                href={"/dashboard/stores/" + store.id + "/team"}
-                className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-              >
-                {t("manageTeam")}
-              </Link>
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id + "/products"}>
+                  {tCatalog("manageCatalog")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id + "/domain"}>
+                  {t("manageDomain")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id + "/team"}>
+                  {t("manageTeam")}
+                </Link>
+              </Button>
             </>
           ) : null}
-          <Link
-            href="/dashboard/stores"
-            className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-          >
-            {t("backToStores")}
-          </Link>
+          <Button asChild variant="outline" size="management">
+            <Link href="/dashboard/stores">{t("backToStores")}</Link>
+          </Button>
         </div>
       </section>
 
@@ -288,12 +281,9 @@ export default async function MerchantStoreDetailPage({
         ) : readiness?.ready ? (
           <form action={activateStoreAction} className="mt-5">
             <input type="hidden" name="storeId" value={store.id} />
-            <button
-              type="submit"
-              className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-            >
+            <Button type="submit" size="management" className="px-5">
               {tActivation("activate")}
-            </button>
+            </Button>
           </form>
         ) : (
           <p className="mt-5 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
@@ -393,12 +383,12 @@ export default async function MerchantStoreDetailPage({
               {tSubscription("selectPlan")}
             </label>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <select
+              <ManagementSelect
                 id="planCode"
                 name="planCode"
                 required
                 defaultValue={subscription?.plan.code ?? ""}
-                className="min-h-11 flex-1 rounded-lg border border-border bg-background px-3 py-2"
+                className="flex-1"
                 disabled={activePlans.length === 0}
               >
                 <option value="" disabled>
@@ -415,14 +405,15 @@ export default async function MerchantStoreDetailPage({
                     {plan.name}
                   </option>
                 ))}
-              </select>
-              <button
+              </ManagementSelect>
+              <Button
                 type="submit"
+                size="management"
                 disabled={activePlans.length === 0}
-                className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                className="px-5"
               >
                 {tSubscription("savePlan")}
-              </button>
+              </Button>
             </div>
           </form>
         ) : (
