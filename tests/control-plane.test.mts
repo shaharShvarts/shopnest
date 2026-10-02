@@ -483,10 +483,11 @@ test("Plan entitlement removal refreshes in place without redirect navigation", 
     actions,
     /removePlanEntitlementInlineAction[\s\S]*?revalidatePath\("\/admin\/plans"\)[\s\S]*?return \{ ok: true as const \}/
   );
-  assert.doesNotMatch(
-    actions,
-    /removePlanEntitlementInlineAction[\s\S]*?redirectWithPlanResult/
-  );
+  const inlineRemoveAction = actions.match(
+    /export async function removePlanEntitlementInlineAction[\s\S]*?\n}\n/
+  )?.[0];
+  assert.ok(inlineRemoveAction);
+  assert.doesNotMatch(inlineRemoveAction, /redirectWithPlanResult/);
   assert.match(page, /RemovePlanEntitlementButton/);
   assert.doesNotMatch(page, /formAction=\{removePlanEntitlementAction/);
   assert.match(removeButton, /useTransition/);
