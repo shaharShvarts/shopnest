@@ -203,6 +203,7 @@ For these actions:
 - prevent duplicate submission while pending
 - refresh Server Component data with `router.refresh()` after a successful mutation when fresh server data is required
 - show success/failure feedback in the current context
+- use the existing global `react-toastify` / `ToastProvider` feedback system for management toasts; do not introduce page-local or custom toast implementations when the installed shared provider already covers the need
 - preserve scroll position and surrounding UI state
 
 Current shared implementation:
@@ -222,6 +223,8 @@ A redirect remains correct when the action **intentionally changes destination**
 - explicit navigation to another management screen
 
 The rule is not "never redirect"; the rule is **never navigate away and back to the same workspace merely to refresh data**.
+
+Destructive actions that already have a reversible/undo interaction must preserve it when migrated to the shared management UI. Do not replace an existing undo flow with an irreversible one-step delete merely for UI consistency.
 
 ## 11. Tables and dense lists
 
