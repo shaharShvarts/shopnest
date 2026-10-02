@@ -8,14 +8,17 @@ import { normalizeMerchantPhone } from "./phone";
 export const MERCHANT_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 export const MERCHANT_PASSWORD_MIN_LENGTH = 12;
 export const MERCHANT_PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
+export const MERCHANT_SIGNUP_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+export const MERCHANT_SIGNUP_RESEND_COOLDOWN_MS = 60 * 1000;
+export const MERCHANT_SIGNUP_MAX_SENDS_PER_HOUR = 5;
 
-export type MerchantStatus = "active" | "disabled";
+export type MerchantStatus = "pending_verification" | "active" | "disabled";
 
 export type MerchantRecord = {
   id: number;
   email: string;
   emailNormalized: string;
-  passwordHash: string;
+  passwordHash: string | null;
   displayName: string;
   phoneE164: string | null;
   emailVerifiedAt: Date | null;
@@ -38,6 +41,38 @@ export type MerchantPasswordResetRecipient = {
   email: string;
 };
 
+export type MerchantSignupTokenState =
+  | { kind: "invalid" }
+  | {
+      kind: "pending";
+      merchantId: number;
+      email: string;
+      expiresAt: Date;
+    }
+  | {
+      kind: "expired";
+      merchantId: number;
+      email: string;
+    }
+  | {
+      kind: "completed";
+      merchantId: number;
+      email: string;
+    };
+
+export type MerchantSignupIssueResult =
+  | { kind: "issued" }
+  | { kind: "cooldown"; nextAllowedAt: Date }
+  | { kind: "rate_limited" }
+  | { kind: "unavailable" };
+
+export interface MerchantSignupDelivery {
+  deliverSignupVerification(input: {
+    email: string;
+    verificationUrl: string;
+  }): Promise<void>;
+}
+
 export interface MerchantPasswordResetDelivery {
   deliverPasswordReset(input: {
     email: string;
@@ -47,13 +82,34 @@ export interface MerchantPasswordResetDelivery {
 
 export interface MerchantAuthRepository {
   findMerchantByNormalizedEmail(email: string): Promise<MerchantRecord | null>;
-  createMerchantWithPassword(input: {
+  createPendingMerchant(input: {
     email: string;
     emailNormalized: string;
-    passwordHash: string;
     displayName: string;
     phoneE164: string;
   }): Promise<MerchantRecord>;
+  issueSignupToken(input: {
+    merchantId: number;
+    tokenHash: string;
+    expiresAt: Date;
+    now: Date;
+    cooldownMs: number;
+    maxPerHour: number;
+  }): Promise<MerchantSignupIssueResult>;
+  inspectSignupToken(input: {
+    tokenHash: string;
+    now: Date;
+  }): Promise<MerchantSignupTokenState>;
+  completeSignupToken(input: {
+    tokenHash: string;
+    passwordHash: string;
+    now: Date;
+  }): Promise<
+    | { kind: "completed"; merchantId: number }
+    | { kind: "already_completed"; merchantId: number }
+    | { kind: "expired" }
+    | { kind: "invalid" }
+  >;
   createSession(input: {
     tokenHash: string;
     merchantId: number;
@@ -79,36 +135,117 @@ export function normalizeMerchantEmail(email: string) {
   return email.trim().normalize("NFKC").toLowerCase();
 }
 
-export async function registerMerchant(
+export async function beginMerchantSignup(
   repository: MerchantAuthRepository,
+  delivery: MerchantSignupDelivery,
   input: {
     email: string;
-    password: string;
     displayName: string;
     phone: string;
+    buildVerificationUrl: (token: string) => string;
+    now?: Date;
   }
 ) {
-  if (input.password.length < MERCHANT_PASSWORD_MIN_LENGTH) {
-    throw new Error("invalid_password");
-  }
-
   const displayName = input.displayName.trim();
   if (!displayName) throw new Error("invalid_display_name");
 
   const emailNormalized = normalizeMerchantEmail(input.email);
   const phoneE164 = normalizeMerchantPhone(input.phone);
+  const now = input.now ?? new Date();
 
-  if (await repository.findMerchantByNormalizedEmail(emailNormalized)) {
+  let merchant = await repository.findMerchantByNormalizedEmail(emailNormalized);
+  if (merchant && merchant.status !== "pending_verification") {
     throw new Error("account_unavailable");
   }
 
+  if (!merchant) {
+    merchant = await repository.createPendingMerchant({
+      email: emailNormalized,
+      emailNormalized,
+      displayName,
+      phoneE164,
+    });
+  }
+
+  const token = generateMerchantSignupToken();
+  const issue = await repository.issueSignupToken({
+    merchantId: merchant.id,
+    tokenHash: hashMerchantSignupToken(token),
+    expiresAt: new Date(now.getTime() + MERCHANT_SIGNUP_TOKEN_TTL_MS),
+    now,
+    cooldownMs: MERCHANT_SIGNUP_RESEND_COOLDOWN_MS,
+    maxPerHour: MERCHANT_SIGNUP_MAX_SENDS_PER_HOUR,
+  });
+
+  if (issue.kind !== "issued") return issue;
+
+  await delivery.deliverSignupVerification({
+    email: merchant.email,
+    verificationUrl: input.buildVerificationUrl(token),
+  });
+
+  return { kind: "sent" as const };
+}
+
+export async function resendMerchantSignupVerification(
+  repository: MerchantAuthRepository,
+  delivery: MerchantSignupDelivery,
+  input: {
+    token: string;
+    buildVerificationUrl: (token: string) => string;
+    now?: Date;
+  }
+) {
+  const now = input.now ?? new Date();
+  const state = await inspectMerchantSignupToken(repository, input.token, now);
+  if (state.kind === "invalid") return state;
+  if (state.kind === "completed") return state;
+
+  const token = generateMerchantSignupToken();
+  const issue = await repository.issueSignupToken({
+    merchantId: state.merchantId,
+    tokenHash: hashMerchantSignupToken(token),
+    expiresAt: new Date(now.getTime() + MERCHANT_SIGNUP_TOKEN_TTL_MS),
+    now,
+    cooldownMs: MERCHANT_SIGNUP_RESEND_COOLDOWN_MS,
+    maxPerHour: MERCHANT_SIGNUP_MAX_SENDS_PER_HOUR,
+  });
+
+  if (issue.kind !== "issued") return issue;
+
+  await delivery.deliverSignupVerification({
+    email: state.email,
+    verificationUrl: input.buildVerificationUrl(token),
+  });
+
+  return { kind: "sent" as const };
+}
+
+export function inspectMerchantSignupToken(
+  repository: MerchantAuthRepository,
+  token: string,
+  now = new Date()
+) {
+  if (!token) return Promise.resolve({ kind: "invalid" } as const);
+  return repository.inspectSignupToken({
+    tokenHash: hashMerchantSignupToken(token),
+    now,
+  });
+}
+
+export async function completeMerchantSignup(
+  repository: MerchantAuthRepository,
+  input: { token: string; password: string; now?: Date }
+) {
+  if (input.password.length < MERCHANT_PASSWORD_MIN_LENGTH) {
+    return { kind: "invalid_password" as const };
+  }
+
   const passwordHash = await hashMerchantPassword(input.password);
-  return repository.createMerchantWithPassword({
-    email: emailNormalized,
-    emailNormalized,
+  return repository.completeSignupToken({
+    tokenHash: hashMerchantSignupToken(input.token),
     passwordHash,
-    displayName,
-    phoneE164,
+    now: input.now ?? new Date(),
   });
 }
 
@@ -120,7 +257,15 @@ export async function authenticateMerchant(
   const merchant = await repository.findMerchantByNormalizedEmail(
     normalizeMerchantEmail(email)
   );
-  if (!merchant || merchant.status !== "active") return null;
+  if (
+    !merchant ||
+    merchant.status !== "active" ||
+    !merchant.emailVerifiedAt ||
+    !merchant.passwordHash
+  ) {
+    return null;
+  }
+
   return (await verifyMerchantPassword(password, merchant.passwordHash))
     ? merchant
     : null;
@@ -220,6 +365,14 @@ export async function resetMerchantPassword(
     passwordHash,
     now: input.now ?? new Date(),
   });
+}
+
+export function generateMerchantSignupToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashMerchantSignupToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function generateMerchantPasswordResetToken() {
