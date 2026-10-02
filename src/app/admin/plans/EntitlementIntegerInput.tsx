@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function EntitlementIntegerInput({
   name,
@@ -25,7 +26,7 @@ export default function EntitlementIntegerInput({
     <div className="space-y-1">
       <input type="hidden" name={name} value={value} />
 
-      <div className="flex min-h-11 items-stretch overflow-hidden rounded-md border bg-white">
+      <div className="flex h-11 items-stretch overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm transition-[border-color,box-shadow] hover:border-slate-400 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200">
         <div className="flex min-w-0 flex-1 items-center px-3 py-2">
           <span className="tabular-nums">
             {unlimited ? unlimitedLabel : value}
@@ -37,7 +38,7 @@ export default function EntitlementIntegerInput({
             type="button"
             aria-label="Increase"
             onClick={() => step(1)}
-            className="flex flex-1 items-center justify-center border-b text-sm hover:bg-slate-50"
+            className="flex flex-1 items-center justify-center border-b border-slate-200 text-sm outline-none hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-300"
           >
             ▲
           </button>
@@ -46,20 +47,22 @@ export default function EntitlementIntegerInput({
             aria-label="Decrease"
             onClick={() => step(-1)}
             disabled={!unlimited && value <= 0}
-            className="flex flex-1 items-center justify-center text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex flex-1 items-center justify-center text-sm outline-none hover:bg-slate-50 focus-visible:bg-slate-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
           >
             ▼
           </button>
         </div>
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="link"
+        size="sm"
         onClick={() => setValue(-1)}
-        className="text-sm font-medium text-blue-700 underline underline-offset-2"
+        className="h-auto p-0 text-sm font-medium text-blue-700"
       >
         {unlimitedLabel}
-      </button>
+      </Button>
     </div>
   );
 }
