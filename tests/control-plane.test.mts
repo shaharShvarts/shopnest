@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import type { AdminPrincipal } from "../src/lib/admin-auth/core.ts";
 import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
@@ -498,6 +498,45 @@ test("Control Plane same-page mutations use the shared in-place interaction", as
   assert.match(storePage, /ManagementMutationForm/);
   assert.doesNotMatch(storeActions, /next\/navigation/);
   assert.doesNotMatch(storeActions, /redirect\(/);
+});
+
+test("application toasts use the installed react-toastify provider", async () => {
+  const relativeFiles = (await readdir("src", { recursive: true }))
+    .filter((path) => /\.(?:ts|tsx|js|jsx)$/.test(path))
+    .map((path) => `src/${path}`);
+
+  const sources = await Promise.all(
+    relativeFiles.map(async (path) => ({
+      path,
+      source: await readFile(path, "utf8"),
+    }))
+  );
+
+  const toastContainers = sources
+    .filter(({ source }) => /<ToastContainer\b/.test(source))
+    .map(({ path }) => path);
+
+  assert.deepEqual(toastContainers, ["src/app/components/ToastProvider.tsx"]);
+
+  for (const { path, source } of sources) {
+    if (/\btoast\.(?:success|error|info|warning|warn|loading|promise|dismiss|update)\b/.test(source)) {
+      assert.match(
+        source,
+        /from ["']react-toastify["']/,
+        `${path} uses toast feedback without react-toastify`
+      );
+    }
+  }
+
+  const managementMutation = sources.find(
+    ({ path }) => path === "src/components/management/ManagementMutation.tsx"
+  )?.source ?? "";
+
+  assert.match(managementMutation, /from "react-toastify"/);
+  assert.doesNotMatch(
+    managementMutation,
+    /fixed inset-x-4 top-4|z-\[100\].*rounded-lg.*shadow-lg/
+  );
 });
 
 test("Control Plane store settings use shared management controls", async () => {
