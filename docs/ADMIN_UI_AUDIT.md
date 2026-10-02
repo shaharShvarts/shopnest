@@ -330,8 +330,9 @@ Reason: these contain many repeated actions and will benefit strongly from the s
 3. navigation states ✅
 4. language/logout utility alignment ✅
 5. table/action consistency ✅
-6. Hebrew/English visual verification ⏳
-7. responsive verification ⏳
+6. same-page mutation consistency — code migrated; validation pending ⏳
+7. Hebrew/English visual verification ⏳
+8. responsive verification ⏳
 
 ## 6. Regression strategy
 
