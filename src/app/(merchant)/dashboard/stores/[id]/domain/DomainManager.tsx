@@ -47,7 +47,13 @@ function CopyValue({ value }: { value: string }) {
   );
 }
 
-export function DomainManager({ view }: { view: MerchantDomainView }) {
+export function DomainManager({
+  view,
+  customDomainEnabled,
+}: {
+  view: MerchantDomainView;
+  customDomainEnabled: boolean;
+}) {
   const t = useTranslations("MerchantDomain");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -219,7 +225,19 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
           </p>
         ) : null}
 
-        {!view.claim && !view.candidate && !view.retiring ? (
+        {!customDomainEnabled ? (
+          <p
+            role="status"
+            className="mt-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
+            {t("featureUnavailable")}
+          </p>
+        ) : null}
+
+        {customDomainEnabled &&
+        !view.claim &&
+        !view.candidate &&
+        !view.retiring ? (
           <form
             className="mt-6 space-y-3"
             onSubmit={(event) => {
@@ -248,7 +266,7 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
           </form>
         ) : null}
 
-        {view.claim ? (
+        {customDomainEnabled && view.claim ? (
           <div className="mt-6 space-y-5">
             <h3 className="font-bold">{t("verifyOwnership")}</h3>
             <div className="rounded-xl bg-muted px-4 py-3 text-sm">
@@ -419,7 +437,7 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
           </div>
         ) : null}
 
-        {view.candidate ? (
+        {customDomainEnabled && view.candidate ? (
           <div className="mt-6 space-y-3 border-t border-border pt-5">
             <h3 className="font-bold">{t("provisionSsl")}</h3>
             <p className="text-sm">
