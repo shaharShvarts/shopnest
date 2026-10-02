@@ -7,6 +7,7 @@ import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 import { getMerchantDomainView } from "@/lib/merchant-domains/server";
 import { DomainManager } from "./DomainManager";
 import { rollbackDomainAction } from "./_actions";
+import { storeHasBooleanEntitlement } from "@/lib/store-entitlements/server";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,10 @@ export default async function MerchantStoreDomainPage({
     notFound();
   }
 
-  const [store, view, t, query] = await Promise.all([
+  const [store, view, customDomainEnabled, t, query] = await Promise.all([
     getMerchantStoreRepository().findOwnedById(merchant.id, storeId),
     getMerchantDomainView(merchant.id, storeId),
+    storeHasBooleanEntitlement(storeId, "custom_domain"),
     getTranslations("MerchantDomain"),
     searchParams,
   ]);
@@ -90,7 +92,10 @@ export default async function MerchantStoreDomainPage({
         </section>
       ) : null}
 
-      <DomainManager view={view} />
+      <DomainManager
+        view={view}
+        customDomainEnabled={customDomainEnabled}
+      />
     </main>
   );
 }
