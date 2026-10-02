@@ -60,7 +60,7 @@ The Control Plane Plans page now uses this component for:
 
 #### `src/app/admin/plans/page.tsx`
 
-Status: **partially migrated**
+Status: **migrated in Wave 1**
 
 Already standardized:
 
@@ -70,12 +70,14 @@ Already standardized:
 - improved hover/focus styling
 - active navigation and Control Plane shell styling improved
 
-Remaining:
+Wave 1 migration completed:
 
-- raw text inputs still have page-local classes
-- create-Plan inputs still use older local input styling
-- integer entitlement control remains custom and should be aligned with management control tokens
-- checkbox/status-related controls should move to shared primitives as those primitives are introduced
+- Plan text/create inputs -> `ManagementInput`
+- Plan price inputs -> `ManagementInput`
+- Plan selects -> `ManagementSelect`
+- normal Plan actions -> shared `Button` with `size="management"`
+- integer entitlement spinner aligned with 44px management tokens, focus/hover/radius, while preserving its specialized stepper behavior
+- checkbox/status-related controls remain candidates for future checkbox-specific primitives as those primitives are introduced
 
 #### `src/app/admin/stores/[slug]/page.tsx`
 
@@ -287,9 +289,9 @@ Do not extract abstractions solely for theoretical completeness. Extract where r
 
 1. Add ManagementInput ✅
 2. Add ManagementTextarea ✅
-3. standardize management Button sizing convention
+3. standardize management Button sizing convention ✅
 4. migrate `/admin/stores/[slug]` ✅
-5. finish remaining Plan inputs/integer control
+5. finish remaining Plan inputs/integer control ✅
 6. review Control Plane tables/cards/login
 
 Reason: the Control Plane is smaller and establishes the canonical management language.
