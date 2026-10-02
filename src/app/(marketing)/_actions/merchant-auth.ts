@@ -17,10 +17,12 @@ import {
 import { getStoreManagementRepository } from "@/lib/store-management/server";
 import {
   authenticateMerchant,
+  beginMerchantSignup,
+  completeMerchantSignup,
   createMerchantSession,
   MERCHANT_PASSWORD_MIN_LENGTH,
-  registerMerchant,
   requestMerchantPasswordReset,
+  resendMerchantSignupVerification,
   resetMerchantPassword,
 } from "@/lib/merchant-auth/core";
 import {
@@ -29,6 +31,7 @@ import {
 } from "@/lib/merchant-auth/cookie";
 import { normalizeMerchantPhone } from "@/lib/merchant-auth/phone";
 import { createMerchantPasswordResetDelivery } from "@/lib/merchant-auth/password-reset-delivery";
+import { createMerchantSignupDelivery } from "@/lib/merchant-auth/signup-delivery";
 import {
   getMerchantAuthRepository,
   logoutMerchantToken,
@@ -51,7 +54,6 @@ const signupSchema = z.object({
         return false;
       }
     }, "invalid_phone"),
-  password: z.string().min(MERCHANT_PASSWORD_MIN_LENGTH).max(256),
 });
 
 const loginSchema = z.object({
@@ -68,7 +70,28 @@ const resetPasswordSchema = z.object({
   password: z.string().min(MERCHANT_PASSWORD_MIN_LENGTH).max(256),
 });
 
+const completeSignupSchema = z.object({
+  token: z.string().min(1).max(512),
+  password: z.string().min(MERCHANT_PASSWORD_MIN_LENGTH).max(256),
+  passwordConfirmation: z.string().min(MERCHANT_PASSWORD_MIN_LENGTH).max(256),
+});
+
+const resendSignupSchema = z.object({
+  token: z.string().min(1).max(512),
+});
+
 const passwordResetDelivery = createMerchantPasswordResetDelivery();
+
+export type MerchantSignupActionState = {
+  submitted: boolean;
+  message?:
+    | "invalidAccountDetails"
+    | "accountUnavailable"
+    | "verificationRecentlySent"
+    | "verificationRateLimited"
+    | "emailDeliveryFailed";
+  errors?: Record<string, string[] | undefined>;
+};
 
 export type MerchantAuthActionState = {
   success: false;
@@ -83,37 +106,59 @@ export type MerchantAuthActionState = {
 };
 
 export async function signupMerchantAction(
-  _state: MerchantAuthActionState,
+  _state: MerchantSignupActionState,
   formData: FormData
-): Promise<MerchantAuthActionState> {
+): Promise<MerchantSignupActionState> {
   const parsed = signupSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return {
-      success: false,
+      submitted: false,
       message: "invalidAccountDetails",
       errors: parsed.error.flatten().fieldErrors,
     };
   }
 
-  const repository = getMerchantAuthRepository();
-  let merchant;
-  try {
-    merchant = await registerMerchant(repository, {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      displayName: parsed.data.name,
-      phone: parsed.data.phone,
-    });
-  } catch {
-    return { success: false, message: "accountUnavailable" };
+  const origin = await merchantRequestOrigin();
+  if (!origin) {
+    return { submitted: false, message: "emailDeliveryFailed" };
   }
 
-  const cookieStore = await cookies();
-  await clearAdminSession(cookieStore);
-  await logoutMerchantToken(cookieStore.get(MERCHANT_SESSION_COOKIE)?.value);
-  const session = await createMerchantSession(repository, merchant.id);
-  await setMerchantSessionCookie(cookieStore, session);
-  redirect("/dashboard");
+  try {
+    const result = await beginMerchantSignup(
+      getMerchantAuthRepository(),
+      createMerchantSignupDelivery(),
+      {
+        email: parsed.data.email,
+        displayName: parsed.data.name,
+        phone: parsed.data.phone,
+        buildVerificationUrl: (token) =>
+          new URL(
+            `/complete-signup?token=${encodeURIComponent(token)}`,
+            origin
+          ).toString(),
+      }
+    );
+
+    if (result.kind === "cooldown") {
+      return { submitted: false, message: "verificationRecentlySent" };
+    }
+    if (result.kind === "rate_limited") {
+      return { submitted: false, message: "verificationRateLimited" };
+    }
+    if (result.kind === "unavailable") {
+      return { submitted: false, message: "accountUnavailable" };
+    }
+
+    return { submitted: true };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "account_unavailable"
+    ) {
+      return { submitted: false, message: "accountUnavailable" };
+    }
+    return { submitted: false, message: "emailDeliveryFailed" };
+  }
 }
 
 export async function loginMerchantAction(
@@ -174,6 +219,106 @@ export async function loginMerchantAction(
   redirect("/dashboard");
 }
 
+export type MerchantCompleteSignupActionState = {
+  success: false;
+  message?: "invalidNewPassword" | "passwordMismatch" | "invalidSignupLink";
+};
+
+export async function completeMerchantSignupAction(
+  _state: MerchantCompleteSignupActionState,
+  formData: FormData
+): Promise<MerchantCompleteSignupActionState> {
+  const parsed = completeSignupSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { success: false, message: "invalidNewPassword" };
+  }
+  if (parsed.data.password !== parsed.data.passwordConfirmation) {
+    return { success: false, message: "passwordMismatch" };
+  }
+
+  const result = await completeMerchantSignup(getMerchantAuthRepository(), {
+    token: parsed.data.token,
+    password: parsed.data.password,
+  });
+
+  if (result.kind === "expired") {
+    redirect(
+      `/complete-signup?token=${encodeURIComponent(parsed.data.token)}`
+    );
+  }
+  if (result.kind === "invalid" || result.kind === "invalid_password") {
+    return { success: false, message: "invalidSignupLink" };
+  }
+  if (result.kind === "already_completed") {
+    redirect("/login");
+  }
+
+  const cookieStore = await cookies();
+  await clearAdminSession(cookieStore);
+  await logoutMerchantToken(cookieStore.get(MERCHANT_SESSION_COOKIE)?.value);
+  const session = await createMerchantSession(
+    getMerchantAuthRepository(),
+    result.merchantId
+  );
+  await setMerchantSessionCookie(cookieStore, session);
+  redirect("/dashboard");
+}
+
+export type MerchantSignupResendActionState = {
+  submitted: boolean;
+  message?:
+    | "invalidSignupLink"
+    | "verificationRecentlySent"
+    | "verificationRateLimited"
+    | "emailDeliveryFailed";
+};
+
+export async function resendMerchantSignupAction(
+  _state: MerchantSignupResendActionState,
+  formData: FormData
+): Promise<MerchantSignupResendActionState> {
+  const parsed = resendSignupSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { submitted: false, message: "invalidSignupLink" };
+  }
+
+  const origin = await merchantRequestOrigin();
+  if (!origin) {
+    return { submitted: false, message: "emailDeliveryFailed" };
+  }
+
+  try {
+    const result = await resendMerchantSignupVerification(
+      getMerchantAuthRepository(),
+      createMerchantSignupDelivery(),
+      {
+        token: parsed.data.token,
+        buildVerificationUrl: (token) =>
+          new URL(
+            `/complete-signup?token=${encodeURIComponent(token)}`,
+            origin
+          ).toString(),
+      }
+    );
+
+    if (result.kind === "sent") return { submitted: true };
+    if (result.kind === "cooldown") {
+      return { submitted: false, message: "verificationRecentlySent" };
+    }
+    if (result.kind === "rate_limited") {
+      return { submitted: false, message: "verificationRateLimited" };
+    }
+    if (result.kind === "completed") {
+      redirect(
+        `/complete-signup?token=${encodeURIComponent(parsed.data.token)}`
+      );
+    }
+    return { submitted: false, message: "invalidSignupLink" };
+  } catch {
+    return { submitted: false, message: "emailDeliveryFailed" };
+  }
+}
+
 export type MerchantForgotPasswordActionState = {
   submitted: boolean;
   message?: "invalidEmail";
@@ -186,19 +331,8 @@ export async function requestMerchantPasswordResetAction(
   const parsed = forgotPasswordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { submitted: false, message: "invalidEmail" };
 
-  const requestHeaders = await headers();
-  let origin: string;
-  try {
-    origin = resolveMerchantRequestOrigin({
-      origin: requestHeaders.get("origin"),
-      forwardedProto: requestHeaders.get("x-forwarded-proto"),
-      forwardedHost: requestHeaders.get("x-forwarded-host"),
-      host: requestHeaders.get("host"),
-      nodeEnv: process.env.NODE_ENV,
-    });
-  } catch {
-    return { submitted: true };
-  }
+  const origin = await merchantRequestOrigin();
+  if (!origin) return { submitted: true };
 
   await requestMerchantPasswordReset(
     getMerchantAuthRepository(),
@@ -234,6 +368,21 @@ export async function resetMerchantPasswordAction(
   const cookieStore = await cookies();
   cookieStore.delete(MERCHANT_SESSION_COOKIE);
   redirect("/login?reset=success");
+}
+
+async function merchantRequestOrigin() {
+  const requestHeaders = await headers();
+  try {
+    return resolveMerchantRequestOrigin({
+      origin: requestHeaders.get("origin"),
+      forwardedProto: requestHeaders.get("x-forwarded-proto"),
+      forwardedHost: requestHeaders.get("x-forwarded-host"),
+      host: requestHeaders.get("host"),
+      nodeEnv: process.env.NODE_ENV,
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function setMerchantSessionCookie(
