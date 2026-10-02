@@ -7,11 +7,11 @@ export const merchantAccounts = pgTable("merchant_accounts", {
   emailNormalized: varchar("email_normalized", { length: 320 })
     .notNull()
     .unique(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  passwordHash: varchar("password_hash", { length: 255 }),
   displayName: varchar("display_name", { length: 160 }).notNull(),
   phoneE164: varchar("phone_e164", { length: 32 }),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
-  status: merchantStatusEnum("status").notNull().default("active"),
+  status: merchantStatusEnum("status").notNull().default("pending_verification"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
