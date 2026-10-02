@@ -75,6 +75,23 @@ export async function removePlanEntitlementAction(
   await redirectWithPlanResult("ENTITLEMENT_REMOVED");
 }
 
+export async function removePlanEntitlementInlineAction(
+  planId: number,
+  entitlementId: number
+) {
+  try {
+    await removePlanEntitlementForAdmin({
+      planId,
+      entitlementId,
+    });
+  } catch {
+    return { ok: false as const };
+  }
+
+  revalidatePath("/admin/plans");
+  return { ok: true as const };
+}
+
 export async function updatePlanAction(formData: FormData) {
   try {
     const parsed = planUpdateFormSchema.parse({
