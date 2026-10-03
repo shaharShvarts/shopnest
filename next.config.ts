@@ -8,6 +8,7 @@ const bodySizeLimit = `${Math.ceil(MAX_IMAGE_UPLOAD_BYTES / (1024 * 1024)) + 1}m
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
+  deploymentId: process.env.SHOPNEST_DEPLOYMENT_ID,
   experimental: {
     authInterrupts: true,
     serverActions: {
