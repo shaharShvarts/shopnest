@@ -17,6 +17,7 @@ export * from "@/drizzle/control-schema/organization";
 export * from "@/drizzle/control-schema/organizationMembership";
 export * from "@/drizzle/control-schema/store";
 export * from "@/drizzle/control-schema/storeManagerAssignment";
+export * from "@/drizzle/control-schema/storeManagerInvitation";
 export * from "@/drizzle/control-schema/plan";
 export * from "@/drizzle/control-schema/subscription";
 export * from "@/drizzle/control-schema/storePolicyDocument";
