@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { AdminPrincipal, TenantStatus } from "../admin-auth/core.ts";
+import type { AdminPrincipal } from "../admin-auth/core.ts";
+import type { StoreStatus, TenantStatus } from "@/drizzle/control-schema/shared";
 import {
   tenantIdentityFromRegistryRecord,
   trustedTenantFromRegistryRecord,
@@ -7,12 +8,15 @@ import {
 } from "../tenant-registry/core.ts";
 
 export type ControlPlaneStore = {
-  id: number;
+  storeId: number;
   slug: string;
-  schemaName: string;
   displayName: string;
-  status: TenantStatus;
-  plan: string;
+  storeStatus: StoreStatus;
+  tenantId: number | null;
+  tenantSlug: string | null;
+  schemaName: string | null;
+  tenantStatus: TenantStatus | null;
+  plan: string | null;
   subscriptionPlanCode: string | null;
   subscriptionPlanName: string | null;
   featured: boolean;
@@ -33,7 +37,10 @@ export type StoreMetrics = {
 
 export type StoreMetricsResult =
   | { kind: "available"; metrics: StoreMetrics }
-  | { kind: "unavailable"; reason: "untrusted_registry" | "query_failed" };
+  | {
+      kind: "unavailable";
+      reason: "not_provisioned" | "untrusted_registry" | "query_failed";
+    };
 
 export type StoreSummary = ControlPlaneStore & StoreMetricsResult;
 
@@ -74,19 +81,30 @@ export function authorizeStoreMutation(
 export function resolveTrustedStore(
   store: ControlPlaneStore
 ): TrustedTenant | null {
+  if (
+    store.storeStatus !== "provisioned" ||
+    store.tenantId === null ||
+    store.tenantSlug === null ||
+    store.schemaName === null ||
+    store.tenantStatus === null
+  ) {
+    return null;
+  }
+
   return trustedTenantFromRegistryRecord({
-    slug: store.slug,
+    slug: store.tenantSlug,
     schemaName: store.schemaName,
-    status: store.status,
+    status: store.tenantStatus,
   });
 }
 
 export function hasValidTenantIdentity(
-  store: Pick<ControlPlaneStore, "slug" | "schemaName">
+  store: Pick<ControlPlaneStore, "tenantSlug" | "schemaName">
 ) {
+  if (store.tenantSlug === null || store.schemaName === null) return false;
   return Boolean(
     tenantIdentityFromRegistryRecord({
-      slug: store.slug,
+      slug: store.tenantSlug,
       schemaName: store.schemaName,
     })
   );
@@ -104,8 +122,15 @@ export async function buildStoreSummaries(
 ): Promise<StoreSummary[]> {
   return Promise.all(
     stores.map(async (store): Promise<StoreSummary> => {
+      if (store.storeStatus !== "provisioned" || store.tenantId === null) {
+        return { ...store, kind: "unavailable", reason: "not_provisioned" };
+      }
+
       const tenant = resolveTrustedStore(store);
-      if (!tenant) return { ...store, kind: "unavailable", reason: "untrusted_registry" };
+      if (!tenant) {
+        return { ...store, kind: "unavailable", reason: "untrusted_registry" };
+      }
+
       try {
         return { ...store, kind: "available", metrics: await loadMetrics(tenant) };
       } catch {
@@ -120,16 +145,29 @@ export function summarizePlatform(stores: StoreSummary[]) {
     (store): store is ControlPlaneStore & { kind: "available"; metrics: StoreMetrics } =>
       store.kind === "available"
   );
+  const metricFailures = stores.filter(
+    (store) =>
+      store.storeStatus === "provisioned" && store.kind === "unavailable"
+  );
+
   return {
     registeredStores: stores.length,
-    activeStores: stores.filter((store) => store.status === "active").length,
-    unavailableStores: stores.filter((store) => store.status !== "active").length,
+    activeStores: stores.filter(
+      (store) =>
+        store.storeStatus === "provisioned" &&
+        store.tenantStatus === "active"
+    ).length,
+    unavailableStores: stores.filter(
+      (store) =>
+        store.storeStatus === "provisioned" &&
+        store.tenantStatus !== "active"
+    ).length,
     totalOrders: available.reduce((total, store) => total + store.metrics.orderCount, 0),
     totalRevenue: available.reduce((total, store) => total + store.metrics.salesVolume, 0),
     ordersToday: available.reduce((total, store) => total + store.metrics.ordersToday, 0),
     revenueToday: available.reduce((total, store) => total + store.metrics.revenueToday, 0),
-    complete: available.length === stores.length,
-    failedStores: stores.filter((store) => store.kind === "unavailable").map((store) => store.slug),
+    complete: metricFailures.length === 0,
+    failedStores: metricFailures.map((store) => store.slug),
   };
 }
 
