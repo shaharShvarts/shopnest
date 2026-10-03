@@ -125,7 +125,7 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
           key={store.id}
           className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-6"
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-4">
             <div>
               <h2 className="text-xl font-bold">
                 {store.displayName}
