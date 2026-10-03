@@ -158,13 +158,13 @@ export default async function MerchantStoreDetailPage({
                   </Link>
                 </Button>
               ) : null}
-              <Button asChild variant="outline" size="management">
-                <Link href={"/dashboard/stores/" + store.id + "/team"}>
-                  {t("manageTeam")}
-                </Link>
-              </Button>
             </>
           ) : null}
+          <Button asChild variant="outline" size="management">
+            <Link href={"/dashboard/stores/" + store.id + "/team"}>
+              {t("manageTeam")}
+            </Link>
+          </Button>
           <Button asChild variant="outline" size="management">
             <Link href="/dashboard/stores">{t("backToStores")}</Link>
           </Button>
