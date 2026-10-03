@@ -157,9 +157,9 @@ export default async function StoreTeamPage({
           action={inviteAction}
           messages={resultMessages}
           resetOnSuccess
-          className="mt-5 space-y-4"
+          className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
         >
-          <div>
+          <div className="flex-1">
             <label htmlFor="manager-email" className="mb-1 block text-sm font-medium">
               {t("email")}
             </label>
@@ -176,7 +176,7 @@ export default async function StoreTeamPage({
             type="submit"
             size="management"
             disabled={!canAdd}
-            className="px-5"
+            className="shrink-0 px-5"
           >
             {t("invite")}
           </Button>
