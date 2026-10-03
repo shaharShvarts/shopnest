@@ -392,13 +392,22 @@ test("merchant password reset remains active-account only and single-use", async
   );
 });
 
-test("Resend signup delivery stays server-side and uses configured sender", async () => {
-  const source = await readFile("src/lib/merchant-auth/signup-delivery.ts", "utf8");
-  assert.match(source, /import "server-only"/);
-  assert.match(source, /https:\/\/api\.resend\.com\/emails/);
-  assert.match(source, /RESEND_API_KEY/);
-  assert.match(source, /SHOPNEST_EMAIL_FROM/);
-  assert.doesNotMatch(source, /NEXT_PUBLIC_/);
+test("Resend signup and password-reset delivery stay server-side and use configured sender", async () => {
+  const [signupSource, resetSource] = await Promise.all([
+    readFile("src/lib/merchant-auth/signup-delivery.ts", "utf8"),
+    readFile("src/lib/merchant-auth/password-reset-delivery.ts", "utf8"),
+  ]);
+
+  for (const source of [signupSource, resetSource]) {
+    assert.match(source, /import "server-only"/);
+    assert.match(source, /https:\/\/api\.resend\.com\/emails/);
+    assert.match(source, /RESEND_API_KEY/);
+    assert.match(source, /SHOPNEST_EMAIL_FROM/);
+    assert.doesNotMatch(source, /NEXT_PUBLIC_/);
+  }
+
+  assert.match(resetSource, /30 minutes/);
+  assert.match(resetSource, /Merchant password reset email delivery is not configured/);
 });
 
 test("merchant auth persistence stays in the control plane", async () => {
