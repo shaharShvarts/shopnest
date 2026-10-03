@@ -6,6 +6,7 @@ import {
   adminUsers,
   adminUserTenants,
   entitlements,
+  merchantAccounts,
   planEntitlements,
   plans,
   storeManagerAssignments,
@@ -193,6 +194,19 @@ export class DrizzleStoreTeamRepository {
         };
       }
 
+      const [merchantIdentity] = await tx
+        .select({ id: merchantAccounts.id })
+        .from(merchantAccounts)
+        .where(eq(merchantAccounts.emailNormalized, normalizedEmail))
+        .limit(1);
+
+      if (merchantIdentity) {
+        throw new StoreTeamError(
+          "MANAGER_ACCOUNT_UNAVAILABLE",
+          "This email is already used by a merchant account"
+        );
+      }
+
       await tx.insert(storeManagerInvitations).values({
         storeId: input.storeId,
         email: normalizedEmail,
@@ -328,6 +342,19 @@ export class DrizzleStoreTeamRepository {
           );
 
         return { adminUserId: existing.id, email: existing.email };
+      }
+
+      const [merchantIdentity] = await tx
+        .select({ id: merchantAccounts.id })
+        .from(merchantAccounts)
+        .where(eq(merchantAccounts.emailNormalized, invitation.email))
+        .limit(1);
+
+      if (merchantIdentity) {
+        throw new StoreTeamError(
+          "MANAGER_ACCOUNT_UNAVAILABLE",
+          "This email is already used by a merchant account"
+        );
       }
 
       await lockStoreManagerQuota(tx, invitation.storeId);
