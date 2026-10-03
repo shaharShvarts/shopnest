@@ -28,12 +28,24 @@ export default async function StoreDetailPage({
     getTranslations("ControlPlane"),
   ]);
 
-  const [store, domainSummary] = await Promise.all([
-    getControlPlaneStore(slug),
-    getCustomDomainAdminSummary(slug),
-  ]);
-
+  const store = await getControlPlaneStore(slug);
   if (!store) notFound();
+
+  const domainSummary =
+    store.tenantSlug !== null
+      ? await getCustomDomainAdminSummary(store.tenantSlug)
+      : null;
+
+  const displayStatus =
+    store.storeStatus === "provisioned" && store.tenantStatus
+      ? store.tenantStatus
+      : store.storeStatus;
+
+  const hasTenant =
+    store.tenantId !== null &&
+    store.tenantSlug !== null &&
+    store.schemaName !== null &&
+    store.tenantStatus !== null;
 
   return (
     <div className="space-y-7">
@@ -54,17 +66,18 @@ export default async function StoreDetailPage({
         </div>
         <div className="flex items-center gap-3">
           <StoreStatusBadge
-            status={store.status}
-            label={t(store.status)}
+            status={displayStatus}
+            label={t(displayStatus)}
           />
-          <Button asChild variant="outline" size="management">
-            <a href={`/${store.slug}/admin`}>
-              {t("openTenantAdmin")}
-            </a>
-          </Button>
+          {hasTenant ? (
+            <Button asChild variant="outline" size="management">
+              <a href={`/${store.tenantSlug}/admin`}>
+                {t("openTenantAdmin")}
+              </a>
+            </Button>
+          ) : null}
         </div>
       </header>
-
 
       {store.kind === "available" ? (
         <section className="grid gap-4 sm:grid-cols-3">
@@ -88,6 +101,10 @@ export default async function StoreDetailPage({
             }
           />
         </section>
+      ) : store.reason === "not_provisioned" ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-slate-600">
+          {t("storeNotProvisionedMetrics")}
+        </div>
       ) : (
         <div
           role="alert"
@@ -97,7 +114,7 @@ export default async function StoreDetailPage({
         </div>
       )}
 
-      {(domainSummary?.primary || domainSummary?.retiring) ? (
+      {(domainSummary?.primary || domainSummary?.retiring) && store.tenantSlug ? (
         <section className="rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">
             {t("customDomainLifecycle")}
@@ -139,7 +156,7 @@ export default async function StoreDetailPage({
                 <input
                   type="hidden"
                   name="tenantSlug"
-                  value={store.slug}
+                  value={store.tenantSlug}
                 />
                 <input
                   type="hidden"
@@ -156,69 +173,84 @@ export default async function StoreDetailPage({
       ) : null}
 
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <ManagementMutationForm
-          action={updateStoreAction}
-          successMessage={t("storeSaved")}
-          failureMessage={t("storeSaveFailed")}
-          className="space-y-5 rounded-xl border bg-white p-6 shadow-sm"
-        >
-          <input type="hidden" name="slug" value={store.slug} />
-          <h2 className="text-xl font-bold">{t("storeSettings")}</h2>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">{t("status")}</span>
-            <ManagementSelect
-              name="status"
-              defaultValue={store.status}
-            >
-              <option value="active">{t("active")}</option>
-              <option value="suspended">{t("suspended")}</option>
-              <option value="disabled">{t("disabled")}</option>
-            </ManagementSelect>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              name="featured"
-              type="checkbox"
-              defaultChecked={store.featured}
-            />
-            <span className="text-sm font-medium">
-              {t("featureStore")}
-            </span>
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">
-              {t("featuredRank")}
-            </span>
-            <ManagementInput
-              name="featuredRank"
-              type="number"
-              min="1"
-              defaultValue={store.featuredRank ?? ""}
-            />
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">
-              {t("supportNotes")}
-            </span>
-            <ManagementTextarea
-              name="supportNotes"
-              maxLength={4000}
-              defaultValue={store.supportNotes ?? ""}
-              rows={5}
-              placeholder={t("supportNotesPlaceholder")}
-            />
-          </label>
-          <Button type="submit" size="management" className="px-5">
-            {t("saveChanges")}
-          </Button>
-        </ManagementMutationForm>
+        {hasTenant ? (
+          <ManagementMutationForm
+            action={updateStoreAction}
+            successMessage={t("storeSaved")}
+            failureMessage={t("storeSaveFailed")}
+            className="space-y-5 rounded-xl border bg-white p-6 shadow-sm"
+          >
+            <input type="hidden" name="slug" value={store.slug} />
+            <h2 className="text-xl font-bold">{t("storeSettings")}</h2>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">{t("status")}</span>
+              <ManagementSelect
+                name="status"
+                defaultValue={store.tenantStatus ?? "active"}
+              >
+                <option value="active">{t("active")}</option>
+                <option value="suspended">{t("suspended")}</option>
+                <option value="disabled">{t("disabled")}</option>
+              </ManagementSelect>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                name="featured"
+                type="checkbox"
+                defaultChecked={store.featured}
+              />
+              <span className="text-sm font-medium">
+                {t("featureStore")}
+              </span>
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">
+                {t("featuredRank")}
+              </span>
+              <ManagementInput
+                name="featuredRank"
+                type="number"
+                min="1"
+                defaultValue={store.featuredRank ?? ""}
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">
+                {t("supportNotes")}
+              </span>
+              <ManagementTextarea
+                name="supportNotes"
+                maxLength={4000}
+                defaultValue={store.supportNotes ?? ""}
+                rows={5}
+                placeholder={t("supportNotesPlaceholder")}
+              />
+            </label>
+            <Button type="submit" size="management" className="px-5">
+              {t("saveChanges")}
+            </Button>
+          </ManagementMutationForm>
+        ) : (
+          <div className="rounded-xl border bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold">{t("storeSettings")}</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              {t("tenantSettingsAfterProvisioning")}
+            </p>
+          </div>
+        )}
 
         <aside className="space-y-3 rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="font-bold">{t("storeIdentity")}</h2>
           <dl className="space-y-3 text-sm">
             <div>
+              <dt className="text-slate-500">{t("storeLifecycleStatus")}</dt>
+              <dd>{t(store.storeStatus)}</dd>
+            </div>
+            <div>
               <dt className="text-slate-500">{t("schema")}</dt>
-              <dd className="font-mono">{store.schemaName}</dd>
+              <dd className="font-mono">
+                {store.schemaName ?? t("notProvisioned")}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">{t("created")}</dt>
