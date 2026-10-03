@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { getControlPlaneDb } from "@/drizzle/db";
 import {
   adminUsers,
@@ -9,6 +9,8 @@ import {
   planEntitlements,
   plans,
   storeManagerAssignments,
+  storeManagerInvitations,
+  stores,
   subscriptions,
 } from "@/drizzle/control-plane-schema";
 import { hashAdminPassword } from "@/lib/admin-auth/password.mjs";
@@ -19,6 +21,7 @@ import {
   StoreTeamError,
   storeManagerQuota,
   type StoreManager,
+  type StoreManagerInvitationState,
   type StoreManagerQuota,
 } from "./core";
 
@@ -69,6 +72,37 @@ async function lockStoreManagerQuota(
   return { used, limit };
 }
 
+async function assertEligibleExistingManager(
+  tx: Parameters<Parameters<ReturnType<typeof getControlPlaneDb>["transaction"]>[0]>[0],
+  manager: {
+    id: number;
+    email: string;
+    isActive: boolean;
+    role: "super_admin" | "tenant_admin";
+    createdAt: Date;
+  }
+) {
+  if (!manager.isActive || manager.role !== "tenant_admin") {
+    throw new StoreTeamError(
+      "INVALID_MANAGER_ACCOUNT",
+      "Account cannot be used as a Store Manager"
+    );
+  }
+
+  const [legacyTenant] = await tx
+    .select({ adminUserId: adminUserTenants.adminUserId })
+    .from(adminUserTenants)
+    .where(eq(adminUserTenants.adminUserId, manager.id))
+    .limit(1);
+
+  if (legacyTenant) {
+    throw new StoreTeamError(
+      "INVALID_MANAGER_ACCOUNT",
+      "Legacy tenant administrators cannot be assigned as Store Managers"
+    );
+  }
+}
+
 export class DrizzleStoreTeamRepository {
   async list(storeId: number): Promise<StoreManager[]> {
     const rows = await getControlPlaneDb()
@@ -95,64 +129,20 @@ export class DrizzleStoreTeamRepository {
     return storeManagerQuota(used, limit);
   }
 
-  async createAndAssign(
-    storeId: number,
-    email: string,
-    password: string
-  ): Promise<StoreManager> {
-    const normalizedEmail = normalizeManagerEmail(email);
-    const passwordHash = await hashAdminPassword(password);
+  async inviteOrAssign(input: {
+    storeId: number;
+    email: string;
+    tokenHash: string;
+    expiresAt: Date;
+    now: Date;
+  }): Promise<
+    | { kind: "assigned_existing"; manager: StoreManager }
+    | { kind: "invitation_issued"; email: string }
+  > {
+    const normalizedEmail = normalizeManagerEmail(input.email);
 
     return getControlPlaneDb().transaction(async (tx) => {
-      await lockStoreManagerQuota(tx, storeId);
-
-      const [existing] = await tx
-        .select({ id: adminUsers.id })
-        .from(adminUsers)
-        .where(eq(adminUsers.email, normalizedEmail))
-        .limit(1);
-      if (existing) {
-        throw new StoreTeamError(
-          "MANAGER_ACCOUNT_UNAVAILABLE",
-          "An admin account already exists for this email"
-        );
-      }
-
-      const [created] = await tx
-        .insert(adminUsers)
-        .values({
-          email: normalizedEmail,
-          passwordHash,
-          role: "tenant_admin",
-          isActive: true,
-        })
-        .returning({
-          id: adminUsers.id,
-          email: adminUsers.email,
-          isActive: adminUsers.isActive,
-          createdAt: adminUsers.createdAt,
-        });
-      if (!created) throw new Error("Manager account creation failed");
-
-      await tx.insert(storeManagerAssignments).values({
-        storeId,
-        adminUserId: created.id,
-      });
-
-      return {
-        adminUserId: created.id,
-        email: created.email,
-        isActive: created.isActive,
-        createdAt: created.createdAt,
-      };
-    });
-  }
-
-  async assignExisting(storeId: number, email: string): Promise<StoreManager> {
-    const normalizedEmail = normalizeManagerEmail(email);
-
-    return getControlPlaneDb().transaction(async (tx) => {
-      await lockStoreManagerQuota(tx, storeId);
+      await lockStoreManagerQuota(tx, input.storeId);
 
       const [manager] = await tx
         .select({
@@ -166,56 +156,213 @@ export class DrizzleStoreTeamRepository {
         .where(eq(adminUsers.email, normalizedEmail))
         .limit(1);
 
-      if (!manager) {
-        throw new StoreTeamError("MANAGER_NOT_FOUND", "Manager account not found");
-      }
-      if (!manager.isActive || manager.role !== "tenant_admin") {
-        throw new StoreTeamError(
-          "INVALID_MANAGER_ACCOUNT",
-          "Account cannot be used as a Store Manager"
-        );
+      if (manager) {
+        await assertEligibleExistingManager(tx, manager);
+
+        const [alreadyAssigned] = await tx
+          .select({ adminUserId: storeManagerAssignments.adminUserId })
+          .from(storeManagerAssignments)
+          .where(
+            and(
+              eq(storeManagerAssignments.storeId, input.storeId),
+              eq(storeManagerAssignments.adminUserId, manager.id)
+            )
+          )
+          .limit(1);
+
+        if (alreadyAssigned) {
+          throw new StoreTeamError(
+            "MANAGER_ALREADY_ASSIGNED",
+            "Manager is already assigned to this Store"
+          );
+        }
+
+        const [assignment] = await tx
+          .insert(storeManagerAssignments)
+          .values({ storeId: input.storeId, adminUserId: manager.id })
+          .returning({ createdAt: storeManagerAssignments.createdAt });
+
+        return {
+          kind: "assigned_existing" as const,
+          manager: {
+            adminUserId: manager.id,
+            email: manager.email,
+            isActive: manager.isActive,
+            createdAt: assignment?.createdAt ?? manager.createdAt,
+          },
+        };
       }
 
-      const [legacyTenant] = await tx
-        .select({ adminUserId: adminUserTenants.adminUserId })
-        .from(adminUserTenants)
-        .where(eq(adminUserTenants.adminUserId, manager.id))
-        .limit(1);
-      if (legacyTenant) {
-        throw new StoreTeamError(
-          "INVALID_MANAGER_ACCOUNT",
-          "Legacy tenant administrators cannot be assigned as Store Managers"
-        );
-      }
-
-      const [alreadyAssigned] = await tx
-        .select({ adminUserId: storeManagerAssignments.adminUserId })
-        .from(storeManagerAssignments)
+      await tx
+        .update(storeManagerInvitations)
+        .set({ consumedAt: input.now })
         .where(
           and(
-            eq(storeManagerAssignments.storeId, storeId),
-            eq(storeManagerAssignments.adminUserId, manager.id)
+            eq(storeManagerInvitations.storeId, input.storeId),
+            eq(storeManagerInvitations.email, normalizedEmail),
+            isNull(storeManagerInvitations.consumedAt)
           )
-        )
-        .limit(1);
-      if (alreadyAssigned) {
-        throw new StoreTeamError(
-          "MANAGER_ALREADY_ASSIGNED",
-          "Manager is already assigned to this Store"
         );
-      }
 
-      const [assignment] = await tx
-        .insert(storeManagerAssignments)
-        .values({ storeId, adminUserId: manager.id })
-        .returning({ createdAt: storeManagerAssignments.createdAt });
+      await tx.insert(storeManagerInvitations).values({
+        storeId: input.storeId,
+        email: normalizedEmail,
+        tokenHash: input.tokenHash,
+        expiresAt: input.expiresAt,
+        consumedAt: null,
+        createdAt: input.now,
+      });
 
       return {
-        adminUserId: manager.id,
-        email: manager.email,
-        isActive: manager.isActive,
-        createdAt: assignment?.createdAt ?? manager.createdAt,
+        kind: "invitation_issued" as const,
+        email: normalizedEmail,
       };
+    });
+  }
+
+  async deleteInvitationByTokenHash(tokenHash: string) {
+    await getControlPlaneDb()
+      .delete(storeManagerInvitations)
+      .where(eq(storeManagerInvitations.tokenHash, tokenHash));
+  }
+
+  async inspectInvitation(
+    tokenHash: string,
+    now: Date
+  ): Promise<StoreManagerInvitationState> {
+    const [row] = await getControlPlaneDb()
+      .select({
+        email: storeManagerInvitations.email,
+        expiresAt: storeManagerInvitations.expiresAt,
+        consumedAt: storeManagerInvitations.consumedAt,
+        storeName: stores.displayName,
+      })
+      .from(storeManagerInvitations)
+      .innerJoin(stores, eq(stores.id, storeManagerInvitations.storeId))
+      .where(eq(storeManagerInvitations.tokenHash, tokenHash))
+      .limit(1);
+
+    if (!row) return { kind: "invalid" };
+    if (row.consumedAt) {
+      return {
+        kind: "completed",
+        email: row.email,
+        storeName: row.storeName,
+      };
+    }
+    if (row.expiresAt.getTime() <= now.getTime()) {
+      return {
+        kind: "expired",
+        email: row.email,
+        storeName: row.storeName,
+      };
+    }
+    return {
+      kind: "pending",
+      email: row.email,
+      storeName: row.storeName,
+      expiresAt: row.expiresAt,
+    };
+  }
+
+  async completeInvitation(input: {
+    tokenHash: string;
+    password: string;
+    now: Date;
+  }): Promise<{ adminUserId: number; email: string }> {
+    const passwordHash = await hashAdminPassword(input.password);
+
+    return getControlPlaneDb().transaction(async (tx) => {
+      const [invitation] = await tx
+        .select({
+          id: storeManagerInvitations.id,
+          storeId: storeManagerInvitations.storeId,
+          email: storeManagerInvitations.email,
+          expiresAt: storeManagerInvitations.expiresAt,
+          consumedAt: storeManagerInvitations.consumedAt,
+        })
+        .from(storeManagerInvitations)
+        .where(eq(storeManagerInvitations.tokenHash, input.tokenHash))
+        .limit(1)
+        .for("update");
+
+      if (!invitation || invitation.consumedAt) {
+        throw new StoreTeamError("INVITATION_INVALID", "Invitation is unavailable");
+      }
+      if (invitation.expiresAt.getTime() <= input.now.getTime()) {
+        throw new StoreTeamError("INVITATION_EXPIRED", "Invitation has expired");
+      }
+
+      const [existing] = await tx
+        .select({
+          id: adminUsers.id,
+          email: adminUsers.email,
+          isActive: adminUsers.isActive,
+          role: adminUsers.role,
+          createdAt: adminUsers.createdAt,
+        })
+        .from(adminUsers)
+        .where(eq(adminUsers.email, invitation.email))
+        .limit(1);
+
+      if (existing) {
+        await assertEligibleExistingManager(tx, existing);
+
+        const [alreadyAssigned] = await tx
+          .select({ adminUserId: storeManagerAssignments.adminUserId })
+          .from(storeManagerAssignments)
+          .where(
+            and(
+              eq(storeManagerAssignments.storeId, invitation.storeId),
+              eq(storeManagerAssignments.adminUserId, existing.id)
+            )
+          )
+          .limit(1);
+
+        if (!alreadyAssigned) {
+          await lockStoreManagerQuota(tx, invitation.storeId);
+          await tx.insert(storeManagerAssignments).values({
+            storeId: invitation.storeId,
+            adminUserId: existing.id,
+          });
+        }
+
+        await tx
+          .update(storeManagerInvitations)
+          .set({ consumedAt: input.now })
+          .where(eq(storeManagerInvitations.id, invitation.id));
+
+        return { adminUserId: existing.id, email: existing.email };
+      }
+
+      await lockStoreManagerQuota(tx, invitation.storeId);
+
+      const [created] = await tx
+        .insert(adminUsers)
+        .values({
+          email: invitation.email,
+          passwordHash,
+          role: "tenant_admin",
+          isActive: true,
+        })
+        .returning({
+          id: adminUsers.id,
+          email: adminUsers.email,
+        });
+
+      if (!created) throw new Error("Manager account creation failed");
+
+      await tx.insert(storeManagerAssignments).values({
+        storeId: invitation.storeId,
+        adminUserId: created.id,
+      });
+
+      await tx
+        .update(storeManagerInvitations)
+        .set({ consumedAt: input.now })
+        .where(eq(storeManagerInvitations.id, invitation.id));
+
+      return { adminUserId: created.id, email: created.email };
     });
   }
 
