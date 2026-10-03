@@ -83,28 +83,6 @@ function isConstraintViolation(error: unknown, constraint: string) {
   return cause?.code === "23505" && cause.constraint === constraint;
 }
 
-async function ownerOrganizationId(
-  db: ReturnType<typeof getControlPlaneDb>,
-  merchantId: number
-) {
-  const [membership] = await db
-    .select({ organizationId: organizationMemberships.organizationId })
-    .from(organizationMemberships)
-    .where(
-      and(
-        eq(organizationMemberships.merchantAccountId, merchantId),
-        eq(organizationMemberships.role, "owner")
-      )
-    )
-    .orderBy(
-      asc(organizationMemberships.createdAt),
-      asc(organizationMemberships.organizationId)
-    )
-    .limit(1);
-
-  return membership?.organizationId ?? null;
-}
-
 export class DrizzleMerchantStoreRepository
   implements MerchantStoreRepository
 {
