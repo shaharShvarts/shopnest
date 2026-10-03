@@ -267,41 +267,18 @@ export class DrizzleMerchantStoreRepository
   ): Promise<MerchantStore> {
     try {
       return await getControlPlaneDb().transaction(async (tx) => {
-        const [membership] = await tx
-          .select({
-            organizationId: organizationMemberships.organizationId,
-          })
-          .from(organizationMemberships)
-          .where(
-            and(
-              eq(
-                organizationMemberships.merchantAccountId,
-                merchantId
-              ),
-              eq(organizationMemberships.role, "owner")
-            )
-          )
-          .orderBy(
-            asc(organizationMemberships.createdAt),
-            asc(organizationMemberships.organizationId)
-          )
-          .limit(1);
-
-        const organizationId = membership?.organizationId ?? null;
-        if (organizationId === null) {
-          throw new MerchantStoreError(
-            "NOT_FOUND",
-            "Store not found"
-          );
-        }
-
         const [current] = await tx
           .select(storeSelection)
           .from(stores)
+          .innerJoin(
+            organizationMemberships,
+            eq(organizationMemberships.organizationId, stores.organizationId)
+          )
           .where(
             and(
               eq(stores.id, storeId),
-              eq(stores.organizationId, organizationId),
+              eq(organizationMemberships.merchantAccountId, merchantId),
+              eq(organizationMemberships.role, "owner"),
               isNull(stores.deletedAt)
             )
           )
@@ -490,41 +467,18 @@ export class DrizzleMerchantStoreRepository
     now = new Date()
   ): Promise<DeleteStoreResult> {
     return getControlPlaneDb().transaction(async (tx) => {
-      const [membership] = await tx
-        .select({
-          organizationId: organizationMemberships.organizationId,
-        })
-        .from(organizationMemberships)
-        .where(
-          and(
-            eq(
-              organizationMemberships.merchantAccountId,
-              merchantId
-            ),
-            eq(organizationMemberships.role, "owner")
-          )
-        )
-        .orderBy(
-          asc(organizationMemberships.createdAt),
-          asc(organizationMemberships.organizationId)
-        )
-        .limit(1);
-
-      const organizationId = membership?.organizationId ?? null;
-      if (organizationId === null) {
-        throw new MerchantStoreError(
-          "NOT_FOUND",
-          "Store not found"
-        );
-      }
-
       const [current] = await tx
         .select(storeSelection)
         .from(stores)
+        .innerJoin(
+          organizationMemberships,
+          eq(organizationMemberships.organizationId, stores.organizationId)
+        )
         .where(
           and(
             eq(stores.id, storeId),
-            eq(stores.organizationId, organizationId),
+            eq(organizationMemberships.merchantAccountId, merchantId),
+            eq(organizationMemberships.role, "owner"),
             isNull(stores.deletedAt)
           )
         )
@@ -592,41 +546,18 @@ export class DrizzleMerchantStoreRepository
     now = new Date()
   ): Promise<MerchantStore> {
     return getControlPlaneDb().transaction(async (tx) => {
-      const [membership] = await tx
-        .select({
-          organizationId: organizationMemberships.organizationId,
-        })
-        .from(organizationMemberships)
-        .where(
-          and(
-            eq(
-              organizationMemberships.merchantAccountId,
-              merchantId
-            ),
-            eq(organizationMemberships.role, "owner")
-          )
-        )
-        .orderBy(
-          asc(organizationMemberships.createdAt),
-          asc(organizationMemberships.organizationId)
-        )
-        .limit(1);
-
-      const organizationId = membership?.organizationId ?? null;
-      if (organizationId === null) {
-        throw new MerchantStoreError(
-          "NOT_FOUND",
-          "Store not found"
-        );
-      }
-
       const [current] = await tx
         .select(storeSelection)
         .from(stores)
+        .innerJoin(
+          organizationMemberships,
+          eq(organizationMemberships.organizationId, stores.organizationId)
+        )
         .where(
           and(
             eq(stores.id, storeId),
-            eq(stores.organizationId, organizationId)
+            eq(organizationMemberships.merchantAccountId, merchantId),
+            eq(organizationMemberships.role, "owner")
           )
         )
         .limit(1)
