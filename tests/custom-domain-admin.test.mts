@@ -55,7 +55,7 @@ test("custom-domain middleware normalizes tenant-prefixed media for the bound te
   const middleware = await source("src/middleware.ts");
 
   assert.match(middleware, /tenantMediaPrefix/);
-  assert.match(middleware, /\/${domain\.tenant\.slug}\/media\//);
+  assert.match(middleware, /\/\$\{domain\.tenant\.slug\}\/media\//);
   assert.match(middleware, /startsWith\(tenantMediaPrefix\)/);
   assert.match(
     middleware,

@@ -99,7 +99,7 @@ export async function requireOwnerStoreManagementContext(
 ) {
   const merchant = await getCurrentMerchant();
   if (!merchant) {
-    throw new StoreManagementServerError(401, "Merchant login required");
+    redirect("/login");
   }
 
   const principal: StoreManagementPrincipal = {
@@ -156,7 +156,7 @@ export async function requireOwnerStoreManagementDb(
 ) {
   const merchant = await getCurrentMerchant();
   if (!merchant) {
-    throw new StoreManagementServerError(401, "Merchant login required");
+    redirect("/login");
   }
 
   const principal: StoreManagementPrincipal = {
@@ -216,7 +216,7 @@ export async function requireStoreManagementDb(
 ) {
   const principal = await getCurrentStoreDashboardPrincipal();
   if (!principal) {
-    throw new StoreManagementServerError(401, "Store login required");
+    redirect("/login");
   }
 
   if (principal.kind === "owner") {

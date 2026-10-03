@@ -655,3 +655,49 @@ class FakeRepository implements StoreManagementRepository {
       .map(([, value]) => value);
   }
 }
+
+test("Store management DB redirects expired dashboard sessions to login", async () => {
+  const server = await readFile(
+    new URL("../src/lib/store-management/server.ts", import.meta.url),
+    "utf8"
+  );
+
+  const match = server.match(
+    /export async function requireStoreManagementDb\([\s\S]*?\n}\n/
+  );
+
+  assert.ok(match, "requireStoreManagementDb should exist");
+  assert.match(match[0], /if \(!principal\)\s*{\s*redirect\("\/login"\);\s*}/);
+  assert.doesNotMatch(
+    match[0],
+    /throw new StoreManagementServerError\(401,\s*"Store login required"\)/
+  );
+});
+
+test("Owner store management helpers redirect expired merchant sessions to login", async () => {
+  const server = await readFile(
+    new URL("../src/lib/store-management/server.ts", import.meta.url),
+    "utf8"
+  );
+
+  for (const functionName of [
+    "requireOwnerStoreManagementContext",
+    "requireOwnerStoreManagementDb",
+  ]) {
+    const match = server.match(
+      new RegExp(
+        `export async function ${functionName}\\([\\s\\S]*?\\n}\\n`
+      )
+    );
+
+    assert.ok(match, `${functionName} should exist`);
+    assert.match(
+      match[0],
+      /if \(!merchant\)\s*{\s*redirect\("\/login"\);\s*}/
+    );
+    assert.doesNotMatch(
+      match[0],
+      /throw new StoreManagementServerError\(401,\s*"Merchant login required"\)/
+    );
+  }
+});

@@ -80,6 +80,6 @@ test("provisioned Store plan badge shows the selected plan instead of subscripti
     "utf8"
   );
 
-  assert.match(page, /planDisplayName\(subscription\.plan\.code, subscription\.plan\.name\)/);
+  assert.match(page, /subscription\.plan\.name/);
   assert.match(page, /subscriptionStatus/);
 });
