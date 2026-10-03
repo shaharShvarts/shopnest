@@ -11,8 +11,7 @@ import {
   listStoreManagerPlanOptions,
 } from "@/lib/store-team/server";
 import {
-  assignExistingStoreManagerAction,
-  createStoreManagerAction,
+  inviteStoreManagerAction,
   removeStoreManagerAction,
 } from "../_actions/team";
 
@@ -36,7 +35,7 @@ export default async function StoreTeamPage({
   ]);
 
   const resultMessages = {
-    CREATED: t("result.CREATED"),
+    INVITED: t("result.INVITED"),
     ASSIGNED: t("result.ASSIGNED"),
     REMOVED: t("result.REMOVED"),
     MANAGER_LIMIT_REACHED: t("result.MANAGER_LIMIT_REACHED"),
@@ -44,11 +43,13 @@ export default async function StoreTeamPage({
     MANAGER_ALREADY_ASSIGNED: t("result.MANAGER_ALREADY_ASSIGNED"),
     MANAGER_ACCOUNT_UNAVAILABLE: t("result.MANAGER_ACCOUNT_UNAVAILABLE"),
     INVALID_MANAGER_ACCOUNT: t("result.INVALID_MANAGER_ACCOUNT"),
+    INVITATION_INVALID: t("result.INVITATION_INVALID"),
+    INVITATION_EXPIRED: t("result.INVITATION_EXPIRED"),
+    INVITATION_EMAIL_FAILED: t("result.INVITATION_EMAIL_FAILED"),
   };
 
   const canAdd = quota.unlimited || quota.used < quota.limit;
-  const createAction = createStoreManagerAction.bind(null, storeId);
-  const assignAction = assignExistingStoreManagerAction.bind(null, storeId);
+  const inviteAction = inviteStoreManagerAction.bind(null, storeId);
   const removeAction = removeStoreManagerAction.bind(null, storeId);
 
   return (
@@ -150,10 +151,10 @@ export default async function StoreTeamPage({
       </section>
 
       <section className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
-        <h2 className="text-xl font-bold">{t("createTitle")}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{t("createHelp")}</p>
+        <h2 className="text-xl font-bold">{t("inviteTitle")}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{t("inviteHelp")}</p>
         <ManagementMutationForm
-          action={createAction}
+          action={inviteAction}
           messages={resultMessages}
           resetOnSuccess
           className="mt-5 space-y-4"
@@ -168,23 +169,8 @@ export default async function StoreTeamPage({
               type="email"
               required
               disabled={!canAdd}
+              autoComplete="email"
             />
-          </div>
-          <div>
-            <label htmlFor="manager-password" className="mb-1 block text-sm font-medium">
-              {t("temporaryPassword")}
-            </label>
-            <ManagementInput
-              id="manager-password"
-              name="password"
-              type="password"
-              minLength={12}
-              required
-              disabled={!canAdd}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("passwordHelp")}
-            </p>
           </div>
           <Button
             type="submit"
@@ -192,36 +178,7 @@ export default async function StoreTeamPage({
             disabled={!canAdd}
             className="px-5"
           >
-            {t("create")}
-          </Button>
-        </ManagementMutationForm>
-      </section>
-
-      <section className="mt-6 rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
-        <h2 className="text-xl font-bold">{t("assignTitle")}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{t("assignHelp")}</p>
-        <ManagementMutationForm
-          action={assignAction}
-          messages={resultMessages}
-          resetOnSuccess
-          className="mt-5 flex flex-col gap-3 sm:flex-row"
-        >
-          <ManagementInput
-            name="email"
-            type="email"
-            required
-            disabled={!canAdd}
-            placeholder={t("email")}
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            variant="outline"
-            size="management"
-            disabled={!canAdd}
-            className="px-5"
-          >
-            {t("assign")}
+            {t("invite")}
           </Button>
         </ManagementMutationForm>
       </section>
