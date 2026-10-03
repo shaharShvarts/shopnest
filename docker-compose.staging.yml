@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        SHOPNEST_DEPLOYMENT_ID: ${SHOPNEST_DEPLOYMENT_ID:-}
     ports:
       - "127.0.0.1:3002:3000"
     env_file:
