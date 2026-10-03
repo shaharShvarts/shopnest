@@ -534,6 +534,30 @@ test("runtime feature gates contain no hard-coded commercial package codes", asy
   );
 });
 
+test("merchant Store and subscription repositories authorize exact Stores across all owned organizations", async () => {
+  const [storeRepository, subscriptionRepository] = await Promise.all([
+    readFile("src/lib/merchant-stores/drizzle-repository.ts", "utf8"),
+    readFile("src/lib/merchant-subscriptions/drizzle-repository.ts", "utf8"),
+  ]);
+
+  for (const source of [storeRepository, subscriptionRepository]) {
+    assert.match(source, /organizationMemberships\.organizationId/);
+    assert.match(source, /organizationMemberships\.merchantAccountId/);
+    assert.match(source, /organizationMemberships\.role, "owner"/);
+    assert.match(source, /eq\(stores\.id, storeId\)/);
+  }
+
+  assert.match(
+    storeRepository,
+    /listForMerchant[\s\S]*?innerJoin\([\s\S]*?organizationMemberships[\s\S]*?merchantAccountId, merchantId/
+  );
+  assert.match(
+    subscriptionRepository,
+    /findForOwnedStore[\s\S]*?eq\(stores\.id, storeId\)[\s\S]*?merchantAccountId, merchantId/
+  );
+  assert.doesNotMatch(subscriptionRepository, /ownerOrganizationId/);
+});
+
 test("tenant plan snapshot has no package-code default", async () => {
   const [tenantSchema, migration] = await Promise.all([
     readFile("src/drizzle/control-schema/tenant.ts", "utf8"),
