@@ -103,13 +103,56 @@ test("unsafe or inactive registry rows cannot select a tenant database", () => {
     null
   );
   assert.equal(
-    resolveTrustedStore({ ...stores[0], status: "suspended" }),
+    resolveTrustedStore({ ...stores[0], tenantStatus: "suspended" }),
     null
   );
   assert.equal(
-    resolveTrustedStore({ ...stores[0], status: "disabled" }),
+    resolveTrustedStore({ ...stores[0], tenantStatus: "disabled" }),
     null
   );
+});
+
+test("draft Stores remain visible but never select a tenant database", async () => {
+  const draft: ControlPlaneStore = {
+    ...stores[0],
+    storeId: 99,
+    slug: "draft-shop",
+    displayName: "Draft Shop",
+    storeStatus: "draft",
+    tenantId: null,
+    tenantSlug: null,
+    schemaName: null,
+    tenantStatus: null,
+    plan: null,
+    subscriptionPlanCode: "free",
+    subscriptionPlanName: "Free",
+  };
+
+  assert.equal(resolveTrustedStore(draft), null);
+
+  let metricCalls = 0;
+  const [summary] = await buildStoreSummaries([draft], async () => {
+    metricCalls += 1;
+    throw new Error("Draft Store must not query a tenant database");
+  });
+
+  assert.equal(metricCalls, 0);
+  assert.equal(summary.kind, "unavailable");
+  if (summary.kind === "unavailable") {
+    assert.equal(summary.reason, "not_provisioned");
+  }
+
+  assert.deepEqual(summarizePlatform([summary]), {
+    registeredStores: 1,
+    activeStores: 0,
+    unavailableStores: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    ordersToday: 0,
+    revenueToday: 0,
+    complete: true,
+    failedStores: [],
+  });
 });
 
 test("active trusted registry rows may load isolated tenant metrics", async () => {
@@ -224,6 +267,9 @@ test("route and mutation boundaries enforce server authorization and trusted sch
   assert.match(layout, /await requireSuperAdminPage\(\)/);
   assert.match(action, /updateControlPlaneStore/);
   assert.match(server, /await requireSuperAdmin\(\)/);
+  assert.match(server, /\.from\(stores\)/);
+  assert.match(server, /eq\(controlPlaneTenants\.id, stores\.tenantId\)/);
+  assert.match(server, /isNull\(stores\.deletedAt\)/);
   assert.match(server, /hasValidTenantIdentity\(existing\)/);
   assert.match(server, /getDbForTenant\(tenant\)/);
   assert.match(server, /unsupportedCurrencyCount/);
@@ -295,11 +341,14 @@ test("organization migration is registered after merchant identity", async () =>
 
 function store(slug: string, schemaName: string, displayName: string): ControlPlaneStore {
   return {
-    id: 1,
+    storeId: slug === "gift-shop" ? 1 : 2,
     slug,
-    schemaName,
     displayName,
-    status: "active",
+    storeStatus: "provisioned",
+    tenantId: slug === "gift-shop" ? 11 : 12,
+    tenantSlug: slug,
+    schemaName,
+    tenantStatus: "active",
     plan: "small",
     subscriptionPlanCode: "small",
     subscriptionPlanName: "Small",
