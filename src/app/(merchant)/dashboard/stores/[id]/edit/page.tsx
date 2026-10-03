@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
+import { getMerchantDomainView } from "@/lib/merchant-domains/server";
 import { StoreForm } from "../../_components/StoreForm";
 
 export default async function EditMerchantStorePage({
@@ -29,7 +30,19 @@ export default async function EditMerchantStorePage({
     notFound();
   }
 
-  const t = await getTranslations("MerchantStore");
+  const [t, domainView] = await Promise.all([
+    getTranslations("MerchantStore"),
+    store.tenantId !== null
+      ? getMerchantDomainView(merchant.id, store.id)
+      : Promise.resolve(null),
+  ]);
+
+  const platformOrigin =
+    process.env.SHOPNEST_PLATFORM_ORIGIN?.replace(/\/+$/, "") ||
+    "https://shopnest.co.il";
+  const activeAddress = domainView?.currentPrimary
+    ? "https://" + domainView.currentPrimary.hostname
+    : domainView?.platformUrl ?? `${platformOrigin}/${store.slug}`;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
@@ -51,7 +64,9 @@ export default async function EditMerchantStorePage({
             slug: store.slug,
             tenantId: store.tenantId,
             updatedAt: store.updatedAt.toISOString(),
+            activeAddress,
           }}
+          platformOrigin={platformOrigin}
         />
       </section>
     </main>

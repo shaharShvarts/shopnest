@@ -57,28 +57,6 @@ function mapSubscription(
   };
 }
 
-async function ownerOrganizationId(
-  db: ReturnType<typeof getControlPlaneDb>,
-  merchantId: number
-) {
-  const [membership] = await db
-    .select({ organizationId: organizationMemberships.organizationId })
-    .from(organizationMemberships)
-    .where(
-      and(
-        eq(organizationMemberships.merchantAccountId, merchantId),
-        eq(organizationMemberships.role, "owner")
-      )
-    )
-    .orderBy(
-      asc(organizationMemberships.createdAt),
-      asc(organizationMemberships.organizationId)
-    )
-    .limit(1);
-
-  return membership?.organizationId ?? null;
-}
-
 export class DrizzleMerchantSubscriptionRepository
   implements MerchantSubscriptionRepository
 {
@@ -102,16 +80,22 @@ export class DrizzleMerchantSubscriptionRepository
     storeId: number
   ): Promise<MerchantStoreSubscription | null> {
     const db = getControlPlaneDb();
-    const organizationId = await ownerOrganizationId(db, merchantId);
-    if (organizationId === null) return null;
 
     const [store] = await db
-      .select({ id: stores.id })
+      .select({
+        id: stores.id,
+        organizationId: stores.organizationId,
+      })
       .from(stores)
+      .innerJoin(
+        organizationMemberships,
+        eq(organizationMemberships.organizationId, stores.organizationId)
+      )
       .where(
         and(
           eq(stores.id, storeId),
-          eq(stores.organizationId, organizationId),
+          eq(organizationMemberships.merchantAccountId, merchantId),
+          eq(organizationMemberships.role, "owner"),
           isNull(stores.deletedAt)
         )
       )
@@ -129,7 +113,7 @@ export class DrizzleMerchantSubscriptionRepository
       .where(
         and(
           eq(subscriptions.storeId, storeId),
-          eq(subscriptions.organizationId, organizationId)
+          eq(subscriptions.organizationId, store.organizationId)
         )
       )
       .limit(1);
@@ -149,29 +133,6 @@ export class DrizzleMerchantSubscriptionRepository
     now = new Date()
   ): Promise<MerchantStoreSubscription> {
     return getControlPlaneDb().transaction(async (tx) => {
-      const [membership] = await tx
-        .select({ organizationId: organizationMemberships.organizationId })
-        .from(organizationMemberships)
-        .where(
-          and(
-            eq(organizationMemberships.merchantAccountId, merchantId),
-            eq(organizationMemberships.role, "owner")
-          )
-        )
-        .orderBy(
-          asc(organizationMemberships.createdAt),
-          asc(organizationMemberships.organizationId)
-        )
-        .limit(1);
-
-      const organizationId = membership?.organizationId ?? null;
-      if (organizationId === null) {
-        throw new MerchantSubscriptionError(
-          "STORE_NOT_FOUND",
-          "Owned Store not found"
-        );
-      }
-
       const [store] = await tx
         .select({
           id: stores.id,
@@ -179,10 +140,15 @@ export class DrizzleMerchantSubscriptionRepository
           tenantId: stores.tenantId,
         })
         .from(stores)
+        .innerJoin(
+          organizationMemberships,
+          eq(organizationMemberships.organizationId, stores.organizationId)
+        )
         .where(
           and(
             eq(stores.id, storeId),
-            eq(stores.organizationId, organizationId),
+            eq(organizationMemberships.merchantAccountId, merchantId),
+            eq(organizationMemberships.role, "owner"),
             isNull(stores.deletedAt)
           )
         )
@@ -194,6 +160,8 @@ export class DrizzleMerchantSubscriptionRepository
           "Owned Store not found"
         );
       }
+
+      const organizationId = store.organizationId;
 
       if (store.tenantId !== null) {
         throw new MerchantSubscriptionError(

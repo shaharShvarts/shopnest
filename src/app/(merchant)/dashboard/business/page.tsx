@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { getMerchantOrganizationRepository } from "@/lib/merchant-organizations/server";
 
@@ -50,18 +51,12 @@ export default async function MerchantBusinessPage() {
         </dl>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard/business/edit"
-            className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-          >
-            {t("editBusiness")}
-          </Link>
-          <Link
-            href="/dashboard"
-            className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-          >
-            {t("backToDashboard")}
-          </Link>
+          <Button asChild size="management">
+            <Link href="/dashboard/business/edit">{t("editBusiness")}</Link>
+          </Button>
+          <Button asChild variant="outline" size="management">
+            <Link href="/dashboard">{t("backToDashboard")}</Link>
+          </Button>
         </div>
       </section>
     </main>

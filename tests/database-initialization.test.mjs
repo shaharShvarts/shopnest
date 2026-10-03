@@ -118,7 +118,40 @@ test("control-plane operations initialize DB only after runtime authorization", 
   const server = loadModule("../src/lib/control-plane/server.ts", {
     "server-only": {},
     "drizzle-orm": {},
-    "@/drizzle/control-plane-schema": { controlPlaneTenants: {} },
+    "@/drizzle/control-plane-schema": {
+      controlPlaneTenants: {
+        id: {},
+        slug: {},
+        schemaName: {},
+        status: {},
+        plan: {},
+        featured: {},
+        featuredRank: {},
+        supportNotes: {},
+        suspendedAt: {},
+      },
+      stores: {
+        id: {},
+        slug: {},
+        displayName: {},
+        status: {},
+        tenantId: {},
+        organizationId: {},
+        createdAt: {},
+        updatedAt: {},
+        deletedAt: {},
+      },
+      subscriptions: {
+        storeId: {},
+        organizationId: {},
+        planId: {},
+      },
+      plans: {
+        id: {},
+        code: {},
+        name: {},
+      },
+    },
     "@/drizzle/schema": {},
     "@/drizzle/db": {
       getControlPlaneDb() {

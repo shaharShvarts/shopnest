@@ -98,5 +98,5 @@ test("legacy tenant plan remains unchanged as compatibility snapshot", async () 
     "src/drizzle/control-schema/tenant.ts",
     "utf8"
   );
-  assert.match(tenant, /tenantPlanEnum\("plan"\)/);
+  assert.match(tenant, /plan:\s*varchar\("plan",\s*\{\s*length:\s*64\s*\}\)\.notNull\(\)/);
 });

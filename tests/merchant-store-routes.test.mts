@@ -79,7 +79,7 @@ test("Store form exposes only merchant-editable fields and slug UX", async () =>
   assert.match(form, /suggestStoreSlug/);
   assert.match(form, /validateStoreSlug/);
   assert.match(form, /checkStoreSlugAvailabilityAction/);
-  assert.match(form, /shopnest\.co\.il/);
+  assert.match(form, /platformOrigin/);
   assert.match(form, /readOnly/);
   assert.doesNotMatch(
     form,
@@ -185,4 +185,36 @@ test("provisioned Store exposes the merchant custom-domain manager route", async
     domainActions,
     /tenantId:\s*formData|schemaName:\s*formData|providerHostnameId:\s*formData|lifecycleRole:\s*formData/
   );
+});
+
+
+test("Store detail shows the active storefront address instead of presenting slug as the customer URL", async () => {
+  const page = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/page.tsx",
+    "utf8"
+  );
+
+  assert.match(page, /getMerchantDomainView/);
+  assert.match(page, /domainView\?\.currentPrimary/);
+  assert.match(page, /activeStoreAddress/);
+  assert.match(page, /t\(["']storeId["']\)/);
+  assert.doesNotMatch(page, />\s*shopnest\.co\.il\/\{store\.slug\}\s*</);
+});
+
+
+test("Store list and edit form use the active storefront address for provisioned stores", async () => {
+  const [storesPage, list, editPage, form] = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/stores/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/_components/StoreList.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/edit/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/_components/StoreForm.tsx", "utf8"),
+  ]);
+
+  assert.match(storesPage, /getMerchantDomainView/);
+  assert.match(storesPage, /activeAddress/);
+  assert.match(list, /store\.activeAddress/);
+  assert.match(editPage, /activeAddress/);
+  assert.match(form, /activeStoreAddress/);
+  assert.match(form, /slugLocked \? t\(["']storeId["']\) : t\(["']slug["']\)/);
+  assert.doesNotMatch(list, /shopnest\.co\.il\/\{store\.slug\}/);
 });

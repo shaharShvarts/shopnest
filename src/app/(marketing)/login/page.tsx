@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getCurrentMerchant } from "@/lib/merchant-auth/server";
+import { getCurrentStoreDashboardPrincipal } from "@/lib/store-management/server";
 import { MarketingFooter } from "../_components/MarketingFooter";
 import { MarketingHeader } from "../_components/MarketingHeader";
 import { MerchantLoginForm } from "../_components/MerchantAuthForms";
@@ -10,7 +10,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ reset?: string }>;
 }) {
-  if (await getCurrentMerchant()) redirect("/dashboard");
+  if (await getCurrentStoreDashboardPrincipal()) redirect("/dashboard");
   const t = await getTranslations("MerchantAuth");
   const query = await searchParams;
 

@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
+import { ManagementTextarea } from "@/components/management/ManagementTextarea";
 import type {
   StorePolicyStatus,
   StorePolicyType,
@@ -162,13 +165,13 @@ export function PolicyDocumentEditor({
           >
             {labels.documentTitle}
           </label>
-          <input
+          <ManagementInput
             id={policyType + "-title"}
             name="title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             maxLength={200}
-            className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2"
+            className="mt-2"
           />
         </div>
 
@@ -179,14 +182,14 @@ export function PolicyDocumentEditor({
           >
             {labels.content}
           </label>
-          <textarea
+          <ManagementTextarea
             id={policyType + "-content"}
             name="content"
             maxLength={100000}
             rows={10}
             value={content}
             onChange={(event) => setContent(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2"
+            className="mt-2"
           />
           <div className="mt-2 flex flex-wrap items-start justify-between gap-2 text-xs text-muted-foreground">
             <p>{labels.contentHelp}</p>
@@ -200,24 +203,27 @@ export function PolicyDocumentEditor({
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <button
+          <Button
             type="submit"
             name="intent"
             value="publish"
+            size="management"
             disabled={!canSubmit}
-            className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50"
+            className="px-5"
           >
             {pending ? "…" : labels.publish}
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             name="intent"
             value="draft"
+            variant="outline"
+            size="management"
             disabled={!canSubmit}
-            className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className="px-5"
           >
             {pending ? "…" : labels.saveDraft}
-          </button>
+          </Button>
         </div>
       </form>
     </section>

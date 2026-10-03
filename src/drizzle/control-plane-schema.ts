@@ -12,12 +12,19 @@ export * from "@/drizzle/control-schema/customerOAuthTransaction";
 export * from "@/drizzle/control-schema/merchantAccount";
 export * from "@/drizzle/control-schema/merchantSession";
 export * from "@/drizzle/control-schema/merchantPasswordReset";
+export * from "@/drizzle/control-schema/merchantSignupToken";
 export * from "@/drizzle/control-schema/organization";
 export * from "@/drizzle/control-schema/organizationMembership";
 export * from "@/drizzle/control-schema/store";
+export * from "@/drizzle/control-schema/storeManagerAssignment";
+export * from "@/drizzle/control-schema/storeManagerInvitation";
 export * from "@/drizzle/control-schema/plan";
 export * from "@/drizzle/control-schema/subscription";
 export * from "@/drizzle/control-schema/storePolicyDocument";
 export * from "@/drizzle/control-schema/storeDomain";
 
 export * from "@/drizzle/control-schema/storeDomainClaim";
+
+export * from "@/drizzle/control-schema/entitlement";
+
+export * from "@/drizzle/control-schema/planPrice";

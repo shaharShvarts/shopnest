@@ -5,10 +5,14 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-const items = [
+const ownerItems = [
   { href: "/dashboard", key: "overview" },
   { href: "/dashboard/business", key: "business" },
   { href: "/dashboard/stores", key: "stores" },
+] as const;
+
+const managerItems = [
+  { href: "/dashboard", key: "overview" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -16,9 +20,14 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export function DashboardNavigation() {
+export function DashboardNavigation({
+  role,
+}: {
+  role: "owner" | "manager";
+}) {
   const pathname = usePathname();
   const t = useTranslations("MerchantDashboard");
+  const items = role === "owner" ? ownerItems : managerItems;
 
   return (
     <nav aria-label={t("navigation")} className="w-full">
@@ -32,7 +41,7 @@ export function DashboardNavigation() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-11 w-full items-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+                  "inline-flex min-h-11 w-full items-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   active
                     ? "bg-foreground text-background"
                     : "text-foreground hover:bg-muted"

@@ -14,6 +14,8 @@ import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import type { MerchantDomainActionState } from "@/lib/merchant-domains/core";
 import { getMerchantDomainView } from "@/lib/merchant-domains/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
+import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
+import { storeHasBooleanEntitlement } from "@/lib/store-entitlements/server";
 
 const rollbackDomainSchema = z.object({
   storeId: z.coerce.number().int().positive(),
@@ -35,6 +37,23 @@ function pathFor(storeId: number) {
   return "/dashboard/stores/" + storeId + "/domain";
 }
 
+async function requireCustomDomainEntitlement(
+  merchantId: number,
+  storeId: number
+) {
+  const store = await getMerchantStoreRepository().findOwnedById(
+    merchantId,
+    storeId
+  );
+  if (!store || store.tenantId === null) {
+    throw new Error("store_not_available");
+  }
+
+  if (!(await storeHasBooleanEntitlement(storeId, "custom_domain"))) {
+    throw new Error("custom_domain_entitlement_required");
+  }
+}
+
 function cooldown(nextAllowedAt: Date): MerchantDomainActionState {
   return {
     kind: "cooldown",
@@ -49,6 +68,7 @@ export async function startDomainClaimAction(
 
   try {
     const storeId = storeIdFrom(formData);
+    await requireCustomDomainEntitlement(merchant.id, storeId);
     const result = await getDomainOwnershipClaimService().startClaim(
       merchant.id,
       storeId,
@@ -77,6 +97,7 @@ export async function checkDomainTxtAction(
 
   try {
     const storeId = storeIdFrom(formData);
+    await requireCustomDomainEntitlement(merchant.id, storeId);
     const result = await getDomainOwnershipClaimService().verifyClaim(
       merchant.id,
       storeId,
@@ -102,6 +123,7 @@ export async function checkDomainCnameAction(
 
   try {
     const storeId = storeIdFrom(formData);
+    await requireCustomDomainEntitlement(merchant.id, storeId);
     const hostname = hostnameFrom(formData);
     const result = await getDomainOwnershipClaimService().verifyCname(
       merchant.id,
@@ -160,6 +182,7 @@ export async function checkDomainProviderAction(
 
   try {
     const storeId = storeIdFrom(formData);
+    await requireCustomDomainEntitlement(merchant.id, storeId);
     const result =
       await getCustomDomainLifecycleService().checkOwnedCandidate(
         merchant.id,

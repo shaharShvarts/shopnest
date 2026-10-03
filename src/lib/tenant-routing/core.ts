@@ -12,6 +12,8 @@ export const GLOBAL_PAGE_ROUTE_SEGMENTS = Object.freeze([
   "faq",
   "login",
   "signup",
+  "complete-signup",
+  "complete-manager-invite",
   "forgot-password",
   "reset-password",
   "dashboard",

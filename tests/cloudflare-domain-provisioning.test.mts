@@ -529,3 +529,16 @@ test("provisioning always selects the newest claim for a repeated store hostname
     "both preflightVerifiedClaim and reserveVerifiedClaim must select the newest claim"
   );
 });
+
+
+test("Cloudflare provisioning is gated by custom_domain entitlement instead of plan code", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    "src/lib/cloudflare-saas/domain-provisioning-repository.ts",
+    "utf8"
+  );
+  assert.match(source, /entitlements\.code, "custom_domain"/);
+  assert.match(source, /planEntitlements\.value, 1/);
+  assert.doesNotMatch(source, /planCode !== "medium"/);
+  assert.doesNotMatch(source, /planCode !== "large"/);
+});

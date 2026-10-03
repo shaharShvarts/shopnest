@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   DOMAIN_CLAIM_TTL_MS,
@@ -596,4 +597,15 @@ test("SOA EBADRESP remains fail-closed when no CNAME can be confirmed", async ()
   );
 
   assert.equal(repository.createCalls, 0);
+});
+
+
+test("domain claims are gated by custom_domain entitlement instead of plan code", async () => {
+  const source = await readFile(
+    "src/lib/domain-claims/drizzle-repository.ts",
+    "utf8"
+  );
+  assert.match(source, /entitlements\.code, "custom_domain"/);
+  assert.match(source, /planEntitlements\.value, 1/);
+  assert.doesNotMatch(source, /medium.*large|large.*medium/);
 });

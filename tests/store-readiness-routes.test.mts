@@ -76,7 +76,7 @@ test("policy workspace keeps Store navigation at top and bottom", async () => {
 
   const matches = page.match(/t\("backToStore"\)/g) ?? [];
   assert.equal(matches.length, 2);
-  assert.match(page, /inline-flex min-h-11 items-center/);
+  assert.match(page, /<Button asChild variant="outline" size="management">/);
 });
 
 test("policy editor avoids native validation popups and duplicate saves", async () => {

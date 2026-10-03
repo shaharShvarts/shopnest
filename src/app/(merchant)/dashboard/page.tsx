@@ -1,17 +1,79 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { requireMerchantPage } from "@/lib/merchant-auth/server";
+import { requireStoreDashboardPrincipal, getStoreManagementRepository } from "@/lib/store-management/server";
 import { getMerchantOrganizationRepository } from "@/lib/merchant-organizations/server";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 
 export default async function MerchantDashboardPage() {
-  const merchant = await requireMerchantPage();
+  const principal = await requireStoreDashboardPrincipal();
+
+  if (principal.kind === "manager") {
+    const [stores, tDashboard, tStore, tCatalog] = await Promise.all([
+      getStoreManagementRepository().listManagedStores(principal.adminUserId),
+      getTranslations("MerchantDashboard"),
+      getTranslations("MerchantStore"),
+      getTranslations("StoreCatalogManagement"),
+    ]);
+
+    return (
+      <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {tDashboard("managerGreeting", { name: principal.displayName })}
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            {tDashboard("managerDetail")}
+          </p>
+        </header>
+
+        <section className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">
+                {tDashboard("assignedStores")}
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {tDashboard("managerPhaseOneDetail")}
+              </p>
+            </div>
+            <span className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
+              {tDashboard("managerRole")}
+            </span>
+          </div>
+
+          <ul className="mt-5 space-y-3">
+            {stores.map((record) => (
+              <li
+                key={record.store.id}
+                className="rounded-xl border border-border px-4 py-3"
+              >
+                <p className="font-semibold">{record.store.displayName}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {tStore(record.store.status)}
+                </p>
+                {record.store.status === "provisioned" ? (
+                  <Link
+                    href={`/dashboard/stores/${record.store.id}/products`}
+                    className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold"
+                  >
+                    {tCatalog("manageCatalog")}
+                  </Link>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </main>
+    );
+  }
+
+  const merchant = principal;
   const organization =
     await getMerchantOrganizationRepository().findFirstForMerchant(
-      merchant.id
+      merchant.merchantId
     );
   const stores = organization
-    ? await getMerchantStoreRepository().listForMerchant(merchant.id)
+    ? await getMerchantStoreRepository().listForMerchant(merchant.merchantId)
     : [];
 
   const t = await getTranslations("MerchantAuth");

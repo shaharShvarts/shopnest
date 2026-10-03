@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
 import {
   loginSuperAdmin,
   loginTenantAdmin,
@@ -18,11 +19,11 @@ export function AdminLoginForm({ mode }: { mode: "tenant" | "super" }) {
     <form action={formAction} className="space-y-4">
       <label className="block space-y-1">
         <span>Email</span>
-        <input className="w-full border rounded p-2" type="email" name="email" autoComplete="username" required />
+        <ManagementInput type="email" name="email" autoComplete="username" required />
       </label>
       <label className="block space-y-1">
         <span>Password</span>
-        <input className="w-full border rounded p-2" type="password" name="password" autoComplete="current-password" required />
+        <ManagementInput type="password" name="password" autoComplete="current-password" required />
       </label>
       {state.message && <p className="text-destructive" role="alert">{state.message}</p>}
       <LoginButton />
@@ -32,5 +33,5 @@ export function AdminLoginForm({ mode }: { mode: "tenant" | "super" }) {
 
 function LoginButton() {
   const { pending } = useFormStatus();
-  return <Button className="w-full" type="submit" disabled={pending}>{pending ? "Signing in..." : "Login"}</Button>;
+  return <Button size="management" className="w-full" type="submit" disabled={pending}>{pending ? "Signing in..." : "Login"}</Button>;
 }

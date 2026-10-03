@@ -13,7 +13,9 @@ import {
 import { getControlPlaneDb } from "@/drizzle/control-db";
 import {
   controlPlaneTenants,
+  entitlements,
   organizationMemberships,
+  planEntitlements,
   plans,
   storeDomains,
   stores,
@@ -49,15 +51,13 @@ function eligibleOwnerWhere(merchantId: number, storeId: number) {
 function assertEligibility(row: {
   tenantId: number | null;
   tenantStatus: "active" | "suspended" | "disabled";
-  planCode: string;
-  planStatus: "active" | "inactive";
+  customDomainEntitlement: number;
   subscriptionStatus: string;
 }) {
   if (
     row.tenantId === null ||
     row.tenantStatus !== "active" ||
-    row.planStatus !== "active" ||
-    (row.planCode !== "medium" && row.planCode !== "large") ||
+    row.customDomainEntitlement !== 1 ||
     !["pending", "trialing", "active"].includes(row.subscriptionStatus)
   ) {
     throw new CustomDomainLifecycleError(
@@ -83,8 +83,7 @@ export class DrizzleCustomDomainLifecycleRepository
           hostname: storeDomains.hostname,
           tenantId: stores.tenantId,
           tenantStatus: controlPlaneTenants.status,
-          planCode: plans.code,
-          planStatus: plans.status,
+          customDomainEntitlement: planEntitlements.value,
           subscriptionStatus: subscriptions.status,
           lastManualCheckAt: storeDomains.lastManualCheckAt,
         })
@@ -104,6 +103,20 @@ export class DrizzleCustomDomainLifecycleRepository
           )
         )
         .innerJoin(plans, eq(plans.id, subscriptions.planId))
+        .innerJoin(
+          planEntitlements,
+          and(
+            eq(planEntitlements.planId, plans.id),
+            eq(planEntitlements.value, 1)
+          )
+        )
+        .innerJoin(
+          entitlements,
+          and(
+            eq(entitlements.id, planEntitlements.entitlementId),
+            eq(entitlements.code, "custom_domain")
+          )
+        )
         .innerJoin(
           controlPlaneTenants,
           eq(controlPlaneTenants.id, stores.tenantId)
@@ -169,8 +182,7 @@ export class DrizzleCustomDomainLifecycleRepository
         .select({
           tenantId: stores.tenantId,
           tenantStatus: controlPlaneTenants.status,
-          planCode: plans.code,
-          planStatus: plans.status,
+          customDomainEntitlement: planEntitlements.value,
           subscriptionStatus: subscriptions.status,
         })
         .from(stores)
@@ -189,6 +201,20 @@ export class DrizzleCustomDomainLifecycleRepository
           )
         )
         .innerJoin(plans, eq(plans.id, subscriptions.planId))
+        .innerJoin(
+          planEntitlements,
+          and(
+            eq(planEntitlements.planId, plans.id),
+            eq(planEntitlements.value, 1)
+          )
+        )
+        .innerJoin(
+          entitlements,
+          and(
+            eq(entitlements.id, planEntitlements.entitlementId),
+            eq(entitlements.code, "custom_domain")
+          )
+        )
         .innerJoin(
           controlPlaneTenants,
           eq(controlPlaneTenants.id, stores.tenantId)
@@ -396,8 +422,7 @@ export class DrizzleCustomDomainLifecycleRepository
         .select({
           tenantId: stores.tenantId,
           tenantStatus: controlPlaneTenants.status,
-          planCode: plans.code,
-          planStatus: plans.status,
+          customDomainEntitlement: planEntitlements.value,
           subscriptionStatus: subscriptions.status,
         })
         .from(stores)
@@ -416,6 +441,20 @@ export class DrizzleCustomDomainLifecycleRepository
           )
         )
         .innerJoin(plans, eq(plans.id, subscriptions.planId))
+        .innerJoin(
+          planEntitlements,
+          and(
+            eq(planEntitlements.planId, plans.id),
+            eq(planEntitlements.value, 1)
+          )
+        )
+        .innerJoin(
+          entitlements,
+          and(
+            eq(entitlements.id, planEntitlements.entitlementId),
+            eq(entitlements.code, "custom_domain")
+          )
+        )
         .innerJoin(
           controlPlaneTenants,
           eq(controlPlaneTenants.id, stores.tenantId)

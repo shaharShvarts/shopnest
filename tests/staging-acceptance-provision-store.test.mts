@@ -10,8 +10,9 @@ test("staging acceptance provisioning helper is hard-gated to explicit staging",
 
   assert.match(source, /SHOPNEST_STAGING_ACCEPTANCE/);
   assert.match(source, /db-staging/);
-  assert.match(source, /medium/);
-  assert.match(source, /large/);
+  assert.match(source, /custom_domain/);
+  assert.match(source, /booleanEntitlement/);
+  assert.doesNotMatch(source, /Medium or Large|context\.plan\b/);
   assert.match(source, /syncReadinessForOwnedStore/);
   assert.match(source, /requestActivationForOwnedStore/);
   assert.match(source, /startProvisioning/);

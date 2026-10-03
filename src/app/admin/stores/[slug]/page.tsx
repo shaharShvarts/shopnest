@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
+import { ManagementSelect } from "@/components/management/ManagementSelect";
+import { ManagementTextarea } from "@/components/management/ManagementTextarea";
+import { ManagementMutationForm } from "@/components/management/ManagementMutation";
 import { getControlPlaneStore } from "@/lib/control-plane/server";
 import { getCustomDomainAdminSummary } from "@/lib/custom-domain-lifecycle/server";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
@@ -16,26 +20,32 @@ export const dynamic = "force-dynamic";
 
 export default async function StoreDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{
-    saved?: string;
-    domainRollback?: string;
-  }>;
 }) {
-  const [{ slug }, query, t] = await Promise.all([
+  const [{ slug }, t] = await Promise.all([
     params,
-    searchParams,
     getTranslations("ControlPlane"),
   ]);
 
-  const [store, domainSummary] = await Promise.all([
-    getControlPlaneStore(slug),
-    getCustomDomainAdminSummary(slug),
-  ]);
-
+  const store = await getControlPlaneStore(slug);
   if (!store) notFound();
+
+  const domainSummary =
+    store.tenantSlug !== null
+      ? await getCustomDomainAdminSummary(store.tenantSlug)
+      : null;
+
+  const displayStatus =
+    store.storeStatus === "provisioned" && store.tenantStatus
+      ? store.tenantStatus
+      : store.storeStatus;
+
+  const hasTenant =
+    store.tenantId !== null &&
+    store.tenantSlug !== null &&
+    store.schemaName !== null &&
+    store.tenantStatus !== null;
 
   return (
     <div className="space-y-7">
@@ -56,35 +66,18 @@ export default async function StoreDetailPage({
         </div>
         <div className="flex items-center gap-3">
           <StoreStatusBadge
-            status={store.status}
-            label={t(store.status)}
+            status={displayStatus}
+            label={t(displayStatus)}
           />
-          <a
-            href={`/${store.slug}/admin`}
-            className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
-          >
-            {t("openTenantAdmin")}
-          </a>
+          {hasTenant ? (
+            <Button asChild variant="outline" size="management">
+              <a href={`/${store.tenantSlug}/admin`}>
+                {t("openTenantAdmin")}
+              </a>
+            </Button>
+          ) : null}
         </div>
       </header>
-
-      {query.saved === "1" ? (
-        <p
-          role="status"
-          className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-emerald-900"
-        >
-          {t("storeSaved")}
-        </p>
-      ) : null}
-
-      {query.domainRollback === "1" ? (
-        <p
-          role="status"
-          className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-emerald-900"
-        >
-          {t("domainRollbackComplete")}
-        </p>
-      ) : null}
 
       {store.kind === "available" ? (
         <section className="grid gap-4 sm:grid-cols-3">
@@ -108,6 +101,10 @@ export default async function StoreDetailPage({
             }
           />
         </section>
+      ) : store.reason === "not_provisioned" ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-slate-600">
+          {t("storeNotProvisionedMetrics")}
+        </div>
       ) : (
         <div
           role="alert"
@@ -117,7 +114,7 @@ export default async function StoreDetailPage({
         </div>
       )}
 
-      {(domainSummary?.primary || domainSummary?.retiring) ? (
+      {(domainSummary?.primary || domainSummary?.retiring) && store.tenantSlug ? (
         <section className="rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">
             {t("customDomainLifecycle")}
@@ -150,104 +147,110 @@ export default async function StoreDetailPage({
               <p className="mt-2 text-sm text-amber-950">
                 {t("customDomainRollbackHelp")}
               </p>
-              <form
+              <ManagementMutationForm
                 action={rollbackCustomDomainAction}
+                successMessage={t("domainRollbackComplete")}
+                failureMessage={t("domainRollbackFailed")}
                 className="mt-4"
               >
                 <input
                   type="hidden"
                   name="tenantSlug"
-                  value={store.slug}
+                  value={store.tenantSlug}
                 />
                 <input
                   type="hidden"
                   name="restoreHostname"
                   value={domainSummary.retiring.hostname}
                 />
-                <Button type="submit">
+                <Button type="submit" size="management" className="px-5">
                   {t("customDomainRollback")}
                 </Button>
-              </form>
+              </ManagementMutationForm>
             </div>
           ) : null}
         </section>
       ) : null}
 
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <form
-          action={updateStoreAction}
-          className="space-y-5 rounded-xl border bg-white p-6 shadow-sm"
-        >
-          <input type="hidden" name="slug" value={store.slug} />
-          <h2 className="text-xl font-bold">{t("storeSettings")}</h2>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">{t("status")}</span>
-            <select
-              name="status"
-              defaultValue={store.status}
-              className="rounded-md border px-3 py-2"
-            >
-              <option value="active">{t("active")}</option>
-              <option value="suspended">{t("suspended")}</option>
-              <option value="disabled">{t("disabled")}</option>
-            </select>
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">{t("plan")}</span>
-            <select
-              name="plan"
-              defaultValue={store.plan}
-              className="rounded-md border px-3 py-2"
-            >
-              <option value="small">{t("small")}</option>
-              <option value="medium">{t("medium")}</option>
-              <option value="large">{t("large")}</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              name="featured"
-              type="checkbox"
-              defaultChecked={store.featured}
-            />
-            <span className="text-sm font-medium">
-              {t("featureStore")}
-            </span>
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">
-              {t("featuredRank")}
-            </span>
-            <input
-              name="featuredRank"
-              type="number"
-              min="1"
-              defaultValue={store.featuredRank ?? ""}
-              className="rounded-md border px-3 py-2"
-            />
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">
-              {t("supportNotes")}
-            </span>
-            <textarea
-              name="supportNotes"
-              maxLength={4000}
-              defaultValue={store.supportNotes ?? ""}
-              rows={5}
-              className="rounded-md border px-3 py-2"
-              placeholder={t("supportNotesPlaceholder")}
-            />
-          </label>
-          <Button type="submit">{t("saveChanges")}</Button>
-        </form>
+        {hasTenant ? (
+          <ManagementMutationForm
+            action={updateStoreAction}
+            successMessage={t("storeSaved")}
+            failureMessage={t("storeSaveFailed")}
+            className="space-y-5 rounded-xl border bg-white p-6 shadow-sm"
+          >
+            <input type="hidden" name="slug" value={store.slug} />
+            <h2 className="text-xl font-bold">{t("storeSettings")}</h2>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">{t("status")}</span>
+              <ManagementSelect
+                name="status"
+                defaultValue={store.tenantStatus ?? "active"}
+              >
+                <option value="active">{t("active")}</option>
+                <option value="suspended">{t("suspended")}</option>
+                <option value="disabled">{t("disabled")}</option>
+              </ManagementSelect>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                name="featured"
+                type="checkbox"
+                defaultChecked={store.featured}
+              />
+              <span className="text-sm font-medium">
+                {t("featureStore")}
+              </span>
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">
+                {t("featuredRank")}
+              </span>
+              <ManagementInput
+                name="featuredRank"
+                type="number"
+                min="1"
+                defaultValue={store.featuredRank ?? ""}
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">
+                {t("supportNotes")}
+              </span>
+              <ManagementTextarea
+                name="supportNotes"
+                maxLength={4000}
+                defaultValue={store.supportNotes ?? ""}
+                rows={5}
+                placeholder={t("supportNotesPlaceholder")}
+              />
+            </label>
+            <Button type="submit" size="management" className="px-5">
+              {t("saveChanges")}
+            </Button>
+          </ManagementMutationForm>
+        ) : (
+          <div className="rounded-xl border bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold">{t("storeSettings")}</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              {t("tenantSettingsAfterProvisioning")}
+            </p>
+          </div>
+        )}
 
         <aside className="space-y-3 rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="font-bold">{t("storeIdentity")}</h2>
           <dl className="space-y-3 text-sm">
             <div>
+              <dt className="text-slate-500">{t("storeLifecycleStatus")}</dt>
+              <dd>{t(store.storeStatus)}</dd>
+            </div>
+            <div>
               <dt className="text-slate-500">{t("schema")}</dt>
-              <dd className="font-mono">{store.schemaName}</dd>
+              <dd className="font-mono">
+                {store.schemaName ?? t("notProvisioned")}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">{t("created")}</dt>

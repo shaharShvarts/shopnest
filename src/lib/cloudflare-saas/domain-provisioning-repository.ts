@@ -13,7 +13,9 @@ import {
 import { getControlPlaneDb } from "@/drizzle/control-db";
 import {
   controlPlaneTenants,
+  entitlements,
   organizationMemberships,
+  planEntitlements,
   plans,
   storeDomainClaims,
   storeDomains,
@@ -45,8 +47,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
         storeStatus: stores.status,
         tenantStatus: controlPlaneTenants.status,
         subscriptionStatus: subscriptions.status,
-        planCode: plans.code,
-        planStatus: plans.status,
+        customDomainEntitlement: planEntitlements.value,
       })
       .from(storeDomainClaims)
       .innerJoin(stores, eq(stores.id, storeDomainClaims.storeId))
@@ -69,6 +70,20 @@ export class DrizzleCloudflareDomainProvisioningRepository
         )
       )
       .innerJoin(plans, eq(plans.id, subscriptions.planId))
+      .innerJoin(
+        planEntitlements,
+        and(
+          eq(planEntitlements.planId, plans.id),
+          eq(planEntitlements.value, 1)
+        )
+      )
+      .innerJoin(
+        entitlements,
+        and(
+          eq(entitlements.id, planEntitlements.entitlementId),
+          eq(entitlements.code, "custom_domain")
+        )
+      )
       .where(
         and(
           eq(storeDomainClaims.storeId, input.storeId),
@@ -104,13 +119,12 @@ export class DrizzleCloudflareDomainProvisioningRepository
     }
 
     if (
-      claim.planStatus !== "active" ||
-      (claim.planCode !== "medium" && claim.planCode !== "large") ||
+      claim.customDomainEntitlement !== 1 ||
       !["pending", "trialing", "active"].includes(claim.subscriptionStatus)
     ) {
       throw new CloudflareDomainProvisioningError(
         "CUSTOM_DOMAIN_PLAN_REQUIRED",
-        "Custom domains require an active Medium or Large plan"
+        "Custom domain entitlement is required"
       );
     }
 
@@ -155,8 +169,7 @@ export class DrizzleCloudflareDomainProvisioningRepository
           storeStatus: stores.status,
           tenantStatus: controlPlaneTenants.status,
           subscriptionStatus: subscriptions.status,
-          planCode: plans.code,
-          planStatus: plans.status,
+          customDomainEntitlement: planEntitlements.value,
         })
         .from(storeDomainClaims)
         .innerJoin(stores, eq(stores.id, storeDomainClaims.storeId))
@@ -179,6 +192,20 @@ export class DrizzleCloudflareDomainProvisioningRepository
           )
         )
         .innerJoin(plans, eq(plans.id, subscriptions.planId))
+        .innerJoin(
+          planEntitlements,
+          and(
+            eq(planEntitlements.planId, plans.id),
+            eq(planEntitlements.value, 1)
+          )
+        )
+        .innerJoin(
+          entitlements,
+          and(
+            eq(entitlements.id, planEntitlements.entitlementId),
+            eq(entitlements.code, "custom_domain")
+          )
+        )
         .where(
           and(
             eq(storeDomainClaims.storeId, input.storeId),
@@ -216,13 +243,12 @@ export class DrizzleCloudflareDomainProvisioningRepository
       }
 
       if (
-        claim.planStatus !== "active" ||
-        (claim.planCode !== "medium" && claim.planCode !== "large") ||
+        claim.customDomainEntitlement !== 1 ||
         !["pending", "trialing", "active"].includes(claim.subscriptionStatus)
       ) {
         throw new CloudflareDomainProvisioningError(
           "CUSTOM_DOMAIN_PLAN_REQUIRED",
-          "Custom domains require an active Medium or Large plan"
+          "Custom domain entitlement is required"
         );
       }
 
