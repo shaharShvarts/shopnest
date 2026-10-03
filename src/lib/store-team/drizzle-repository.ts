@@ -193,17 +193,6 @@ export class DrizzleStoreTeamRepository {
         };
       }
 
-      await tx
-        .update(storeManagerInvitations)
-        .set({ consumedAt: input.now })
-        .where(
-          and(
-            eq(storeManagerInvitations.storeId, input.storeId),
-            eq(storeManagerInvitations.email, normalizedEmail),
-            isNull(storeManagerInvitations.consumedAt)
-          )
-        );
-
       await tx.insert(storeManagerInvitations).values({
         storeId: input.storeId,
         email: normalizedEmail,
@@ -330,7 +319,13 @@ export class DrizzleStoreTeamRepository {
         await tx
           .update(storeManagerInvitations)
           .set({ consumedAt: input.now })
-          .where(eq(storeManagerInvitations.id, invitation.id));
+          .where(
+            and(
+              eq(storeManagerInvitations.storeId, invitation.storeId),
+              eq(storeManagerInvitations.email, invitation.email),
+              isNull(storeManagerInvitations.consumedAt)
+            )
+          );
 
         return { adminUserId: existing.id, email: existing.email };
       }
@@ -360,7 +355,13 @@ export class DrizzleStoreTeamRepository {
       await tx
         .update(storeManagerInvitations)
         .set({ consumedAt: input.now })
-        .where(eq(storeManagerInvitations.id, invitation.id));
+        .where(
+          and(
+            eq(storeManagerInvitations.storeId, invitation.storeId),
+            eq(storeManagerInvitations.email, invitation.email),
+            isNull(storeManagerInvitations.consumedAt)
+          )
+        );
 
       return { adminUserId: created.id, email: created.email };
     });
