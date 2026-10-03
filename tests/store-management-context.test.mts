@@ -332,6 +332,37 @@ test("Store team page uses shared management controls", async () => {
   assert.doesNotMatch(source, /min-h-10/);
 });
 
+test("Store Manager UI uses one email invitation flow and Store-scoped removal", async () => {
+  const [page, actions, repository, migration, delivery] = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/stores/[id]/team/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/_actions/team.ts", "utf8"),
+    readFile("src/lib/store-team/drizzle-repository.ts", "utf8"),
+    readFile("src/drizzle/control-migrations/0025_store_manager_invitations.sql", "utf8"),
+    readFile("src/lib/store-team/invitation-delivery.ts", "utf8"),
+  ]);
+
+  assert.match(page, /inviteStoreManagerAction/);
+  assert.match(page, /name="email"/);
+  assert.doesNotMatch(page, /temporaryPassword|name="password"|createStoreManagerAction|assignExistingStoreManagerAction/);
+
+  assert.match(actions, /\/complete-manager-invite\?token=/);
+  assert.match(repository, /inviteOrAssign/);
+  assert.match(repository, /assigned_existing/);
+  assert.match(repository, /storeManagerInvitations/);
+  assert.match(repository, /eq\(storeManagerAssignments\.storeId, storeId\)/);
+  assert.match(repository, /eq\(storeManagerAssignments\.adminUserId, adminUserId\)/);
+
+  assert.match(migration, /store_manager_invitations/);
+  assert.match(migration, /token_hash/);
+  assert.match(migration, /expires_at/);
+  assert.doesNotMatch(migration, /DROP TABLE|DROP SCHEMA|TRUNCATE/);
+
+  assert.match(delivery, /https:\/\/api\.resend\.com\/emails/);
+  assert.match(delivery, /RESEND_API_KEY/);
+  assert.match(delivery, /SHOPNEST_EMAIL_FROM/);
+  assert.doesNotMatch(delivery, /NEXT_PUBLIC_/);
+});
+
 test("Store policies use shared management controls", async () => {
   const [editor, page] = await Promise.all([
     readFile(
