@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
+import { ManagementSelect } from "@/components/management/ManagementSelect";
+import { ManagementMutationForm } from "@/components/management/ManagementMutation";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
 import { getMerchantSubscriptionRepository } from "@/lib/merchant-subscriptions/server";
+import { getMerchantDomainView } from "@/lib/merchant-domains/server";
+import { storeHasBooleanEntitlement } from "@/lib/store-entitlements/server";
 import { getStoreReadinessRepository } from "@/lib/store-readiness/server";
 import {
   activateStoreAction,
@@ -13,10 +18,8 @@ import {
 
 export default async function MerchantStoreDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ plan?: string; activation?: string }>;
 }) {
   const merchant = await requireMerchantPage();
 
@@ -44,34 +47,52 @@ export default async function MerchantStoreDetailPage({
     tSubscription,
     tReadiness,
     tActivation,
+    tCatalog,
     activePlans,
     subscription,
     readiness,
-    query,
+    domainView,
+    customDomainEnabled,
   ] = await Promise.all([
     getTranslations("MerchantStore"),
     getTranslations("MerchantSubscription"),
     getTranslations("MerchantReadiness"),
     getTranslations("MerchantActivation"),
+    getTranslations("StoreCatalogManagement"),
     subscriptionRepository.listActivePlans(),
     subscriptionRepository.findForOwnedStore(merchant.id, id),
     readinessRepository.evaluateForOwnedStore(merchant.id, id),
-    searchParams,
+    store.tenantId !== null
+      ? getMerchantDomainView(merchant.id, id)
+      : Promise.resolve(null),
+    storeHasBooleanEntitlement(id, "custom_domain"),
   ]);
 
-  const planDisplayName = (code: string, fallback: string) => {
-    switch (code) {
-      case "free":
-        return tSubscription("planFree");
-      case "small":
-        return tSubscription("planSmall");
-      case "medium":
-        return tSubscription("planMedium");
-      case "large":
-        return tSubscription("planLarge");
-      default:
-        return fallback;
-    }
+  const activeStoreAddress =
+    domainView?.currentPrimary
+      ? "https://" + domainView.currentPrimary.hostname
+      : domainView?.platformUrl ??
+        `${process.env.SHOPNEST_PLATFORM_ORIGIN?.replace(/\/+$/, "") || "https://shopnest.co.il"}/${store.slug}`;
+
+  const canManageDomain =
+    customDomainEnabled ||
+    Boolean(
+      domainView?.currentPrimary ||
+        domainView?.retiring ||
+        domainView?.candidate ||
+        domainView?.claim
+    );
+
+
+  const planMessages = {
+    saved: tSubscription("selectionSaved"),
+    unavailable: tSubscription("selectionUnavailable"),
+    locked: tSubscription("selectionLocked"),
+  };
+  const activationMessages = {
+    success: tActivation("provisioned"),
+    "not-ready": tActivation("notReady"),
+    failed: tActivation("failed"),
   };
 
   return (
@@ -80,8 +101,8 @@ export default async function MerchantStoreDetailPage({
         <h1 className="text-3xl font-bold tracking-tight">
           {store.displayName}
         </h1>
-        <p className="mt-2 font-mono text-sm text-muted-foreground">
-          shopnest.co.il/{store.slug}
+        <p className="mt-2 break-all font-mono text-sm text-muted-foreground">
+          {activeStoreAddress}
         </p>
       </header>
 
@@ -89,7 +110,7 @@ export default async function MerchantStoreDetailPage({
         <dl className="grid gap-5 sm:grid-cols-2">
           <div>
             <dt className="text-sm font-medium text-muted-foreground">
-              {t("slug")}
+              {t("storeId")}
             </dt>
             <dd className="mt-1 font-mono">{store.slug}</dd>
           </div>
@@ -120,26 +141,33 @@ export default async function MerchantStoreDetailPage({
         ) : null}
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard/business/edit"
-            className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-          >
-            {t("editStore")}
-          </Link>
+          <Button asChild size="management">
+            <Link href="/dashboard/business/edit">{t("editStore")}</Link>
+          </Button>
           {store.tenantId !== null ? (
-            <Link
-              href={"/dashboard/stores/" + store.id + "/domain"}
-              className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-            >
-              {t("manageDomain")}
-            </Link>
+            <>
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id + "/products"}>
+                  {tCatalog("manageCatalog")}
+                </Link>
+              </Button>
+              {canManageDomain ? (
+                <Button asChild variant="outline" size="management">
+                  <Link href={"/dashboard/stores/" + store.id + "/domain"}>
+                    {t("manageDomain")}
+                  </Link>
+                </Button>
+              ) : null}
+            </>
           ) : null}
-          <Link
-            href="/dashboard/stores"
-            className="min-h-11 rounded-lg border border-border px-5 py-2.5 font-semibold"
-          >
-            {t("backToStores")}
-          </Link>
+          <Button asChild variant="outline" size="management">
+            <Link href={"/dashboard/stores/" + store.id + "/team"}>
+              {t("manageTeam")}
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="management">
+            <Link href="/dashboard/stores">{t("backToStores")}</Link>
+          </Button>
         </div>
       </section>
 
@@ -224,41 +252,6 @@ export default async function MerchantStoreDetailPage({
           {tActivation("description")}
         </p>
 
-        {query.activation === "success" ? (
-          <p
-            role="status"
-            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            {tActivation("provisioned")}
-          </p>
-        ) : null}
-
-        {query.activation === "not-ready" ? (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            {tActivation("notReady")}
-          </p>
-        ) : null}
-
-        {query.activation === "plan" ? (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            {tActivation("planNotProvisionable")}
-          </p>
-        ) : null}
-
-        {query.activation === "failed" ? (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            {tActivation("failed")}
-          </p>
-        ) : null}
 
         {store.tenantId !== null ? (
           <a
@@ -273,15 +266,16 @@ export default async function MerchantStoreDetailPage({
             {tActivation("inProgress")}
           </p>
         ) : readiness?.ready ? (
-          <form action={activateStoreAction} className="mt-5">
+          <ManagementMutationForm
+            action={activateStoreAction}
+            messages={activationMessages}
+            className="mt-5"
+          >
             <input type="hidden" name="storeId" value={store.id} />
-            <button
-              type="submit"
-              className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background"
-            >
+            <Button type="submit" size="management" className="px-5">
               {tActivation("activate")}
-            </button>
-          </form>
+            </Button>
+          </ManagementMutationForm>
         ) : (
           <p className="mt-5 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
             {tActivation("blocked")}
@@ -302,37 +296,11 @@ export default async function MerchantStoreDetailPage({
           </div>
           <div className="rounded-full bg-muted px-3 py-1 text-sm font-semibold">
             {subscription
-              ? tSubscription(subscription.status)
+              ? subscription.plan.name
               : tSubscription("notSelected")}
           </div>
         </div>
 
-        {query.plan === "saved" ? (
-          <p
-            role="status"
-            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            {tSubscription("selectionSaved")}
-          </p>
-        ) : null}
-
-        {query.plan === "unavailable" ? (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            {tSubscription("selectionUnavailable")}
-          </p>
-        ) : null}
-
-        {query.plan === "locked" ? (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            {tSubscription("selectionLocked")}
-          </p>
-        ) : null}
 
         {subscription?.plan.status === "inactive" ? (
           <p
@@ -354,7 +322,7 @@ export default async function MerchantStoreDetailPage({
             </dt>
             <dd className="mt-1 font-medium">
               {subscription
-                ? planDisplayName(subscription.plan.code, subscription.plan.name)
+                ? subscription.plan.name
                 : tSubscription("notSelected")}
             </dd>
           </div>
@@ -371,7 +339,11 @@ export default async function MerchantStoreDetailPage({
         </dl>
 
         {store.tenantId === null ? (
-          <form action={selectStorePlanAction} className="mt-6 space-y-3">
+          <ManagementMutationForm
+            action={selectStorePlanAction}
+            messages={planMessages}
+            className="mt-6 space-y-3"
+          >
             <input type="hidden" name="storeId" value={store.id} />
             <label
               htmlFor="planCode"
@@ -380,12 +352,12 @@ export default async function MerchantStoreDetailPage({
               {tSubscription("selectPlan")}
             </label>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <select
+              <ManagementSelect
                 id="planCode"
                 name="planCode"
                 required
                 defaultValue={subscription?.plan.code ?? ""}
-                className="min-h-11 flex-1 rounded-lg border border-border bg-background px-3 py-2"
+                className="flex-1"
                 disabled={activePlans.length === 0}
               >
                 <option value="" disabled>
@@ -393,28 +365,26 @@ export default async function MerchantStoreDetailPage({
                 </option>
                 {subscription?.plan.status === "inactive" ? (
                   <option value={subscription.plan.code} disabled>
-                    {planDisplayName(
-                      subscription.plan.code,
-                      subscription.plan.name
-                    )}{" "}
+                    {subscription.plan.name}{" "}
                     — {tSubscription("unavailable")}
                   </option>
                 ) : null}
                 {activePlans.map((plan) => (
                   <option key={plan.id} value={plan.code}>
-                    {planDisplayName(plan.code, plan.name)}
+                    {plan.name}
                   </option>
                 ))}
-              </select>
-              <button
+              </ManagementSelect>
+              <Button
                 type="submit"
+                size="management"
                 disabled={activePlans.length === 0}
-                className="min-h-11 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background disabled:cursor-not-allowed disabled:opacity-50"
+                className="px-5"
               >
                 {tSubscription("savePlan")}
-              </button>
+              </Button>
             </div>
-          </form>
+          </ManagementMutationForm>
         ) : (
           <p className="mt-6 text-sm text-muted-foreground">
             {tSubscription("selectionLocked")}

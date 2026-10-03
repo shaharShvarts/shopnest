@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import { getMerchantOrganizationRepository } from "@/lib/merchant-organizations/server";
 import { getMerchantStoreRepository } from "@/lib/merchant-stores/server";
+import { getMerchantDomainView } from "@/lib/merchant-domains/server";
 import { StoreList } from "./_components/StoreList";
 
 export default async function MerchantStoresPage() {
@@ -23,14 +24,34 @@ export default async function MerchantStoresPage() {
     );
   const t = await getTranslations("MerchantStore");
 
-  const items = stores.map((store) => ({
-    id: store.id,
-    displayName: store.displayName,
-    slug: store.slug,
-    status: store.status,
-    tenantId: store.tenantId,
-    updatedAt: store.updatedAt.toISOString(),
-  }));
+  const domainViews = await Promise.all(
+    stores.map((store) =>
+      store.tenantId !== null
+        ? getMerchantDomainView(merchant.id, store.id)
+        : Promise.resolve(null)
+    )
+  );
+
+  const platformOrigin =
+    process.env.SHOPNEST_PLATFORM_ORIGIN?.replace(/\/+$/, "") ||
+    "https://shopnest.co.il";
+
+  const items = stores.map((store, index) => {
+    const domainView = domainViews[index];
+    const activeAddress = domainView?.currentPrimary
+      ? "https://" + domainView.currentPrimary.hostname
+      : domainView?.platformUrl ?? `${platformOrigin}/${store.slug}`;
+
+    return {
+      id: store.id,
+      displayName: store.displayName,
+      slug: store.slug,
+      activeAddress,
+      status: store.status,
+      tenantId: store.tenantId,
+      updatedAt: store.updatedAt.toISOString(),
+    };
+  });
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">

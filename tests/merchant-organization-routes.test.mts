@@ -43,8 +43,11 @@ test("merchant business pages are global, protected, and tenant-independent", as
     readFile("src/app/(merchant)/dashboard/business/edit/page.tsx", "utf8"),
   ]);
 
-  for (const source of [dashboard, business, create, edit]) {
+  assert.match(dashboard, /requireStoreDashboardPrincipal\(\)/);
+  for (const source of [business, create, edit]) {
     assert.match(source, /requireMerchantPage\(\)/);
+  }
+  for (const source of [dashboard, business, create, edit]) {
     assert.doesNotMatch(
       source,
       /getDbForTenant|getTenant\(|TenantLink|tenantSlug|schemaName/

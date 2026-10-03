@@ -8,10 +8,6 @@ export const tenantStatuses = ["active", "suspended", "disabled"] as const;
 export type TenantStatus = (typeof tenantStatuses)[number];
 export const tenantStatusEnum = pgEnum("tenant_status", tenantStatuses);
 
-export const tenantPlans = ["small", "medium", "large"] as const;
-export type TenantPlan = (typeof tenantPlans)[number];
-export const tenantPlanEnum = pgEnum("tenant_plan", tenantPlans);
-
 export const customerStatuses = ["active", "disabled"] as const;
 export type CustomerStatus = (typeof customerStatuses)[number];
 export const customerStatusEnum = pgEnum("customer_status", customerStatuses);
@@ -23,7 +19,7 @@ export const customerAuthProviderEnum = pgEnum(
   customerAuthProviders
 );
 
-export const merchantStatuses = ["active", "disabled"] as const;
+export const merchantStatuses = ["pending_verification", "active", "disabled"] as const;
 export type MerchantStatus = (typeof merchantStatuses)[number];
 export const merchantStatusEnum = pgEnum("merchant_status", merchantStatuses);
 

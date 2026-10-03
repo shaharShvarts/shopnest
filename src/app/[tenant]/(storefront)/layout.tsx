@@ -13,7 +13,7 @@ import {
 } from "@/lib/admin-auth/server";
 import { tenantPath } from "@/lib/tenant-context";
 import { SearchForm } from "./search/_components/SearchForm";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getCurrentCustomer } from "@/lib/customer-auth/server";
 import { logoutCustomerAction } from "./account/_actions";
 import { Button } from "@/components/ui/button";
@@ -40,8 +40,11 @@ export default async function HomeLayout({
     throw error;
   }
   const searchAction = await tenantPath("/search");
-  const catalogT = await getTranslations("CatalogUX");
-  const accountT = await getTranslations("CustomerAccount");
+  const [catalogT, accountT, locale] = await Promise.all([
+    getTranslations("CatalogUX"),
+    getTranslations("CustomerAccount"),
+    getLocale(),
+  ]);
   const customer = await getCurrentCustomer();
   const initialCartCount = await getCartCount();
 
@@ -72,7 +75,7 @@ export default async function HomeLayout({
             <SearchForm action={searchAction} compact />
           </div>
           <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-3">
-            <LanguageSelector />
+            <LanguageSelector locale={locale === "en" ? "en" : "he"} />
             <Link
               href="/carts"
               aria-label="View shopping cart"

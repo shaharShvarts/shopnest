@@ -16,7 +16,18 @@ type CategoryCardProps = {
 export function CategoryCard({ id, name, imageUrl }: CategoryCardProps) {
   const tenant = useTenant();
   const t = useTranslations("CatalogUX");
-  const normalizedImageUrl = resolveTenantImageUrl(imageUrl, tenant.slug);
+  const normalizedImageUrl = resolveTenantImageUrl(
+    imageUrl,
+    tenant.slug,
+    (value: unknown) =>
+      value === tenant.slug
+        ? {
+            slug: tenant.slug,
+            schema: "",
+            basePath: tenant.basePath || `/${tenant.slug}`,
+          }
+        : null
+  );
 
   return (
     <TenantLink

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { languages } from "@/lib/languages";
 import {
@@ -18,6 +18,7 @@ import {
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { setShopNestLocaleAction } from "@/app/_actions/locale";
 
 export type LanguageOption = {
   label: string;
@@ -25,38 +26,37 @@ export type LanguageOption = {
   flag: string;
 };
 
-export default function LanguageSelector() {
-  const [selected, setSelected] = useState<LanguageOption | null>(null);
+export default function LanguageSelector({
+  locale,
+}: {
+  locale: "he" | "en";
+}) {
+  const initialSelection =
+    languages.find((lang) => lang.value === locale) ?? languages[0];
+  const [selected, setSelected] = useState<LanguageOption>(initialSelection);
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    const cookieLocale = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("SHOPNEST_LOCALE="))
-      ?.split("=")[1];
-
-    const initialLocale = cookieLocale || "he";
-    const match = languages.find((lang) => lang.value === initialLocale);
-    setSelected(match ?? languages[0]);
-  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          aria-label={`Language: ${selected?.label ?? "Select language"}`}
-          className="h-11 min-w-11 gap-1 px-2 sm:w-[180px] sm:justify-around sm:px-3"
+          size="management"
+          disabled={pending}
+          aria-label={`Language: ${selected.label ?? "Select language"}`}
+          className="min-w-24 gap-2 border-slate-300 bg-white px-3 text-slate-950 shadow-sm hover:bg-slate-100 hover:text-slate-950 disabled:opacity-60 sm:w-[150px] sm:justify-between"
         >
           <Image
-            src={selected?.flag ?? languages[0].flag}
+            src={selected.flag ?? languages[0].flag}
             width={26}
             height={20}
             alt=""
             className="shrink-0"
           />
-          <span className="hidden sm:inline">{selected?.label}</span>
+          <span className="hidden sm:inline">{selected.label}</span>
           <ChevronsUpDownIcon className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -69,17 +69,18 @@ export default function LanguageSelector() {
                 className="flex min-h-11 items-center justify-around"
                 key={lang.value}
                 onSelect={() => {
-                  setSelected(lang);
                   setOpen(false);
-                  // Optional: trigger i18n change here
-                  document.cookie = `SHOPNEST_LOCALE=${lang.value}; path=/; max-age=31536000; SameSite=Lax`;
-                  router.refresh();
+                  startTransition(async () => {
+                    await setShopNestLocaleAction(lang.value as "he" | "en");
+                    setSelected(lang);
+                    router.refresh();
+                  });
                 }}
               >
                 <CheckIcon
                   className={cn(
                     "h-4 w-4",
-                    lang.value === selected?.value ? "opacity-100" : "opacity-0"
+                    lang.value === selected.value ? "opacity-100" : "opacity-0"
                   )}
                 />
                 <Image

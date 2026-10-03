@@ -49,3 +49,32 @@ test("operator rollback accepts only tenant slug and restore hostname", async ()
   assert.doesNotMatch(cli, /--schema|--provider-id|--provider-hostname-id/);
   assert.match(cli, /rollbackRetiringDomainForAdmin/);
 });
+
+
+test("custom-domain middleware normalizes tenant-prefixed media for the bound tenant", async () => {
+  const middleware = await source("src/middleware.ts");
+
+  assert.match(middleware, /tenantMediaPrefix/);
+  assert.match(middleware, /\/\$\{domain\.tenant\.slug\}\/media\//);
+  assert.match(middleware, /startsWith\(tenantMediaPrefix\)/);
+  assert.match(
+    middleware,
+    /slice\(domain\.tenant\.basePath\.length\)/
+  );
+  assert.match(middleware, /routeMode = "host"/);
+});
+
+
+test("normalized custom-domain media handlers are rewritten", async () => {
+  const middleware = await source("src/middleware.ts");
+
+  assert.match(middleware, /normalizedHostedHandlerPath/);
+  assert.match(
+    middleware,
+    /isTenantHandlerPath\(internalPath\)\s*&&\s*internalPath !== req\.nextUrl\.pathname/
+  );
+  assert.match(
+    middleware,
+    /normalizedHostedHandlerPath[\s\S]*NextResponse\.rewrite/
+  );
+});

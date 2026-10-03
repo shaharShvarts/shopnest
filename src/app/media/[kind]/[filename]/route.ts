@@ -15,11 +15,15 @@ export async function GET(_: Request, context: MediaRouteContext) {
   if (!tenant) return new Response("Not Found", { status: 404 });
 
   const { kind, filename } = await context.params;
+  const resolveTenant = (value: unknown) =>
+    typeof value === "string" && value === tenant.slug ? tenant : null;
+
   try {
     const image = await readCatalogImage({
       tenantSlug: tenant.slug,
       kind: kind as "categories" | "subcategories" | "products",
       filename,
+      resolveTenant,
     });
     return new Response(new Uint8Array(image.bytes), {
       status: 200,

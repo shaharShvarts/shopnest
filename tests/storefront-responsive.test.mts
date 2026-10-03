@@ -10,8 +10,8 @@ test("product details use an explicit responsive grid and fluid image", async ()
   );
   assert.doesNotMatch(source, /columns-2|xs:columns-1/);
   assert.match(source, /grid-cols-1[^\"]*lg:grid-cols-\[/);
-  assert.match(source, /w-full[^\"]*object-contain/);
-  assert.match(source, /lg:max-h-\[680px\]/);
+  assert.match(source, /aspect-square[^\"]*bg-muted\/70/);
+  assert.match(source, /fill[\s\S]*object-contain/);
   assert.match(source, /min-h-12 w-full/);
   assert.match(source, /size-11[^\"]*rounded-xl/);
 });
@@ -30,7 +30,7 @@ test("storefront header stays compact while preserving all controls", async () =
   assert.match(layout, /getCurrentCustomer/);
   assert.match(layout, /aria-label="View shopping cart"[\s\S]*?size-11/);
   assert.match(language, /hidden sm:inline/);
-  assert.match(language, /h-11 min-w-11/);
+  assert.match(language, /min-w-24[\s\S]*sm:w-\[150px\]/);
   assert.match(cart, /min-h-5 min-w-5/);
 });
 
@@ -105,7 +105,7 @@ test("cart switches from cards on mobile to a table on larger screens", async ()
   assert.match(cart, /min-h-11 w-full sm:w-auto/);
   assert.match(page, /imageUrl: products\.imageUrl/);
   assert.match(page, /tenantSlug=\{tenant\?\.slug \?\? ""\}/);
-  assert.match(cart, /resolveTenantImageUrl\(imageUrl, tenantSlug\)/);
+  assert.match(cart, /resolveTenantImageUrl\([\s\S]*?imageUrl,[\s\S]*?tenantSlug,/);
   assert.doesNotMatch(cart, /src=\{item\.imageUrl\}/);
   assert.match(remove, /aria-label="Remove item from cart"/);
   assert.match(remove, /size-11/);
@@ -120,15 +120,16 @@ test("responsive storefront images use the shared tenant-aware resolver", async 
   ]);
 
   assert.match(category, /resolveTenantImageUrl\([\s\S]*tenant\.slug/);
-  assert.match(product, /resolveTenantImageUrl\(imageUrl, tenantSlug\)/);
-  assert.match(details, /resolveTenantImageUrl\([\s\S]*tenant\.slug/);
+  assert.match(product, /resolveTenantImageUrl\([\s\S]*?imageUrl,[\s\S]*?tenantSlug,/);
+  assert.match(details, /resolveImage\([\s\S]*?tenant\.slug/);
   assert.match(productPage, /tenantSlug=\{tenant\.slug\}/);
   assert.match(category, /aspect-\[5\/4\][\s\S]*normalizedImageUrl/);
   assert.match(product, /aspect-square[\s\S]*normalizedImageUrl/);
   assert.match(details, /grid-cols-1[^\"]*lg:grid-cols-\[/);
-  for (const source of [category, product, details]) {
+  for (const source of [category, product]) {
     assert.doesNotMatch(source, /src=\{(?:String\()?imageUrl\)?\}/);
   }
+  assert.doesNotMatch(details, /src=\{product\.imageUrl\}/);
 });
 
 test("checkout and shipping fields stack on narrow screens", async () => {

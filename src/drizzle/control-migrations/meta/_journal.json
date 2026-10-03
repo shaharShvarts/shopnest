@@ -113,6 +113,76 @@
       "when": 1790197200000,
       "tag": "0015_merchant_custom_domain_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790798400000,
+      "tag": "0016_store_manager_assignments",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790802000000,
+      "tag": "0017_plan_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790805600000,
+      "tag": "0018_plan_prices",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790811000000,
+      "tag": "0019_supported_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790816400000,
+      "tag": "0020_more_supported_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790820000000,
+      "tag": "0021_dynamic_tenant_plan_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790906400000,
+      "tag": "0022_drop_tenant_plan_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790992800000,
+      "tag": "0023_merchant_pending_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790996400000,
+      "tag": "0024_merchant_verified_signup",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791000000000,
+      "tag": "0025_store_manager_invitations",
+      "breakpoints": true
     }
   ]
 }

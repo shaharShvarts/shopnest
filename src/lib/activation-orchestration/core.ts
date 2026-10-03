@@ -4,7 +4,6 @@ export const ACTIVATION_SAFE_ERROR_CODES = [
   "READINESS_REGRESSED",
   "INVALID_STORE_SLUG",
   "TENANT_IDENTITY_CONFLICT",
-  "PLAN_NOT_PROVISIONABLE",
   "SCHEMA_PROVISIONING_FAILED",
   "TENANT_FINALIZATION_FAILED",
 ] as const;
@@ -12,7 +11,6 @@ export const ACTIVATION_SAFE_ERROR_CODES = [
 export type ActivationSafeErrorCode =
   (typeof ACTIVATION_SAFE_ERROR_CODES)[number];
 
-export type ProvisionableTenantPlan = "small" | "medium" | "large";
 
 export type ActivationResult =
   | {
@@ -60,15 +58,3 @@ export function tenantSchemaNameForStore(storeId: number) {
   return schemaName;
 }
 
-export function asProvisionableTenantPlan(
-  planCode: string
-): ProvisionableTenantPlan | null {
-  switch (planCode) {
-    case "small":
-    case "medium":
-    case "large":
-      return planCode;
-    default:
-      return null;
-  }
-}

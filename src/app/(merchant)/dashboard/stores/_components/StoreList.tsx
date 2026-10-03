@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast, type Id } from "react-toastify";
+import { Button } from "@/components/ui/button";
 import type { MerchantStoreStatus } from "@/lib/merchant-stores/core";
 import {
   deleteStoreAction,
@@ -15,6 +16,7 @@ export type StoreListItem = {
   id: number;
   displayName: string;
   slug: string;
+  activeAddress: string;
   status: MerchantStoreStatus;
   tenantId: number | null;
   updatedAt: string;
@@ -66,15 +68,16 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
     const toastId: Id = toast.info(
       <span className="flex items-center gap-3">
         <span>{t("storeDeleted")}</span>
-        <button
+        <Button
           type="button"
-          className="font-semibold underline"
+          variant="link"
+          className="h-auto p-0 font-semibold"
           onClick={() =>
             void handleUndo(storeId, undoVersion, toastId)
           }
         >
           {t("undo")}
-        </button>
+        </Button>
       </span>,
       {
         autoClose: 10_000,
@@ -122,13 +125,13 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
           key={store.id}
           className="rounded-2xl bg-background p-5 shadow-sm ring-1 ring-black/5 sm:p-6"
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-4">
             <div>
               <h2 className="text-xl font-bold">
                 {store.displayName}
               </h2>
-              <p className="mt-1 font-mono text-sm text-muted-foreground">
-                shopnest.co.il/{store.slug}
+              <p className="mt-1 break-all font-mono text-sm text-muted-foreground">
+                {store.activeAddress}
               </p>
               <p className="mt-2 text-sm font-medium">
                 {t(store.status)}
@@ -136,26 +139,26 @@ export function StoreList({ stores }: { stores: StoreListItem[] }) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Link
-                href={"/dashboard/stores/" + store.id}
-                className="min-h-11 rounded-lg border border-border px-4 py-2 font-semibold"
-              >
-                {t("viewStore")}
-              </Link>
-              <Link
-                href={"/dashboard/stores/" + store.id + "/edit"}
-                className="min-h-11 rounded-lg border border-border px-4 py-2 font-semibold"
-              >
-                {t("editStore")}
-              </Link>
-              <button
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id}>
+                  {t("viewStore")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id + "/edit"}>
+                  {t("editStore")}
+                </Link>
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="management"
                 disabled={store.tenantId !== null}
                 onClick={() => void handleDelete(store)}
-                className="min-h-11 rounded-lg border border-destructive/30 px-4 py-2 font-semibold text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+                className="border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
               >
                 {t("deleteStore")}
-              </button>
+              </Button>
             </div>
           </div>
 

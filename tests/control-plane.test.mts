@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import type { AdminPrincipal } from "../src/lib/admin-auth/core.ts";
 import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
@@ -38,7 +38,6 @@ const superAdmin: AdminPrincipal = {
 const mutation = {
   slug: "gift-shop",
   status: "active",
-  plan: "medium",
   featured: true,
   featuredRank: 1,
   supportNotes: null,
@@ -69,7 +68,7 @@ test("platform and tenant admin routes remain isolated", () => {
   assert.deepEqual(resolveTenantRoute("/unknown-store/admin"), { kind: "not-found" });
 });
 
-test("unauthenticated and tenant admins cannot change status, plan, or featured state", () => {
+test("unauthenticated and tenant admins cannot change store control-plane settings", () => {
   assert.throws(() => authorizeStoreMutation(null, mutation), { code: "FORBIDDEN" });
   assert.throws(
     () => authorizeStoreMutation({ ...superAdmin, role: "tenant_admin", tenantSlugs: ["gift-shop"] }, mutation),
@@ -77,12 +76,18 @@ test("unauthenticated and tenant admins cannot change status, plan, or featured 
   );
 });
 
-test("plans accept only small, medium, and large", () => {
-  for (const plan of ["small", "medium", "large"]) {
-    assert.equal(storeMutationSchema.safeParse({ ...mutation, plan }).success, true);
-  }
-  assert.equal(storeMutationSchema.safeParse({ ...mutation, plan: "enterprise" }).success, false);
-  assert.equal(storeMutationSchema.safeParse({ ...mutation, featured: false, featuredRank: 1 }).success, false);
+test("store mutation no longer accepts a commercial plan field", () => {
+  assert.equal(storeMutationSchema.safeParse(mutation).success, true);
+  assert.equal(
+    storeMutationSchema.safeParse({ ...mutation, featured: false, featuredRank: 1 }).success,
+    false
+  );
+
+  const parsed = storeMutationSchema.parse({
+    ...mutation,
+    plan: "enterprise",
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(parsed, "plan"), false);
 });
 
 test("active control-plane tenant rows are the trusted dynamic registry", () => {
@@ -98,13 +103,56 @@ test("unsafe or inactive registry rows cannot select a tenant database", () => {
     null
   );
   assert.equal(
-    resolveTrustedStore({ ...stores[0], status: "suspended" }),
+    resolveTrustedStore({ ...stores[0], tenantStatus: "suspended" }),
     null
   );
   assert.equal(
-    resolveTrustedStore({ ...stores[0], status: "disabled" }),
+    resolveTrustedStore({ ...stores[0], tenantStatus: "disabled" }),
     null
   );
+});
+
+test("draft Stores remain visible but never select a tenant database", async () => {
+  const draft: ControlPlaneStore = {
+    ...stores[0],
+    storeId: 99,
+    slug: "draft-shop",
+    displayName: "Draft Shop",
+    storeStatus: "draft",
+    tenantId: null,
+    tenantSlug: null,
+    schemaName: null,
+    tenantStatus: null,
+    plan: null,
+    subscriptionPlanCode: "free",
+    subscriptionPlanName: "Free",
+  };
+
+  assert.equal(resolveTrustedStore(draft), null);
+
+  let metricCalls = 0;
+  const [summary] = await buildStoreSummaries([draft], async () => {
+    metricCalls += 1;
+    throw new Error("Draft Store must not query a tenant database");
+  });
+
+  assert.equal(metricCalls, 0);
+  assert.equal(summary.kind, "unavailable");
+  if (summary.kind === "unavailable") {
+    assert.equal(summary.reason, "not_provisioned");
+  }
+
+  assert.deepEqual(summarizePlatform([summary]), {
+    registeredStores: 1,
+    activeStores: 0,
+    unavailableStores: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    ordersToday: 0,
+    revenueToday: 0,
+    complete: true,
+    failedStores: [],
+  });
 });
 
 test("active trusted registry rows may load isolated tenant metrics", async () => {
@@ -219,6 +267,9 @@ test("route and mutation boundaries enforce server authorization and trusted sch
   assert.match(layout, /await requireSuperAdminPage\(\)/);
   assert.match(action, /updateControlPlaneStore/);
   assert.match(server, /await requireSuperAdmin\(\)/);
+  assert.match(server, /\.from\(stores\)/);
+  assert.match(server, /eq\(controlPlaneTenants\.id, stores\.tenantId\)/);
+  assert.match(server, /isNull\(stores\.deletedAt\)/);
   assert.match(server, /hasValidTenantIdentity\(existing\)/);
   assert.match(server, /getDbForTenant\(tenant\)/);
   assert.match(server, /unsupportedCurrencyCount/);
@@ -290,12 +341,17 @@ test("organization migration is registered after merchant identity", async () =>
 
 function store(slug: string, schemaName: string, displayName: string): ControlPlaneStore {
   return {
-    id: 1,
+    storeId: slug === "gift-shop" ? 1 : 2,
     slug,
-    schemaName,
     displayName,
-    status: "active",
+    storeStatus: "provisioned",
+    tenantId: slug === "gift-shop" ? 11 : 12,
+    tenantSlug: slug,
+    schemaName,
+    tenantStatus: "active",
     plan: "small",
+    subscriptionPlanCode: "small",
+    subscriptionPlanName: "Small",
     featured: false,
     featuredRank: null,
     supportNotes: null,
@@ -360,4 +416,192 @@ test("domain hostname uniqueness is partial so a removed hostname can be reused"
     schema,
     /hostname: varchar\("hostname", \{ length: 253 \}\)\.notNull\(\)\.unique\(\)/
   );
+});
+
+
+test("tenant plan snapshot migration accepts dynamic plan codes", async () => {
+  const [migration, tenantSchema, actionSource, pageSource] = await Promise.all([
+    readFile(
+      "src/drizzle/control-migrations/0021_dynamic_tenant_plan_snapshot.sql",
+      "utf8"
+    ),
+    readFile("src/drizzle/control-schema/tenant.ts", "utf8"),
+    readFile("src/app/admin/_actions/stores.ts", "utf8"),
+    readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
+  ]);
+
+  assert.match(migration, /ALTER COLUMN "plan" TYPE varchar\(64\)/);
+  assert.match(tenantSchema, /plan: varchar\("plan", \{ length: 64 \}\)/);
+  assert.doesNotMatch(actionSource, /formData\.get\("plan"\)/);
+  assert.doesNotMatch(pageSource, /name="plan"/);
+});
+
+
+test("Super Admin Store table uses subscription plan instead of Tenant snapshot", async () => {
+  const [serverSource, tableSource] = await Promise.all([
+    readFile("src/lib/control-plane/server.ts", "utf8"),
+    readFile("src/app/admin/_components/StoreTable.tsx", "utf8"),
+  ]);
+
+  assert.match(serverSource, /subscriptionPlanCode:\s*plans\.code/);
+  assert.match(serverSource, /subscriptionPlanName:\s*plans\.name/);
+  assert.match(serverSource, /leftJoin\(\s*subscriptions/);
+  assert.match(serverSource, /leftJoin\(plans/);
+  assert.match(tableSource, /store\.subscriptionPlanName/);
+  assert.doesNotMatch(tableSource, /t\(store\.plan\)/);
+});
+
+
+test("schema code no longer defines the legacy tenant plan enum", async () => {
+  const sharedSource = await readFile(
+    "src/drizzle/control-schema/shared.ts",
+    "utf8"
+  );
+
+  assert.doesNotMatch(sharedSource, /tenantPlanEnum|tenantPlans|type TenantPlan/);
+});
+
+
+test("management Button size and Plans form use the shared 44px controls", async () => {
+  const [button, plans, priceInput, integerInput] = await Promise.all([
+    readFile("src/components/ui/button.tsx", "utf8"),
+    readFile("src/app/admin/plans/page.tsx", "utf8"),
+    readFile("src/app/admin/plans/PlanPriceInput.tsx", "utf8"),
+    readFile("src/app/admin/plans/EntitlementIntegerInput.tsx", "utf8"),
+  ]);
+
+  assert.match(button, /management:\s*"h-11 rounded-lg/);
+  assert.match(plans, /ManagementInput/);
+  assert.match(plans, /size="management"/);
+  assert.doesNotMatch(plans, /<input\\b[^>]*\\bname="(?:code|name)"[^>]*>/);
+  assert.match(priceInput, /<ManagementInput/);
+  assert.doesNotMatch(priceInput, /className="min-h-11/);
+  assert.match(
+    plans,
+    /md:grid-cols-\[minmax\(0,1fr\)_minmax\(220px,max-content\)_auto\]/
+  );
+  assert.match(integerInput, /className="flex h-11 min-w-28 items-stretch overflow-hidden rounded-lg/);
+  assert.match(integerInput, /whitespace-nowrap tabular-nums/);
+  assert.match(integerInput, /<Button[\s\S]*?variant="outline"[\s\S]*?size="management"/);
+  assert.match(integerInput, /className="shrink-0 px-3 text-sm text-blue-700"/);
+  assert.doesNotMatch(integerInput, /space-y-1/);
+  assert.doesNotMatch(plans, /self-start border-red-200/);
+});
+
+test("Control Plane remaining Wave 1 surfaces follow management UI standards", async () => {
+  const [loginForm, loginPage, storeTable, featuredPage] = await Promise.all([
+    readFile("src/app/[tenant]/admin/_components/AdminLoginForm.tsx", "utf8"),
+    readFile("src/app/admin/login/page.tsx", "utf8"),
+    readFile("src/app/admin/_components/StoreTable.tsx", "utf8"),
+    readFile("src/app/admin/featured/page.tsx", "utf8"),
+  ]);
+
+  assert.match(loginForm, /ManagementInput/);
+  assert.doesNotMatch(loginForm, /<input\\b/);
+  assert.match(loginForm, /size="management"/);
+  assert.match(loginPage, /rounded-xl border border-slate-200 bg-white/);
+  assert.match(storeTable, /overflow-x-auto/);
+  assert.match(storeTable, /focus-visible:ring-2/);
+  assert.match(featuredPage, /focus-visible:ring-2/);
+});
+
+test("Control Plane shell uses 44px shared utility controls and keyboard focus", async () => {
+  const [layout, languageSelector, navigation] = await Promise.all([
+    readFile("src/app/admin/layout.tsx", "utf8"),
+    readFile("src/app/components/LanguageSelector.tsx", "utf8"),
+    readFile("src/app/admin/_components/AdminNavigation.tsx", "utf8"),
+  ]);
+
+  assert.match(layout, /size="management"/);
+  assert.doesNotMatch(layout, /className="h-10/);
+  assert.match(languageSelector, /size="management"/);
+  assert.doesNotMatch(languageSelector, /className="h-10/);
+  assert.match(navigation, /min-h-11/);
+  assert.match(navigation, /focus-visible:ring-2/);
+});
+
+test("Control Plane same-page mutations use the shared in-place interaction", async () => {
+  const [mutation, planActions, plansPage, storeActions, storePage] =
+    await Promise.all([
+      readFile("src/components/management/ManagementMutation.tsx", "utf8"),
+      readFile("src/app/admin/_actions/plans.ts", "utf8"),
+      readFile("src/app/admin/plans/page.tsx", "utf8"),
+      readFile("src/app/admin/_actions/stores.ts", "utf8"),
+      readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
+    ]);
+
+  assert.match(mutation, /event\.preventDefault\(\)/);
+  assert.match(mutation, /useTransition/);
+  assert.match(mutation, /router\.refresh\(\)/);
+  assert.match(mutation, /from "react-toastify"/);
+  assert.match(mutation, /toast\.success|toast\.error/);
+  assert.doesNotMatch(mutation, /fixed inset-x-4 top-4|basis-full|col-span-full/);
+  assert.doesNotMatch(mutation, /router\.push|router\.replace|window\.location/);
+
+  assert.match(plansPage, /ManagementMutationForm/);
+  assert.match(plansPage, /ManagementMutationButton/);
+  assert.doesNotMatch(plansPage, /formAction=\{removePlanEntitlementAction/);
+  assert.doesNotMatch(planActions, /next\/navigation/);
+  assert.doesNotMatch(planActions, /redirect\(/);
+
+  assert.match(storePage, /ManagementMutationForm/);
+  assert.doesNotMatch(storeActions, /next\/navigation/);
+  assert.doesNotMatch(storeActions, /redirect\(/);
+});
+
+test("application toasts use the installed react-toastify provider", async () => {
+  const relativeFiles = (await readdir("src", { recursive: true }))
+    .filter((path) => /\.(?:ts|tsx|js|jsx)$/.test(path))
+    .map((path) => `src/${path}`);
+
+  const sources = await Promise.all(
+    relativeFiles.map(async (path) => ({
+      path,
+      source: await readFile(path, "utf8"),
+    }))
+  );
+
+  const toastContainers = sources
+    .filter(({ source }) => /<ToastContainer\b/.test(source))
+    .map(({ path }) => path);
+
+  assert.deepEqual(toastContainers, ["src/app/components/ToastProvider.tsx"]);
+
+  for (const { path, source } of sources) {
+    if (/\btoast\.(?:success|error|info|warning|warn|loading|promise|dismiss|update)\b/.test(source)) {
+      assert.match(
+        source,
+        /from ["']react-toastify["']/,
+        `${path} uses toast feedback without react-toastify`
+      );
+    }
+  }
+
+  const managementMutation = sources.find(
+    ({ path }) => path === "src/components/management/ManagementMutation.tsx"
+  )?.source ?? "";
+
+  assert.match(managementMutation, /from "react-toastify"/);
+  assert.doesNotMatch(
+    managementMutation,
+    /fixed inset-x-4 top-4|z-\[100\].*rounded-lg.*shadow-lg/
+  );
+});
+
+test("Control Plane store settings use shared management controls", async () => {
+  const [page, input, select, textarea] = await Promise.all([
+    readFile("src/app/admin/stores/[slug]/page.tsx", "utf8"),
+    readFile("src/components/management/ManagementInput.tsx", "utf8"),
+    readFile("src/components/management/ManagementSelect.tsx", "utf8"),
+    readFile("src/components/management/ManagementTextarea.tsx", "utf8"),
+  ]);
+
+  assert.match(page, /ManagementInput/);
+  assert.match(page, /ManagementSelect/);
+  assert.match(page, /ManagementTextarea/);
+  assert.doesNotMatch(page, /<select\b/);
+  assert.match(page, /<Button asChild variant="outline" size="management">/);
+  assert.match(input, /"h-11 w-full/);
+  assert.match(select, /"h-11 w-full appearance-none/);
+  assert.match(textarea, /"min-h-28 w-full/);
 });

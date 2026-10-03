@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
 import { requireMerchantPage } from "@/lib/merchant-auth/server";
 import type {
   MerchantPolicyDocument,
@@ -70,12 +71,11 @@ export default async function MerchantStorePoliciesPage({
             </h1>
           </div>
 
-          <Link
-            href={"/dashboard/stores/" + storeId}
-            className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 font-semibold"
-          >
-            {t("backToStore")}
-          </Link>
+          <Button asChild variant="outline" size="management">
+            <Link href={"/dashboard/stores/" + storeId}>
+              {t("backToStore")}
+            </Link>
+          </Button>
         </div>
 
         <p className="mt-2 text-sm text-muted-foreground">

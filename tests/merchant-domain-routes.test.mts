@@ -41,6 +41,32 @@ test("merchant custom-domain route files exist and derive authority server-side"
   );
 });
 
+test("custom-domain access is driven by the effective plan entitlement", async () => {
+  const [page, actions, ui, storePage] = await Promise.all([
+    source("src/app/(merchant)/dashboard/stores/[id]/domain/page.tsx"),
+    source("src/app/(merchant)/dashboard/stores/[id]/domain/_actions.ts"),
+    source("src/app/(merchant)/dashboard/stores/[id]/domain/DomainManager.tsx"),
+    source("src/app/(merchant)/dashboard/stores/[id]/page.tsx"),
+  ]);
+
+  assert.match(page, /storeHasBooleanEntitlement\(storeId, "custom_domain"\)/);
+  assert.match(page, /findOwnedById[\s\S]*storeHasBooleanEntitlement/);
+  assert.match(actions, /requireCustomDomainEntitlement/);
+  assert.match(actions, /findOwnedById/);
+  assert.match(actions, /storeHasBooleanEntitlement\(storeId, "custom_domain"\)/);
+  assert.match(ui, /customDomainEnabled/);
+  assert.match(ui, /featureUnavailable/);
+  assert.match(storePage, /customDomainEnabled/);
+  assert.match(storePage, /canManageDomain/);
+
+  for (const runtimeSource of [page, actions, ui, storePage]) {
+    assert.doesNotMatch(
+      runtimeSource,
+      /["'](?:free|small|medium|large)["']/i
+    );
+  }
+});
+
 test("merchant custom-domain actions use the approved service boundaries", async () => {
   const actions = await source(
     "src/app/(merchant)/dashboard/stores/[id]/domain/_actions.ts"
@@ -282,6 +308,19 @@ test("merchant domain progress follows the domain being configured, not an older
       active: false,
     }
   );
+});
+
+test("merchant domain manager uses shared management controls", async () => {
+  const ui = await source(
+    "src/app/(merchant)/dashboard/stores/[id]/domain/DomainManager.tsx"
+  );
+
+  assert.match(ui, /ManagementInput/);
+  assert.match(ui, /size="management"/);
+  assert.match(ui, /variant="outline"/);
+  assert.doesNotMatch(ui, /<button\\b/);
+  assert.doesNotMatch(ui, /min-h-10/);
+  assert.doesNotMatch(ui, /size-10/);
 });
 
 test("merchant removal is explicitly confirmed and claim expiry is visible", async () => {

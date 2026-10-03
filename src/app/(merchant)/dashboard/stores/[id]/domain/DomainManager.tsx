@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ManagementInput } from "@/components/management/ManagementInput";
 import {
   MERCHANT_DOMAIN_CHECK_COOLDOWN_MS,
   merchantDomainProgress,
@@ -30,20 +32,28 @@ function CopyValue({ value }: { value: string }) {
       <code className="min-w-0 flex-1 break-all rounded-lg bg-muted px-3 py-2 text-sm">
         {value}
       </code>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="management"
         onClick={() => void navigator.clipboard.writeText(value)}
         aria-label={t("copy")}
         title={t("copy")}
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border"
+        className="w-11 shrink-0 px-0"
       >
         <Copy className="size-4" aria-hidden="true" />
-      </button>
+      </Button>
     </div>
   );
 }
 
-export function DomainManager({ view }: { view: MerchantDomainView }) {
+export function DomainManager({
+  view,
+  customDomainEnabled,
+}: {
+  view: MerchantDomainView;
+  customDomainEnabled: boolean;
+}) {
   const t = useTranslations("MerchantDomain");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -215,7 +225,19 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
           </p>
         ) : null}
 
-        {!view.claim && !view.candidate && !view.retiring ? (
+        {!customDomainEnabled ? (
+          <p
+            role="status"
+            className="mt-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
+            {t("featureUnavailable")}
+          </p>
+        ) : null}
+
+        {customDomainEnabled &&
+        !view.claim &&
+        !view.candidate &&
+        !view.retiring ? (
           <form
             className="mt-6 space-y-3"
             onSubmit={(event) => {
@@ -226,25 +248,25 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
             <input type="hidden" name="storeId" value={view.storeId} />
             <label className="grid gap-2 text-sm font-semibold">
               {t("domainLabel")}
-              <input
+              <ManagementInput
                 name="hostname"
                 type="text"
                 required
                 placeholder="shop.example.com"
-                className="min-h-11 rounded-lg border border-border bg-background px-3"
               />
             </label>
-            <button
+            <Button
               type="submit"
+              size="management"
               disabled={isPending}
-              className="min-h-11 rounded-lg bg-foreground px-5 font-semibold text-background disabled:opacity-50"
+              className="px-5"
             >
               {t("startSetup")}
-            </button>
+            </Button>
           </form>
         ) : null}
 
-        {view.claim ? (
+        {customDomainEnabled && view.claim ? (
           <div className="mt-6 space-y-5">
             <h3 className="font-bold">{t("verifyOwnership")}</h3>
             <div className="rounded-xl bg-muted px-4 py-3 text-sm">
@@ -294,13 +316,15 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
                   }}
                 >
                   <input type="hidden" name="storeId" value={view.storeId} />
-                  <button
+                  <Button
                     type="submit"
+                    variant="outline"
+                    size="management"
                     disabled={isPending}
-                    className="min-h-10 rounded-lg border border-border px-4 font-semibold"
+                    className="px-4"
                   >
                     {t("createNewCode")}
-                  </button>
+                  </Button>
                 </form>
               </div>
             ) : null}
@@ -314,15 +338,16 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
               >
                 <input type="hidden" name="storeId" value={view.storeId} />
                 <input type="hidden" name="hostname" value={view.claim.hostname} />
-                <button
+                <Button
                   type="submit"
+                  size="management"
                   disabled={isPending || txtRemaining > 0}
-                  className="min-h-11 rounded-lg bg-foreground px-5 font-semibold text-background disabled:opacity-50"
+                  className="px-5"
                 >
                   {txtRemaining > 0
                     ? t("checkCountdown", { seconds: txtRemaining })
                     : t("checkNow")}
-                </button>
+                </Button>
               </form>
             ) : null}
 
@@ -363,15 +388,16 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
                 >
                   <input type="hidden" name="storeId" value={view.storeId} />
                   <input type="hidden" name="hostname" value={view.claim.hostname} />
-                  <button
+                  <Button
                     type="submit"
+                    size="management"
                     disabled={isPending || cnameRemaining > 0}
-                    className="min-h-11 rounded-lg bg-foreground px-5 font-semibold text-background disabled:opacity-50"
+                    className="px-5"
                   >
                     {cnameRemaining > 0
                       ? t("checkCountdown", { seconds: cnameRemaining })
                       : t("checkCname")}
-                  </button>
+                  </Button>
                 </form>
               </div>
             ) : null}
@@ -395,22 +421,23 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
                 >
                   <input type="hidden" name="storeId" value={view.storeId} />
                   <input type="hidden" name="hostname" value={view.claim.hostname} />
-                  <button
+                  <Button
                     type="submit"
+                    size="management"
                     disabled={isPending || cnameRemaining > 0}
-                    className="min-h-11 rounded-lg bg-foreground px-5 font-semibold text-background disabled:opacity-50"
+                    className="px-5"
                   >
                     {cnameRemaining > 0
                       ? t("checkCountdown", { seconds: cnameRemaining })
                       : t("retryProvisioning")}
-                  </button>
+                  </Button>
                 </form>
               </div>
             ) : null}
           </div>
         ) : null}
 
-        {view.candidate ? (
+        {customDomainEnabled && view.candidate ? (
           <div className="mt-6 space-y-3 border-t border-border pt-5">
             <h3 className="font-bold">{t("provisionSsl")}</h3>
             <p className="text-sm">
@@ -431,15 +458,16 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
               }}
             >
               <input type="hidden" name="storeId" value={view.storeId} />
-              <button
+              <Button
                 type="submit"
+                size="management"
                 disabled={isPending || providerRemaining > 0}
-                className="min-h-11 rounded-lg bg-foreground px-5 font-semibold text-background disabled:opacity-50"
+                className="px-5"
               >
                 {providerRemaining > 0
                   ? t("checkCountdown", { seconds: providerRemaining })
                   : t("checkStatus")}
-              </button>
+              </Button>
             </form>
           </div>
         ) : null}
@@ -462,13 +490,15 @@ export function DomainManager({ view }: { view: MerchantDomainView }) {
                 }}
               >
                 <input type="hidden" name="storeId" value={view.storeId} />
-                <button
+                <Button
                   type="submit"
+                  variant="outline"
+                  size="management"
                   disabled={isPending}
-                  className="min-h-11 rounded-lg border border-border px-5 font-semibold"
+                  className="border-red-200 px-5 text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800"
                 >
                   {t("removeDomain")}
-                </button>
+                </Button>
               </form>
             ) : null}
           </div>
