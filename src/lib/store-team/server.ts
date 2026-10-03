@@ -9,9 +9,16 @@ import {
 } from "@/drizzle/control-plane-schema";
 import { requireOwnerStoreManagementContext } from "@/lib/store-management/server";
 import {
+  generateStoreManagerInvitationToken,
+  hashStoreManagerInvitationToken,
+  STORE_MANAGER_INVITATION_TTL_MS,
   STORE_MANAGERS_ENTITLEMENT,
 } from "./core";
 import { DrizzleStoreTeamRepository } from "./drizzle-repository";
+import {
+  createStoreManagerInvitationDelivery,
+  type StoreManagerInvitationDelivery,
+} from "./invitation-delivery";
 
 const repository = new DrizzleStoreTeamRepository();
 
@@ -25,21 +32,64 @@ export async function getOwnedStoreManagerQuota(storeId: number) {
   return repository.quota(storeId);
 }
 
-export async function createOwnedStoreManager(
+export async function inviteOwnedStoreManager(
   storeId: number,
   email: string,
-  password: string
+  buildInvitationUrl: (token: string) => string,
+  delivery: StoreManagerInvitationDelivery = createStoreManagerInvitationDelivery(),
+  now = new Date()
 ) {
-  await requireOwnerStoreManagementContext(storeId, "team.manage");
-  return repository.createAndAssign(storeId, email, password);
+  const context = await requireOwnerStoreManagementContext(storeId, "team.manage");
+  const token = generateStoreManagerInvitationToken();
+  const tokenHash = hashStoreManagerInvitationToken(token);
+
+  const result = await repository.inviteOrAssign({
+    storeId,
+    email,
+    tokenHash,
+    expiresAt: new Date(now.getTime() + STORE_MANAGER_INVITATION_TTL_MS),
+    now,
+  });
+
+  if (result.kind === "assigned_existing") {
+    return result;
+  }
+
+  try {
+    await delivery.deliverInvitation({
+      email: result.email,
+      invitationUrl: buildInvitationUrl(token),
+      storeName: context.store.displayName,
+    });
+  } catch (error) {
+    await repository.deleteInvitationByTokenHash(tokenHash);
+    throw error;
+  }
+
+  return result;
 }
 
-export async function assignExistingOwnedStoreManager(
-  storeId: number,
-  email: string
+export async function inspectStoreManagerInvitation(
+  token: string,
+  now = new Date()
 ) {
-  await requireOwnerStoreManagementContext(storeId, "team.manage");
-  return repository.assignExisting(storeId, email);
+  if (!token) return { kind: "invalid" as const };
+  return repository.inspectInvitation(
+    hashStoreManagerInvitationToken(token),
+    now
+  );
+}
+
+export async function completeStoreManagerInvitation(
+  token: string,
+  password: string,
+  now = new Date()
+) {
+  return repository.completeInvitation({
+    tokenHash: hashStoreManagerInvitationToken(token),
+    password,
+    now,
+  });
 }
 
 export async function removeOwnedStoreManager(
@@ -53,7 +103,6 @@ export async function removeOwnedStoreManager(
 export function getStoreTeamRepository() {
   return repository;
 }
-
 
 export async function listStoreManagerPlanOptions() {
   const rows = await getControlPlaneDb()
