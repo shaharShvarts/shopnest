@@ -26,6 +26,10 @@ test("merchant signup completion remains a platform route", () => {
   assert.deepEqual(resolveTenantRoute("/complete-signup"), { kind: "legacy" });
 });
 
+test("Store Manager invitation completion remains a platform route", () => {
+  assert.deepEqual(resolveTenantRoute("/complete-manager-invite"), { kind: "legacy" });
+});
+
 test("unknown tenant routes resolve to not-found", () => {
   assert.deepEqual(resolveTenantRoute("/random-store"), { kind: "not-found" });
   assert.deepEqual(resolveTenantRoute("/test123"), { kind: "not-found" });
