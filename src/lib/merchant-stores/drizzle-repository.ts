@@ -109,16 +109,17 @@ export class DrizzleMerchantStoreRepository
   implements MerchantStoreRepository
 {
   async listForMerchant(merchantId: number): Promise<MerchantStore[]> {
-    const db = getControlPlaneDb();
-    const organizationId = await ownerOrganizationId(db, merchantId);
-    if (organizationId === null) return [];
-
-    const rows = await db
+    const rows = await getControlPlaneDb()
       .select(storeSelection)
       .from(stores)
+      .innerJoin(
+        organizationMemberships,
+        eq(organizationMemberships.organizationId, stores.organizationId)
+      )
       .where(
         and(
-          eq(stores.organizationId, organizationId),
+          eq(organizationMemberships.merchantAccountId, merchantId),
+          eq(organizationMemberships.role, "owner"),
           isNull(stores.deletedAt)
         )
       )
@@ -131,17 +132,18 @@ export class DrizzleMerchantStoreRepository
     merchantId: number,
     storeId: number
   ): Promise<MerchantStore | null> {
-    const db = getControlPlaneDb();
-    const organizationId = await ownerOrganizationId(db, merchantId);
-    if (organizationId === null) return null;
-
-    const [row] = await db
+    const [row] = await getControlPlaneDb()
       .select(storeSelection)
       .from(stores)
+      .innerJoin(
+        organizationMemberships,
+        eq(organizationMemberships.organizationId, stores.organizationId)
+      )
       .where(
         and(
           eq(stores.id, storeId),
-          eq(stores.organizationId, organizationId),
+          eq(organizationMemberships.merchantAccountId, merchantId),
+          eq(organizationMemberships.role, "owner"),
           isNull(stores.deletedAt)
         )
       )
@@ -421,17 +423,20 @@ export class DrizzleMerchantStoreRepository
     now = new Date()
   ): Promise<boolean> {
     const db = getControlPlaneDb();
-    const organizationId = await ownerOrganizationId(db, merchantId);
-    if (organizationId === null) return false;
 
     if (currentStoreId !== undefined) {
       const [currentStore] = await db
         .select({ id: stores.id })
         .from(stores)
+        .innerJoin(
+          organizationMemberships,
+          eq(organizationMemberships.organizationId, stores.organizationId)
+        )
         .where(
           and(
             eq(stores.id, currentStoreId),
-            eq(stores.organizationId, organizationId),
+            eq(organizationMemberships.merchantAccountId, merchantId),
+            eq(organizationMemberships.role, "owner"),
             isNull(stores.deletedAt)
           )
         )
