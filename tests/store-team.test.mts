@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertManagerCapacity,
+  generateStoreManagerInvitationToken,
+  hashStoreManagerInvitationToken,
   normalizeManagerEmail,
+  STORE_MANAGER_INVITATION_TTL_MS,
   StoreTeamError,
   storeManagerQuota,
 } from "../src/lib/store-team/core.ts";
@@ -44,4 +47,14 @@ test("manager capacity blocks exhausted and over-quota Stores", () => {
 test("manager email normalization is deterministic", () => {
   assert.equal(normalizeManagerEmail("  Manager@Example.COM "), "manager@example.com");
   assert.throws(() => normalizeManagerEmail("not-an-email"));
+});
+
+
+test("manager invitation tokens are opaque, hashed, and expire after 24 hours", () => {
+  const token = generateStoreManagerInvitationToken();
+  const hash = hashStoreManagerInvitationToken(token);
+
+  assert.notEqual(token, hash);
+  assert.match(hash, /^[a-f0-9]{64}$/);
+  assert.equal(STORE_MANAGER_INVITATION_TTL_MS, 24 * 60 * 60 * 1000);
 });
