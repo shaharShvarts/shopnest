@@ -49,8 +49,10 @@ Store readiness is also control-plane only. The merchant Store detail computes a
 | `/faq` | Platform | None | 200 public merchant acquisition FAQ |
 | `/login` | Platform | None | 200 merchant sign-in; authenticated merchants redirect to `/dashboard` |
 | `/signup` | Platform | None | 200 merchant registration; successful signup creates only a merchant account/session and redirects to `/dashboard` |
+| `/complete-signup` | Platform | Valid signup completion context | 200 signup completion flow; invalid or incomplete context fails closed |
 | `/forgot-password` | Platform | None | 200 merchant password-reset request; submission is non-enumerating |
 | `/reset-password` | Platform | Valid one-use reset token required to change password | 200 reset form or invalid-link state; successful reset invalidates merchant sessions |
+| `/complete-manager-invite` | Platform | Valid Manager invitation token | 200 Manager invitation completion flow; invalid or expired invitations fail closed |
 | `/dashboard` | Platform | Active merchant session | 200 merchant overview inside the shared authenticated merchant workspace shell; anonymous/expired/disabled sessions redirect to `/login` |
 | `/dashboard/business` | Platform | Active merchant session with an organization membership | 200 business details for the merchant organization; merchants without an organization redirect to `/dashboard/business/new` |
 | `/dashboard/business/new` | Platform | Active merchant session | 200 first-business form when no organization exists; merchants with an organization redirect to `/dashboard/business` |
@@ -61,6 +63,16 @@ Store readiness is also control-plane only. The merchant Store detail computes a
 | `/dashboard/stores/[id]/edit` | Platform | Active merchant owner | 200 Store edit; slug is read-only after Tenant linkage |
 | `/dashboard/stores/[id]/policies` | Platform | Active merchant owning the Store through Organization | 200 versioned Store policy workspace; save/publish actions remain control-plane only and cross-Organization access is 404 |
 | `/dashboard/stores/[id]/domain` | Platform | Active merchant owning a provisioned Store through Organization | 200 custom-domain workspace; TXT/CNAME/provider checks are user-triggered and tenant/provider authority remains server-side; invalid, unprovisioned, cross-Organization, or deleted Store is 404 |
+| `/dashboard/stores/[id]/categories` | Platform | Authorized Store Management context with catalog permission | 200 category list for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/categories/new` | Platform | Authorized Store Management context with catalog permission | 200 new-category form for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/categories/[categoryId]/edit` | Platform | Authorized Store Management context with catalog permission | 200 category edit form for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/subcategories` | Platform | Authorized Store Management context with catalog permission | 200 subcategory list for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/subcategories/new` | Platform | Authorized Store Management context with catalog permission | 200 new-subcategory form for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/subcategories/[subcategoryId]/edit` | Platform | Authorized Store Management context with catalog permission | 200 subcategory edit form for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/products` | Platform | Authorized Store Management context with catalog permission | 200 product list for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/products/new` | Platform | Authorized Store Management context with catalog permission | 200 new-product form for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/products/[productId]/edit` | Platform | Authorized Store Management context with catalog permission | 200 product edit form for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/team` | Platform | Authorized Store Management context with team-management permission | 200 Store team management; unauthorized Manager/team access fails closed |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |
