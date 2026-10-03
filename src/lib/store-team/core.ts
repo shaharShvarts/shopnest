@@ -1,6 +1,8 @@
+import { createHash, randomBytes } from "node:crypto";
 import { normalizeAdminEmail } from "../admin-auth/core.ts";
 
 export const STORE_MANAGERS_ENTITLEMENT = "store_managers";
+export const STORE_MANAGER_INVITATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type StoreManager = {
   adminUserId: number;
@@ -21,7 +23,9 @@ export type StoreTeamErrorCode =
   | "MANAGER_NOT_FOUND"
   | "MANAGER_ALREADY_ASSIGNED"
   | "MANAGER_ACCOUNT_UNAVAILABLE"
-  | "INVALID_MANAGER_ACCOUNT";
+  | "INVALID_MANAGER_ACCOUNT"
+  | "INVITATION_INVALID"
+  | "INVITATION_EXPIRED";
 
 export class StoreTeamError extends Error {
   constructor(
@@ -70,4 +74,24 @@ export function normalizeManagerEmail(email: string) {
     );
   }
   return normalized;
+}
+
+
+export type StoreManagerInvitationState =
+  | { kind: "invalid" }
+  | { kind: "expired"; email: string; storeName: string }
+  | {
+      kind: "pending";
+      email: string;
+      storeName: string;
+      expiresAt: Date;
+    }
+  | { kind: "completed"; email: string; storeName: string };
+
+export function generateStoreManagerInvitationToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashStoreManagerInvitationToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
