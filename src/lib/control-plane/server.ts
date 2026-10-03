@@ -131,6 +131,7 @@ export async function updateControlPlaneStore(input: unknown) {
       tenantId: stores.tenantId,
       tenantSlug: controlPlaneTenants.slug,
       schemaName: controlPlaneTenants.schemaName,
+      suspendedAt: controlPlaneTenants.suspendedAt,
     })
     .from(stores)
     .innerJoin(
@@ -165,7 +166,7 @@ export async function updateControlPlaneStore(input: unknown) {
       supportNotes: update.supportNotes,
       suspendedAt:
         update.status === "suspended"
-          ? sql`coalesce(${controlPlaneTenants.suspendedAt}, now())`
+          ? existing.suspendedAt ?? new Date()
           : null,
       suspendedReason: null,
       updatedAt: new Date(),
