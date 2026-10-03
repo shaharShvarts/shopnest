@@ -23,11 +23,14 @@ import {
 } from "./core";
 
 const storeSelection = {
-  id: controlPlaneTenants.id,
-  slug: controlPlaneTenants.slug,
+  storeId: stores.id,
+  slug: stores.slug,
+  displayName: stores.displayName,
+  storeStatus: stores.status,
+  tenantId: stores.tenantId,
+  tenantSlug: controlPlaneTenants.slug,
   schemaName: controlPlaneTenants.schemaName,
-  displayName: controlPlaneTenants.displayName,
-  status: controlPlaneTenants.status,
+  tenantStatus: controlPlaneTenants.status,
   plan: controlPlaneTenants.plan,
   subscriptionPlanCode: plans.code,
   subscriptionPlanName: plans.name,
@@ -35,77 +38,124 @@ const storeSelection = {
   featuredRank: controlPlaneTenants.featuredRank,
   supportNotes: controlPlaneTenants.supportNotes,
   suspendedAt: controlPlaneTenants.suspendedAt,
-  createdAt: controlPlaneTenants.createdAt,
-  updatedAt: controlPlaneTenants.updatedAt,
+  createdAt: stores.createdAt,
+  updatedAt: stores.updatedAt,
 };
+
+function mapControlPlaneStore(
+  row: Awaited<ReturnType<typeof selectStoreRows>>[number]
+): ControlPlaneStore {
+  return {
+    storeId: row.storeId,
+    slug: row.slug,
+    displayName: row.displayName,
+    storeStatus: row.storeStatus,
+    tenantId: row.tenantId,
+    tenantSlug: row.tenantSlug,
+    schemaName: row.schemaName,
+    tenantStatus: row.tenantStatus,
+    plan: row.plan,
+    subscriptionPlanCode: row.subscriptionPlanCode,
+    subscriptionPlanName: row.subscriptionPlanName,
+    featured: row.featured ?? false,
+    featuredRank: row.featuredRank,
+    supportNotes: row.supportNotes,
+    suspendedAt: row.suspendedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function selectStoreRows() {
+  return getControlPlaneDb()
+    .select(storeSelection)
+    .from(stores)
+    .leftJoin(
+      controlPlaneTenants,
+      eq(controlPlaneTenants.id, stores.tenantId)
+    )
+    .leftJoin(
+      subscriptions,
+      and(
+        eq(subscriptions.storeId, stores.id),
+        eq(subscriptions.organizationId, stores.organizationId)
+      )
+    )
+    .leftJoin(plans, eq(plans.id, subscriptions.planId))
+    .where(isNull(stores.deletedAt))
+    .orderBy(asc(stores.displayName));
+}
 
 export async function listControlPlaneStores(): Promise<ControlPlaneStore[]> {
   await requireSuperAdmin();
-  return getControlPlaneDb()
-    .select(storeSelection)
-    .from(controlPlaneTenants)
-    .leftJoin(
-      stores,
-      and(
-        eq(stores.tenantId, controlPlaneTenants.id),
-        isNull(stores.deletedAt)
-      )
-    )
-    .leftJoin(subscriptions, eq(subscriptions.storeId, stores.id))
-    .leftJoin(plans, eq(plans.id, subscriptions.planId))
-    .orderBy(asc(controlPlaneTenants.displayName));
+  const rows = await selectStoreRows();
+  return rows.map(mapControlPlaneStore);
 }
 
 export async function getControlPlaneStore(slug: string) {
   await requireSuperAdmin();
-  const [store] = await getControlPlaneDb()
+  const [row] = await getControlPlaneDb()
     .select(storeSelection)
-    .from(controlPlaneTenants)
+    .from(stores)
     .leftJoin(
-      stores,
+      controlPlaneTenants,
+      eq(controlPlaneTenants.id, stores.tenantId)
+    )
+    .leftJoin(
+      subscriptions,
       and(
-        eq(stores.tenantId, controlPlaneTenants.id),
-        isNull(stores.deletedAt)
+        eq(subscriptions.storeId, stores.id),
+        eq(subscriptions.organizationId, stores.organizationId)
       )
     )
-    .leftJoin(subscriptions, eq(subscriptions.storeId, stores.id))
     .leftJoin(plans, eq(plans.id, subscriptions.planId))
-    .where(eq(controlPlaneTenants.slug, slug))
+    .where(and(eq(stores.slug, slug), isNull(stores.deletedAt)))
     .limit(1);
-  if (!store) return null;
-  return (await buildStoreSummaries([store], loadTenantMetrics))[0];
+
+  if (!row) return null;
+  return (await buildStoreSummaries([mapControlPlaneStore(row)], loadTenantMetrics))[0];
 }
 
 export async function getControlPlaneOverview() {
-  const stores = await listControlPlaneStores();
-  const summaries = await buildStoreSummaries(stores, loadTenantMetrics);
+  const storeRows = await listControlPlaneStores();
+  const summaries = await buildStoreSummaries(storeRows, loadTenantMetrics);
   return { stores: summaries, metrics: summarizePlatform(summaries) };
 }
 
 export async function updateControlPlaneStore(input: unknown) {
   const principal = await requireSuperAdmin();
   const update = authorizeStoreMutation(principal, input);
+
   const [existing] = await getControlPlaneDb()
     .select({
-      id: controlPlaneTenants.id,
-      slug: controlPlaneTenants.slug,
+      tenantId: stores.tenantId,
+      tenantSlug: controlPlaneTenants.slug,
       schemaName: controlPlaneTenants.schemaName,
-      displayName: controlPlaneTenants.displayName,
-      status: controlPlaneTenants.status,
-      plan: controlPlaneTenants.plan,
-      featured: controlPlaneTenants.featured,
-      featuredRank: controlPlaneTenants.featuredRank,
-      supportNotes: controlPlaneTenants.supportNotes,
-      suspendedAt: controlPlaneTenants.suspendedAt,
-      createdAt: controlPlaneTenants.createdAt,
-      updatedAt: controlPlaneTenants.updatedAt,
     })
-    .from(controlPlaneTenants)
-    .where(eq(controlPlaneTenants.slug, update.slug))
+    .from(stores)
+    .innerJoin(
+      controlPlaneTenants,
+      eq(controlPlaneTenants.id, stores.tenantId)
+    )
+    .where(
+      and(
+        eq(stores.slug, update.slug),
+        isNull(stores.deletedAt)
+      )
+    )
     .limit(1);
-  if (!existing || !hasValidTenantIdentity(existing)) {
-    throw new ControlPlaneError("NOT_FOUND", "Unknown store");
+
+  if (
+    !existing ||
+    existing.tenantId === null ||
+    !hasValidTenantIdentity(existing)
+  ) {
+    throw new ControlPlaneError(
+      "NOT_FOUND",
+      "Provisioned Store tenant not found"
+    );
   }
+
   const [updated] = await getControlPlaneDb()
     .update(controlPlaneTenants)
     .set({
@@ -115,26 +165,18 @@ export async function updateControlPlaneStore(input: unknown) {
       supportNotes: update.supportNotes,
       suspendedAt:
         update.status === "suspended"
-          ? existing.suspendedAt ?? new Date()
+          ? sql`coalesce(${controlPlaneTenants.suspendedAt}, now())`
           : null,
       suspendedReason: null,
       updatedAt: new Date(),
     })
-    .where(eq(controlPlaneTenants.id, existing.id))
-    .returning({
-      id: controlPlaneTenants.id,
-      slug: controlPlaneTenants.slug,
-      schemaName: controlPlaneTenants.schemaName,
-      displayName: controlPlaneTenants.displayName,
-      status: controlPlaneTenants.status,
-      plan: controlPlaneTenants.plan,
-      featured: controlPlaneTenants.featured,
-      featuredRank: controlPlaneTenants.featuredRank,
-      supportNotes: controlPlaneTenants.supportNotes,
-      suspendedAt: controlPlaneTenants.suspendedAt,
-      createdAt: controlPlaneTenants.createdAt,
-      updatedAt: controlPlaneTenants.updatedAt,
-    });
+    .where(eq(controlPlaneTenants.id, existing.tenantId))
+    .returning();
+
+  if (!updated) {
+    throw new ControlPlaneError("NOT_FOUND", "Tenant update failed");
+  }
+
   return updated;
 }
 
