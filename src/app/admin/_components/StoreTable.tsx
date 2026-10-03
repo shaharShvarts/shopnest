@@ -27,7 +27,8 @@ export async function StoreTable({ stores }: { stores: StoreSummary[] }) {
               store.storeStatus === "provisioned" && store.tenantStatus
                 ? store.tenantStatus
                 : store.storeStatus;
-            const notProvisioned =\n              store.kind === "unavailable" && store.reason === "not_provisioned";
+            const notProvisioned =
+              store.kind === "unavailable" && store.reason === "not_provisioned";
 
             return (
               <TableRow key={store.storeId}>

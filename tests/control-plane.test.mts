@@ -445,7 +445,7 @@ test("Super Admin Store table uses subscription plan instead of Tenant snapshot"
 
   assert.match(serverSource, /subscriptionPlanCode:\s*plans\.code/);
   assert.match(serverSource, /subscriptionPlanName:\s*plans\.name/);
-  assert.match(serverSource, /leftJoin\(subscriptions/);
+  assert.match(serverSource, /leftJoin\(\s*subscriptions/);
   assert.match(serverSource, /leftJoin\(plans/);
   assert.match(tableSource, /store\.subscriptionPlanName/);
   assert.doesNotMatch(tableSource, /t\(store\.plan\)/);

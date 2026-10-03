@@ -261,7 +261,7 @@
     "dashboard": "Dashboard",
     "dashboardDescription": "Platform activity across registered ShopNest stores.",
     "stores": "Stores",
-    "storesDescription": "All registered ShopNest stores, including stores that have not been provisioned yet."
+    "storesDescription": "All registered ShopNest stores, including stores that have not been provisioned yet.",
     "plans": "Plans",
     "plansDescription": "Manage commercial plans, pricing, limits, and available features.",
     "featured": "Featured",
