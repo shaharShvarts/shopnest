@@ -363,6 +363,29 @@ test("Store Manager UI uses one email invitation flow and Store-scoped removal",
   assert.doesNotMatch(delivery, /NEXT_PUBLIC_/);
 });
 
+test("Store team management is available before provisioning and invite controls stay aligned", async () => {
+  const [detail, team] = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/stores/[id]/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/stores/[id]/team/page.tsx", "utf8"),
+  ]);
+
+  const teamLinkIndex = detail.indexOf('/team');
+  const tenantGateIndex = detail.indexOf('store.tenantId !== null ? (');
+  assert.ok(teamLinkIndex > -1);
+  assert.ok(tenantGateIndex > -1);
+  assert.ok(
+    teamLinkIndex > detail.indexOf(') : null}', tenantGateIndex),
+    "Manage team must not remain inside the tenant provisioning gate"
+  );
+
+  assert.match(
+    team,
+    /className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"/
+  );
+  assert.match(team, /<div className="flex-1">/);
+  assert.match(team, /className="shrink-0 px-5"/);
+});
+
 test("Store policies use shared management controls", async () => {
   const [editor, page] = await Promise.all([
     readFile(
