@@ -249,3 +249,38 @@ test("42 checkout with no available methods retains its empty state", () => {
     addressHeading: "Shipping Address",
   });
 });
+
+
+test("43 shipping schema uses flexible store method fields", async () => {
+  const source = await readFile(new URL("../src/drizzle/schema/shippingMethod.ts", import.meta.url), "utf8");
+  assert.match(source, /requiresAddress/);
+  assert.match(source, /logoUrl/);
+  assert.doesNotMatch(source, /shippingMethodTypeEnum/);
+  assert.doesNotMatch(source, /freeShippingThreshold/);
+});
+
+
+test("44 order schema snapshots flexible shipping fields", async () => {
+  const source = await readFile(new URL("../src/drizzle/schema/order.ts", import.meta.url), "utf8");
+  assert.match(source, /shippingRequiresAddress/);
+  assert.match(source, /shippingMethodName/);
+  assert.match(source, /shippingTotal/);
+  assert.doesNotMatch(source, /shippingMethodCode/);
+  assert.doesNotMatch(source, /shippingMethodType/);
+  assert.doesNotMatch(source, /shippingFreeThresholdApplied/);
+});
+
+
+test("45 shipping migration removes legacy model and adds flexible fields", async () => {
+  const sql = await readFile(new URL("../src/drizzle/migrations/0009_loving_hiroim.sql", import.meta.url), "utf8");
+  assert.match(sql, /ADD COLUMN "requires_address"/);
+  assert.match(sql, /ADD COLUMN "logo_url"/);
+  assert.match(sql, /ADD COLUMN "shipping_requires_address"/);
+  assert.match(sql, /DROP COLUMN "code"/);
+  assert.match(sql, /DROP COLUMN "type"/);
+  assert.match(sql, /DROP COLUMN "free_shipping_threshold"/);
+  assert.match(sql, /DROP COLUMN "shipping_method_code"/);
+  assert.match(sql, /DROP COLUMN "shipping_method_type"/);
+  assert.match(sql, /DROP COLUMN "shipping_free_threshold_applied"/);
+  assert.match(sql, /DROP TYPE "shipping_method_type"/);
+});
