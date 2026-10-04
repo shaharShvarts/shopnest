@@ -309,3 +309,81 @@ Code review should explicitly check:
 - consistency with both Control Plane and Merchant Dashboard
 
 This standard is mandatory for new management UI and the target state for existing management UI.
+
+## 17. Management UI implementation gate
+
+Every new or substantially changed management screen must pass this gate.
+
+### Before implementation
+
+1. Inspect the existing management UI and identify reusable patterns/components before creating new controls.
+2. Record which existing ShopNest components/patterns will be reused.
+3. Prefer Server Components for page/data/auth/business authority.
+4. Use small Client Components when browser interaction genuinely requires them, including:
+   - drag and drop
+   - image preview/picker interaction
+   - toggles with in-place save/pending state
+   - reorder interaction
+5. Client-side interaction must never become tenant, Store, price, authorization, or persistence authority.
+
+### Shared-pattern requirement
+
+Do not implement a page-local alternative when an approved pattern already exists.
+
+Before adding a new:
+- input
+- file/image picker
+- toggle/status control
+- reorder interaction
+- toast
+- same-page mutation
+- destructive action
+- form layout
+
+search the existing management implementation first.
+
+If an existing component is close but not reusable enough, adapt or extract it rather than duplicating behavior.
+
+### Test requirement
+
+Tests must protect the product behavior and shared UI contract, not accidentally lock in a temporary implementation.
+
+For example:
+- test that reorder uses the approved reorder interaction and server-authoritative mutation
+- do not require arbitrary implementation details such as `direction=up`
+- test that image management reuses the approved image pattern
+- test that same-page actions use the shared mutation/toast behavior
+- test that new management UI does not introduce untranslated visible strings
+
+### Visual acceptance requirement
+
+A new or substantially changed management screen is not complete based only on unit tests and `npm run build`.
+
+Before PR approval or merge, visually verify the screen in the running DEV environment:
+
+- Hebrew / RTL
+- English / LTR
+- normal state
+- hover/focus
+- disabled/pending state
+- validation/failure feedback
+- responsive layout where relevant
+- image preview/upload behavior where relevant
+- same-page mutations preserve the workspace and show shared toast feedback
+
+For significant new management UI, the user must see the resulting screen before merge.
+
+### Review stop conditions
+
+Do not approve or merge a management UI change when any of these are present without an explicit documented exception:
+
+- raw management control where a shared ShopNest control already exists
+- browser-native file input exposed as the primary upload UI when the shared image pattern applies
+- hard-coded visible strings instead of translations
+- same-page mutation that navigates away merely to refresh data
+- duplicated toast implementation
+- inconsistent 44px controls
+- physical left/right positioning that breaks RTL/LTR
+- page-specific status/toggle behavior inconsistent with similar ShopNest screens
+- manual up/down reorder buttons where the approved interaction is drag-and-drop
+- visual acceptance has not been completed
