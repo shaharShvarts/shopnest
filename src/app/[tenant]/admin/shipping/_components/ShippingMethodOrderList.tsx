@@ -206,10 +206,8 @@ function ShippingMethodDetails({ method }: { method: ShippingMethod }) {
     <div>
       <h2 className="font-semibold">{method.name}</h2>
       <p className="text-sm text-muted-foreground">
-        {method.type.replaceAll("_", " ")} · ₪{method.price} ·{" "}
-        {method.freeShippingThreshold == null
-          ? "No free threshold"
-          : `Free from ₪${method.freeShippingThreshold}`}
+        ₪{method.price} ·{" "}
+        {method.requiresAddress ? "Shipping address required" : "No shipping address required"}
       </p>
     </div>
   );

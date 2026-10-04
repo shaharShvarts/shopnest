@@ -11,12 +11,11 @@ export default async function AdminShippingPage() {
   const methods = await db.select({
     id: shippingMethods.id,
     name: shippingMethods.name,
-    code: shippingMethods.code,
-    type: shippingMethods.type,
     isActive: shippingMethods.isActive,
     price: shippingMethods.price,
-    freeShippingThreshold: shippingMethods.freeShippingThreshold,
+    requiresAddress: shippingMethods.requiresAddress,
     sortOrder: shippingMethods.sortOrder,
+    logoUrl: shippingMethods.logoUrl,
   }).from(shippingMethods).orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.name));
   return <div className="space-y-6">
     <div className="flex items-center justify-between gap-4"><PageHeader>Shipping</PageHeader><Button asChild><TenantLink href="/admin/shipping/new">Add method</TenantLink></Button></div>

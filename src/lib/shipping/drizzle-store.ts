@@ -11,12 +11,11 @@ type TenantTransaction = Parameters<
 const selection = {
   id: shippingMethods.id,
   name: shippingMethods.name,
-  code: shippingMethods.code,
-  type: shippingMethods.type,
   isActive: shippingMethods.isActive,
   price: shippingMethods.price,
-  freeShippingThreshold: shippingMethods.freeShippingThreshold,
+  requiresAddress: shippingMethods.requiresAddress,
   sortOrder: shippingMethods.sortOrder,
+  logoUrl: shippingMethods.logoUrl,
 };
 
 export class DrizzleShippingMethodStore implements ShippingMethodStore {

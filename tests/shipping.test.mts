@@ -23,9 +23,9 @@ import {
 } from "../src/lib/shipping/checkout-selection.ts";
 import { createCheckoutOrder, CheckoutError, type CheckoutIdentity, type CheckoutTransaction, type NewCheckoutOrder } from "../src/lib/checkout/create-order.ts";
 
-const delivery: ShippingMethod = { id: 1, name: "Home Delivery", code: "home", type: "home_delivery", isActive: true, price: 30, freeShippingThreshold: 300, sortOrder: 1 };
-const pickup: ShippingMethod = { id: 2, name: "Store Pickup", code: "pickup", type: "store_pickup", isActive: true, price: 0, freeShippingThreshold: null, sortOrder: 2 };
-const inactive: ShippingMethod = { ...delivery, id: 3, code: "disabled", isActive: false };
+const delivery: ShippingMethod = { id: 1, name: "Home Delivery", isActive: true, price: 30, requiresAddress: true, sortOrder: 1, logoUrl: "/gift-shop/media/shipping/dhl.png" };
+const pickup: ShippingMethod = { id: 2, name: "Store Pickup", isActive: true, price: 0, requiresAddress: false, sortOrder: 2, logoUrl: null };
+const inactive: ShippingMethod = { ...delivery, id: 3, isActive: false };
 
 class MethodStore implements ShippingMethodStore {
   readonly methods: ShippingMethod[];
@@ -40,12 +40,17 @@ test("3 method lookup is bounded to the current tenant store", async () => {
   assert.equal((await validateSelectedShippingMethod(new MethodStore([delivery]), 1, 250)).name, "Home Delivery");
   await assert.rejects(validateSelectedShippingMethod(new MethodStore([{ ...delivery, id: 9 }]), 1, 250), ShippingError);
 });
-test("4 fixed price is calculated", () => assert.equal(calculateShippingPrice({ ...delivery, freeShippingThreshold: null }, 250).shippingPrice, 30));
-test("5 threshold below is not applied", () => assert.deepEqual(calculateShippingPrice(delivery, 299), { shippingPrice: 30, freeShippingThresholdApplied: false }));
-test("6 threshold at boundary is applied", () => assert.deepEqual(calculateShippingPrice(delivery, 300), { shippingPrice: 0, freeShippingThresholdApplied: true }));
-test("7 zero-price store pickup remains free", () => assert.deepEqual(calculateShippingPrice(pickup, 0), { shippingPrice: 0, freeShippingThresholdApplied: false }));
-test("8 negative price is rejected", () => assert.throws(() => calculateShippingPrice({ ...delivery, price: -1 }, 250), ShippingError));
-test("9 negative threshold is rejected", () => assert.throws(() => calculateShippingPrice({ ...delivery, freeShippingThreshold: -1 }, 250), ShippingError));
+test("4 fixed price is calculated", () => assert.equal(calculateShippingPrice(delivery, 250).shippingPrice, 30));
+test("5 zero-price shipping remains free", () => assert.deepEqual(calculateShippingPrice(pickup, 0), { shippingPrice: 0 }));
+test("6 negative price is rejected", () => assert.throws(() => calculateShippingPrice({ ...delivery, price: -1 }, 250), ShippingError));
+test("7 requires-address value remains server-authoritative", async () => {
+  const selected = await validateSelectedShippingMethod(new MethodStore([pickup]), pickup.id, 250);
+  assert.equal(selected.requiresAddress, false);
+});
+test("8 shipping logo is display-only data", async () => {
+  const selected = await validateSelectedShippingMethod(new MethodStore([delivery]), delivery.id, 250);
+  assert.equal(selected.logoUrl, "/gift-shop/media/shipping/dhl.png");
+});
 test("10 submitted client shipping amount is ignored", async () => { const schema = await readFile(new URL("../src/app/[tenant]/(storefront)/checkout/schema.ts", import.meta.url), "utf8"); assert.doesNotMatch(schema, /shipping_(?:price|total)/); const action = await readFile(new URL("../src/app/[tenant]/(storefront)/_actions/checkout.ts", import.meta.url), "utf8"); assert.doesNotMatch(action, /result\.data\.shipping(?:Price|_price|Total|_total)/); });
 test("11 invalid shipping method ID is rejected", async () => assert.rejects(validateSelectedShippingMethod(new MethodStore([delivery]), 0, 250), ShippingError));
 test("12 cross-tenant method ID is rejected", async () => assert.rejects(validateSelectedShippingMethod(new MethodStore([{ ...delivery, id: 77 }]), 1, 250), ShippingError));
@@ -73,20 +78,20 @@ function checkoutHarness(method: ShippingMethod, identity: CheckoutIdentity = gu
   };
 }
 
-test("13 order snapshots method name type and charged price", async () => { const h = checkoutHarness(delivery); await h.run(); assert.deepEqual([h.order()!.shippingMethodName, h.order()!.shippingMethodType, h.order()!.shippingTotal], ["Home Delivery", "home_delivery", 30]); });
+test("13 order snapshots method name address requirement and charged price", async () => { const h = checkoutHarness(delivery); await h.run(); assert.deepEqual([h.order()!.shippingMethodName, h.order()!.shippingRequiresAddress, h.order()!.shippingTotal], ["Home Delivery", true, 30]); });
 test("14 later method edits cannot alter historical snapshot", async () => { const h = checkoutHarness(delivery); await h.run(); const snapshot = structuredClone(h.order()); delivery.name = "Changed temporarily"; assert.equal(snapshot!.shippingMethodName, "Home Delivery"); delivery.name = "Home Delivery"; });
 test("15 items subtotal is server-calculated", async () => { const h = checkoutHarness(delivery); const result = await h.run(); assert.equal(result.itemsSubtotal, 250); });
 test("16 shipping subtotal is server-calculated", async () => { const h = checkoutHarness(delivery); const result = await h.run(); assert.equal(result.shippingTotal, 30); });
 test("17 total equals items plus shipping", async () => { const h = checkoutHarness(delivery); const result = await h.run(); assert.equal(result.totalPrice, 280); });
 test("18 guest checkout with shipping works", async () => assert.equal((await checkoutHarness(delivery).run()).orderId, 10));
 test("19 authenticated checkout with shipping works", async () => assert.equal((await checkoutHarness(delivery, { customerAccountId: 42, userId: null, sessionId: null }).run()).orderId, 10));
-test("20 home delivery requires complete address", async () => assert.rejects(checkoutHarness(delivery, guest, null).run(), (error) => error instanceof CheckoutError && error.code === "shipping_address_required"));
+test("20 methods requiring an address reject missing address", async () => assert.rejects(checkoutHarness(delivery, guest, null).run(), (error) => error instanceof CheckoutError && error.code === "shipping_address_required"));
 test("21 store pickup does not require a delivery address", async () => { const h = checkoutHarness(pickup, guest, null); await h.run(); assert.equal(h.order()!.shippingAddress, null); });
 test("22 fulfillment starts unfulfilled", async () => { const source = await readFile(new URL("../src/lib/drizzle-checkout-store.ts", import.meta.url), "utf8"); assert.match(source, /fulfillmentStatus:\s*"unfulfilled"/); });
 
-const fulfillmentBase = { shippingMethodType: "home_delivery" as const, fulfillmentStatus: "unfulfilled" as const, trackingNumber: null, shippedAt: null, deliveredAt: null, readyForPickupAt: null, pickedUpAt: null };
+const fulfillmentBase = { fulfillmentStatus: "unfulfilled" as const, trackingNumber: null, shippedAt: null, deliveredAt: null, readyForPickupAt: null, pickedUpAt: null };
 test("23 shipped records state and timestamp safely", () => { const now = new Date("2026-01-01T00:00:00Z"); const update = buildFulfillmentUpdate(fulfillmentBase, { status: "shipped" }, now); assert.equal(update.fulfillmentStatus, "shipped"); assert.equal(update.shippedAt, now); });
-test("24 ready-for-pickup state is supported", () => assert.equal(buildFulfillmentUpdate({ ...fulfillmentBase, shippingMethodType: "store_pickup" }, { status: "ready_for_pickup" }).fulfillmentStatus, "ready_for_pickup"));
+test("24 ready-for-pickup state is supported independently of shipping method", () => assert.equal(buildFulfillmentUpdate(fulfillmentBase, { status: "ready_for_pickup" }).fulfillmentStatus, "ready_for_pickup"));
 test("25 tracking number can be stored by admin", () => assert.equal(buildFulfillmentUpdate(fulfillmentBase, { status: "shipped", trackingNumber: " TRACK-1 " }).trackingNumber, "TRACK-1"));
 test("26 customer checkout cannot set fulfillment or tracking", async () => { const source = await readFile(new URL("../src/app/[tenant]/(storefront)/_actions/checkout.ts", import.meta.url), "utf8"); assert.doesNotMatch(source, /formData\.get\(["'](?:fulfillment|tracking)/); });
 test("27 customer order detail is bounded by tenant database and customer ID", async () => { const source = await readFile(new URL("../src/app/[tenant]/(storefront)/account/orders/[id]/page.tsx", import.meta.url), "utf8"); assert.match(source, /getDbForTenant\(tenant\)/); assert.match(source, /eq\(orders\.customerAccountId, customer\.id\)/); });
@@ -205,7 +210,7 @@ test("40 checkout defaults to the first active method and includes its cost", as
   const quotes = await listAvailableShippingMethods(
     new MethodStore([
       { ...pickup, price: 12, sortOrder: 0 },
-      { ...delivery, sortOrder: 1, freeShippingThreshold: null },
+      { ...delivery, sortOrder: 1 },
       inactive,
     ]),
     250
@@ -225,7 +230,7 @@ test("41 switching checkout methods updates total and address requirements", asy
   const quotes = await listAvailableShippingMethods(
     new MethodStore([
       { ...pickup, sortOrder: 0 },
-      { ...delivery, sortOrder: 1, freeShippingThreshold: null },
+      { ...delivery, sortOrder: 1 },
     ]),
     250
   );
@@ -246,7 +251,7 @@ test("42 checkout with no available methods retains its empty state", () => {
     shippingTotal: 0,
     totalPrice: 250,
     requiresAddress: false,
-    addressHeading: "Shipping Address",
+    addressHeading: "Contact details",
   });
 });
 

@@ -216,12 +216,11 @@ class FakeCheckoutStore implements CheckoutStore {
       findActiveShippingMethod: async (id) => id === 1 ? ({
         id: 1,
         name: "Test delivery",
-        code: "test_delivery",
-        type: "home_delivery",
         isActive: true,
         price: 0,
-        freeShippingThreshold: null,
+        requiresAddress: true,
         sortOrder: 0,
+        logoUrl: null,
       }) : null,
       reserveInventory: async () => undefined,
       createOrder: async (order) => {

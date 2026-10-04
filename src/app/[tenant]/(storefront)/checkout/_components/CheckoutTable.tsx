@@ -153,7 +153,9 @@ function ShippingOption({ method, checked, onSelect }: { method: ShippingQuote; 
       />
       <span className="min-w-0 flex-1 break-words">
         <span className="block font-medium">{method.name}</span>
-        <span className="block text-sm capitalize text-muted-foreground">{method.type.replaceAll("_", " ")}</span>
+        <span className="block text-sm text-muted-foreground">
+          {method.requiresAddress ? "Shipping address required" : "No shipping address required"}
+        </span>
       </span>
       <span className="font-medium">{method.shippingPrice === 0 ? "Free" : formatCurrency(method.shippingPrice)}</span>
     </label>
