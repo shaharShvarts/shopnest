@@ -151,6 +151,14 @@ function ShippingOption({ method, checked, onSelect }: { method: ShippingQuote; 
         required
         className="size-4 shrink-0"
       />
+      {method.logoUrl ? (
+        <img
+          src={method.logoUrl}
+          alt={method.name}
+          className="size-10 shrink-0 rounded-md object-contain"
+        />
+      ) : null}
+
       <span className="min-w-0 flex-1 break-words">
         <span className="block font-medium">{method.name}</span>
         <span className="block text-sm text-muted-foreground">

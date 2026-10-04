@@ -144,3 +144,13 @@ test("shipping price parser does not coerce an empty value to zero", async () =>
   assert.match(source, /z\.preprocess/);
   assert.match(source, /trim\(\)\s*===\s*""/);
 });
+
+test("checkout shipping options render the optional shipping logo", async () => {
+  const source = await readFile(
+    "src/app/[tenant]/(storefront)/checkout/_components/CheckoutTable.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /method\.logoUrl/);
+  assert.match(source, /alt=\{method\.name\}/);
+});
