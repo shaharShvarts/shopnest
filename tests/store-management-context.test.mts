@@ -62,6 +62,28 @@ test("Owner resolves an exact owned Store without relying on a first organizatio
   assert.deepEqual(repository.ownerLookups, [[10, 4]]);
 });
 
+test("Owner and Manager can manage shipping for an authorized Store", async () => {
+  const repository = new FakeRepository();
+  repository.owned.set("10:4", activeStore);
+  repository.managed.set("20:4", activeStore);
+
+  const ownerContext = await requireStoreManagementAccess(
+    repository,
+    owner,
+    4,
+    "shipping.manage"
+  );
+  const managerContext = await requireStoreManagementAccess(
+    repository,
+    manager,
+    4,
+    "shipping.manage"
+  );
+
+  assert.equal(hasStoreManagementPermission(ownerContext, "shipping.manage"), true);
+  assert.equal(hasStoreManagementPermission(managerContext, "shipping.manage"), true);
+});
+
 test("Owner cannot resolve another organization's Store", async () => {
   const repository = new FakeRepository();
 

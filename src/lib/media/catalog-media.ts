@@ -18,12 +18,20 @@ export type CatalogMediaTenantResolver = (
   value: unknown
 ) => CatalogMediaTenant | null;
 
+export type CatalogMediaKind =
+  | "categories"
+  | "subcategories"
+  | "products"
+  | "shipping";
+
 type WithTenantResolver<T> = T & {
   resolveTenant?: CatalogMediaTenantResolver;
 };
 
 type SaveCatalogImageArgs = WithTenantResolver<
-  Parameters<typeof saveCatalogImageLocal>[0]
+  Omit<Parameters<typeof saveCatalogImageLocal>[0], "kind"> & {
+    kind: CatalogMediaKind;
+  }
 >;
 
 type DeleteCatalogImageArgs = WithTenantResolver<
@@ -31,7 +39,9 @@ type DeleteCatalogImageArgs = WithTenantResolver<
 >;
 
 type ReadCatalogImageArgs = WithTenantResolver<
-  Parameters<typeof readCatalogImageLocal>[0]
+  Omit<Parameters<typeof readCatalogImageLocal>[0], "kind"> & {
+    kind: CatalogMediaKind;
+  }
 >;
 
 const saveCatalogImageWithResolver = saveCatalogImageLocal as unknown as (

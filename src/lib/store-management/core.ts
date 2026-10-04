@@ -9,6 +9,7 @@ export type StoreManagementPermission =
   | "store.read"
   | "store.operate"
   | "catalog.manage"
+  | "shipping.manage"
   | "domain.manage"
   | "payment_configuration.manage"
   | "subscription.manage"
@@ -100,6 +101,7 @@ const OWNER_PERMISSIONS = new Set<StoreManagementPermission>([
   "store.read",
   "store.operate",
   "catalog.manage",
+  "shipping.manage",
   "domain.manage",
   "payment_configuration.manage",
   "subscription.manage",
@@ -113,6 +115,7 @@ const MANAGER_PERMISSIONS = new Set<StoreManagementPermission>([
   "store.read",
   "store.operate",
   "catalog.manage",
+  "shipping.manage",
 ]);
 
 export function storeManagementPermissionsForRole(
