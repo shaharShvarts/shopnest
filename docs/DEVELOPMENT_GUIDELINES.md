@@ -357,6 +357,110 @@ For public/external information:
 - Use web research only when external/current public information is actually relevant.
 - Internal ShopNest implementation questions should be grounded primarily in repository/company sources.
 
+### 13.1 Local DEV execution, worktrees, TypeScript tests, and Drizzle CLI
+
+These rules capture the current DEV-server behavior so new development sessions do not rediscover it.
+
+#### Feature worktrees
+
+Substantial feature work should run from an isolated Git worktree when practical.
+
+Current server layout convention:
+
+```text
+/srv/shopnest/dev                         primary DEV checkout
+/srv/shopnest/worktrees/<feature-name>   isolated feature worktree
+```
+
+A new worktree needs its own dependency install, for example `npm install`.
+
+Worktree-local scratch state and environment links must not be committed.
+
+#### TypeScript tests on the DEV host
+
+The current DEV host uses Node.js `v22.22.1`. Its installed Node build can fail on commands that rely on:
+
+```text
+node --experimental-strip-types
+```
+
+with:
+
+```text
+ERR_NO_TYPESCRIPT
+```
+
+This is an environment/runtime limitation, not evidence that the application test itself is failing.
+
+For `.mts` tests on this host, use the repository's established `tsx` pattern, for example:
+
+```bash
+npx --yes tsx --test tests/shipping.test.mts
+```
+
+When adding or modernizing package scripts for `.mts` tests, prefer `tsx --test` rather than depending on native Node TypeScript stripping on this DEV server.
+
+#### `.env.dev` and worktrees
+
+`.env.dev` is intentionally not tracked by Git, so a newly created worktree does not receive it automatically.
+
+A local DEV worktree may reference the primary DEV environment file with a symlink:
+
+```bash
+ln -s /srv/shopnest/dev/.env.dev .env.dev
+```
+
+Never commit `.env.dev`, its secret values, API tokens, passwords, or other credentials.
+
+The current DEV environment exposes the PostgreSQL password as:
+
+```text
+DEV_DB_PASSWORD
+```
+
+The application database resolver, including `drizzle.config.ts`, expects either `DATABASE_URL` or the complete `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`, and `DB_PASSWORD` set. Merely sourcing `.env.dev` is therefore not sufficient for host-side Drizzle commands.
+
+#### Docker DB hostname vs host-side DB hostname
+
+Inside `docker-compose.dev.yml`, the web container receives:
+
+```text
+DB_HOST=db-dev
+DB_PORT=5432
+DB_USER=shopnest
+DB_NAME=shopnest
+DB_PASSWORD=${DEV_DB_PASSWORD}
+```
+
+`db-dev` is a Docker-network service hostname and is valid from containers on the Compose network.
+
+The DEV PostgreSQL service publishes `5432:5432`, so commands run directly from the Ubuntu host/worktree should use the host-facing address instead:
+
+```text
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=shopnest
+DB_NAME=shopnest
+DB_PASSWORD=${DEV_DB_PASSWORD}
+```
+
+For a host-side Drizzle command, load `.env.dev` and explicitly map the DB variables without printing their values:
+
+```bash
+set -a
+. ./.env.dev
+set +a
+
+DB_HOST=127.0.0.1 \
+DB_PORT=5432 \
+DB_USER=shopnest \
+DB_NAME=shopnest \
+DB_PASSWORD="$DEV_DB_PASSWORD" \
+npm run db:generate
+```
+
+Do not copy secrets into source files or invent a second environment-file format just to satisfy a CLI command.
+
 ## 14. Interactive Working Style
 
 When guiding the user through server or terminal work:

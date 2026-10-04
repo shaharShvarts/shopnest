@@ -16,7 +16,7 @@ import { createdAt, deletedAt, updatedAt } from "../schemaHelpers";
 import { users } from "./user";
 import { orderProducts } from "./orderProduct";
 import { carts } from "./cart";
-import { shippingMethods, shippingMethodTypeEnum } from "./shippingMethod";
+import { shippingMethods } from "./shippingMethod";
 
 export const orderStatus = [
   "pending",
@@ -65,13 +65,9 @@ export const orders = pgTable(
       () => shippingMethods.id,
       { onDelete: "set null" }
     ),
-    shippingMethodCode: varchar("shipping_method_code", { length: 64 }),
     shippingMethodName: varchar("shipping_method_name", { length: 120 }),
-    shippingMethodType: shippingMethodTypeEnum("shipping_method_type"),
+    shippingRequiresAddress: boolean("shipping_requires_address"),
     shippingPrice: integer("shipping_price"),
-    shippingFreeThresholdApplied: boolean(
-      "shipping_free_threshold_applied"
-    ).notNull().default(false),
     itemsSubtotal: integer("items_subtotal"),
     shippingTotal: integer("shipping_total"),
     numberOfItems: integer("numberOfItems").notNull(),

@@ -7,6 +7,7 @@ export const CATALOG_MEDIA_KINDS = Object.freeze([
   "categories",
   "subcategories",
   "products",
+  "shipping",
 ]);
 
 

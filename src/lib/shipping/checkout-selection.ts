@@ -20,15 +20,13 @@ export function getCheckoutShippingSelection(
   const method =
     methods.find((candidate) => candidate.id === selectedMethodId) ?? null;
   const shippingTotal = method?.shippingPrice ?? 0;
+  const requiresAddress = method?.requiresAddress ?? false;
 
   return {
     method,
     shippingTotal,
     totalPrice: itemsSubtotal + shippingTotal,
-    requiresAddress: method?.type === "home_delivery",
-    addressHeading:
-      method?.type === "store_pickup"
-        ? "Contact details"
-        : "Shipping Address",
+    requiresAddress,
+    addressHeading: requiresAddress ? "Shipping Address" : "Contact details",
   };
 }

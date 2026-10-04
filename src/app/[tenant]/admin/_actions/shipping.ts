@@ -3,7 +3,7 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
-import { fulfillmentStatuses, orders, shippingMethods, shippingMethodTypes } from "@/drizzle/schema";
+import { fulfillmentStatuses, orders, shippingMethods } from "@/drizzle/schema";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { revalidateTenantPath } from "@/lib/tenant-context";
 import { buildFulfillmentUpdate } from "@/lib/shipping/fulfillment";
@@ -13,23 +13,17 @@ import {
   ShippingOrderError,
 } from "@/lib/shipping/order";
 
-const nullableMoney = z.preprocess(
-  (value) => value === "" || value == null ? null : value,
-  z.coerce.number().int().nonnegative().safe().nullable()
-);
-
 const shippingMethodSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  code: z.string().trim().min(1).max(64).regex(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/),
-  type: z.enum(shippingMethodTypes),
   price: z.coerce.number().int().nonnegative().safe(),
-  freeShippingThreshold: nullableMoney,
+  requiresAddress: z.boolean(),
   isActive: z.boolean(),
 });
 
 function parseMethod(formData: FormData) {
   return shippingMethodSchema.parse({
     ...Object.fromEntries(formData),
+    requiresAddress: formData.get("requiresAddress") === "on",
     isActive: formData.get("isActive") === "on",
   });
 }
@@ -154,7 +148,6 @@ export async function updateOrderFulfillment(orderId: number, formData: FormData
     trackingNumber: formData.get("trackingNumber") || null,
   });
   const [order] = await db.select({
-    shippingMethodType: orders.shippingMethodType,
     fulfillmentStatus: orders.fulfillmentStatus,
     trackingNumber: orders.trackingNumber,
     shippedAt: orders.shippedAt,

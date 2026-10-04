@@ -59,10 +59,8 @@ export type NewCheckoutOrder = CheckoutIdentity & {
   itemsSubtotal: number;
   shippingTotal: number;
   shippingMethodId: number;
-  shippingMethodCode: string;
   shippingMethodName: string;
-  shippingMethodType: "home_delivery" | "pickup_point" | "store_pickup";
-  shippingFreeThresholdApplied: boolean;
+  shippingRequiresAddress: boolean;
   shippingAddress: string | null;
   billingAddress: string | null;
 };
@@ -210,12 +208,12 @@ export async function createCheckoutOrder(
     }
 
     if (
-      shipping.type === "home_delivery" &&
+      shipping.requiresAddress &&
       !isCompleteAddress(details.shippingAddress)
     ) {
       throw new CheckoutError(
         "shipping_address_required",
-        "A complete shipping address is required for home delivery."
+        "A complete shipping address is required for the selected shipping method."
       );
     }
 
@@ -272,10 +270,8 @@ export async function createCheckoutOrder(
       itemsSubtotal,
       shippingTotal,
       shippingMethodId: shipping.id,
-      shippingMethodCode: shipping.code,
       shippingMethodName: shipping.name,
-      shippingMethodType: shipping.type,
-      shippingFreeThresholdApplied: shipping.freeShippingThresholdApplied,
+      shippingRequiresAddress: shipping.requiresAddress,
       shippingAddress,
       billingAddress: shippingAddress,
     });

@@ -1,22 +1,15 @@
-import type { ShippingMethodType } from "@/drizzle/schema/shippingMethod";
-
-export const SHIPPING_CODE_HTML_PATTERN =
-  "[a-z0-9]+(?:[_\\-][a-z0-9]+)*";
-
 export type ShippingMethod = {
   id: number;
   name: string;
-  code: string;
-  type: ShippingMethodType;
   isActive: boolean;
   price: number;
-  freeShippingThreshold: number | null;
+  requiresAddress: boolean;
   sortOrder: number;
+  logoUrl: string | null;
 };
 
 export type ShippingQuote = ShippingMethod & {
   shippingPrice: number;
-  freeShippingThresholdApplied: boolean;
 };
 
 export interface ShippingMethodStore {
@@ -48,19 +41,10 @@ export class ShippingError extends Error {
 export function calculateShippingPrice(
   method: ShippingMethod,
   itemsSubtotal: number
-): Pick<ShippingQuote, "shippingPrice" | "freeShippingThresholdApplied"> {
+): Pick<ShippingQuote, "shippingPrice"> {
   assertSafeMoney(itemsSubtotal, "Cart subtotal");
   assertSafeMoney(method.price, "Shipping price");
-  if (
-    method.freeShippingThreshold !== null &&
-    (!Number.isSafeInteger(method.freeShippingThreshold) ||
-      method.freeShippingThreshold < 0)
-  ) {
-    throw new ShippingError(
-      "invalid_shipping_configuration",
-      "Shipping threshold must be a non-negative whole number."
-    );
-  }
+
   if (!method.isActive) {
     throw new ShippingError(
       "inactive_shipping_method",
@@ -68,13 +52,8 @@ export function calculateShippingPrice(
     );
   }
 
-  const thresholdApplied =
-    method.price > 0 &&
-    method.freeShippingThreshold !== null &&
-    itemsSubtotal >= method.freeShippingThreshold;
   return {
-    shippingPrice: thresholdApplied ? 0 : method.price,
-    freeShippingThresholdApplied: thresholdApplied,
+    shippingPrice: method.price,
   };
 }
 
@@ -100,14 +79,20 @@ export async function validateSelectedShippingMethod(
       "A valid shipping method is required."
     );
   }
+
   const method = await store.findActiveById(shippingMethodId);
+
   if (!method) {
     throw new ShippingError(
       "invalid_shipping_method",
       "The selected shipping method is not available."
     );
   }
-  return { ...method, ...calculateShippingPrice(method, itemsSubtotal) };
+
+  return {
+    ...method,
+    ...calculateShippingPrice(method, itemsSubtotal),
+  };
 }
 
 function assertSafeMoney(value: number, label: string) {

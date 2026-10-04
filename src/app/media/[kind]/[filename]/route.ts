@@ -2,6 +2,7 @@ import { getTenant } from "@/lib/tenant-context";
 import {
   LocalMediaError,
   readCatalogImage,
+  type CatalogMediaKind,
 } from "@/lib/media/catalog-media";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export async function GET(_: Request, context: MediaRouteContext) {
   try {
     const image = await readCatalogImage({
       tenantSlug: tenant.slug,
-      kind: kind as "categories" | "subcategories" | "products",
+      kind: kind as CatalogMediaKind,
       filename,
       resolveTenant,
     });

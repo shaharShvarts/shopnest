@@ -64,6 +64,13 @@
       "when": 1790797582151,
       "tag": "0008_square_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791145803198,
+      "tag": "0009_loving_hiroim",
+      "breakpoints": true
     }
   ]
 }

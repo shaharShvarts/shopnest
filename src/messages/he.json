@@ -635,7 +635,8 @@
     "provisioning": "בתהליך הקמה",
     "provisioning_failed": "ההקמה נכשלה",
     "manageDomain": "ניהול דומיין מותאם",
-    "manageTeam": "ניהול מנהלים"
+    "manageTeam": "ניהול מנהלים",
+    "manageShipping": "ניהול משלוחים"
   },
   "MerchantDashboard": {
     "workspace": "סביבת עבודה לסוחר",
@@ -648,7 +649,8 @@
     "managerDetail": "נהל את החנויות שהוקצו לך מתוך סביבת ניהול אחת של ShopNest.",
     "assignedStores": "חנויות שהוקצו לך",
     "managerPhaseOneDetail": "כלי התפעול יופיעו כאן בהדרגה עם העברתם לממשק הניהול המאוחד.",
-    "managerRole": "מנהל"
+    "managerRole": "מנהל",
+    "manageShipping": "ניהול משלוחים"
   },
   "MerchantSubscription": {
     "plan": "מסלול",
@@ -920,5 +922,25 @@
     "invalidTitle": "הזמנה לא תקינה",
     "invalidDetail": "הקישור אינו תקין או אינו זמין עוד.",
     "goToLogin": "מעבר לכניסה"
+  },
+  "StoreShippingManagement": {
+    "title": "שיטות משלוח",
+    "description": "יצירה וניהול של אפשרויות המשלוח והאיסוף שיוצגו ללקוחות.",
+    "addMethod": "הוספת שיטת משלוח",
+    "empty": "עדיין לא הוגדרו שיטות משלוח.",
+    "edit": "עריכה",
+    "name": "שם",
+    "price": "מחיר (₪)",
+    "requiresAddress": "נדרשת כתובת למשלוח",
+    "active": "זמין בקופה",
+    "logo": "לוגו (אופציונלי)",
+    "save": "שמירת שיטת משלוח",
+    "addressRequired": "נדרשת כתובת",
+    "addressNotRequired": "לא נדרשת כתובת",
+    "enable": "הפעלה",
+    "disable": "השבתה",
+    "back": "חזרה לשיטות משלוח",
+    "moveUp": "העלה",
+    "moveDown": "הורד"
   }
 }

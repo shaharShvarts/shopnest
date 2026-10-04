@@ -131,12 +131,9 @@ export class DrizzleCheckoutStore implements CheckoutStore {
               phoneNumber: order.phoneNumber,
               shippingMethod: order.shippingMethodName,
               shippingMethodId: order.shippingMethodId,
-              shippingMethodCode: order.shippingMethodCode,
               shippingMethodName: order.shippingMethodName,
-              shippingMethodType: order.shippingMethodType,
+              shippingRequiresAddress: order.shippingRequiresAddress,
               shippingPrice: order.shippingTotal,
-              shippingFreeThresholdApplied:
-                order.shippingFreeThresholdApplied,
               itemsSubtotal: order.itemsSubtotal,
               shippingTotal: order.shippingTotal,
               numberOfItems: order.numberOfItems,

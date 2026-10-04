@@ -1,12 +1,8 @@
-import type {
-  FulfillmentStatus,
-} from "@/drizzle/schema/order";
-import type { ShippingMethodType } from "@/drizzle/schema/shippingMethod";
+import type { FulfillmentStatus } from "@/drizzle/schema/order";
 
 export const trackingNumberMaxLength = 160;
 
 export type FulfillmentRecord = {
-  shippingMethodType: ShippingMethodType | null;
   fulfillmentStatus: FulfillmentStatus;
   trackingNumber: string | null;
   shippedAt: Date | null;
@@ -21,21 +17,9 @@ export function buildFulfillmentUpdate(
   now = new Date()
 ) {
   const trackingNumber = input.trackingNumber?.trim() || null;
+
   if (trackingNumber && trackingNumber.length > trackingNumberMaxLength) {
     throw new Error("Tracking number is too long.");
-  }
-  const pickup = order.shippingMethodType === "store_pickup";
-  if (pickup && (input.status === "shipped" || input.status === "delivered")) {
-    throw new Error("Store pickup orders cannot use delivery fulfillment states.");
-  }
-  if (
-    !pickup &&
-    (input.status === "ready_for_pickup" || input.status === "picked_up")
-  ) {
-    throw new Error("Delivery orders cannot use store-pickup fulfillment states.");
-  }
-  if (pickup && trackingNumber) {
-    throw new Error("Store pickup orders do not use tracking numbers.");
   }
 
   return {
