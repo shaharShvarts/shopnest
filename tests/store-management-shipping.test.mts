@@ -64,3 +64,83 @@ test("shipping edit reads the persisted logo before replacing or removing it", a
     /formData\.get\(["'](?:logoUrl|existingLogoUrl|imageUrl)["']\)/
   );
 });
+
+test("managed shipping pages are Store-scoped server components", async () => {
+  const [page, form] = await Promise.all([
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/shipping/page.tsx",
+      "utf8"
+    ),
+    readFile(
+      "src/app/(merchant)/dashboard/stores/[id]/shipping/_components/ShippingMethodForm.tsx",
+      "utf8"
+    ),
+  ]);
+
+  assert.match(
+    page,
+    /requireStoreManagementDb\(\s*storeId,\s*"shipping\.manage"\s*\)/
+  );
+  assert.doesNotMatch(page, /["']use client["']/);
+  assert.doesNotMatch(form, /["']use client["']/);
+});
+
+test("managed shipping form uses shared controls and the flexible shipping model", async () => {
+  const form = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/shipping/_components/ShippingMethodForm.tsx",
+    "utf8"
+  );
+
+  assert.match(form, /ManagementInput/);
+  assert.match(form, /size="management"/);
+  assert.match(form, /name="name"/);
+  assert.match(form, /name="price"/);
+  assert.match(form, /name="requiresAddress"/);
+  assert.match(form, /name="isActive"/);
+  assert.match(form, /name="logo"/);
+
+  assert.doesNotMatch(form, /name="code"/);
+  assert.doesNotMatch(form, /name="type"/);
+  assert.doesNotMatch(form, /freeShippingThreshold/);
+});
+
+test("Owner and Manager dashboards expose Store shipping management", async () => {
+  const [ownerStore, managerDashboard] = await Promise.all([
+    readFile("src/app/(merchant)/dashboard/stores/[id]/page.tsx", "utf8"),
+    readFile("src/app/(merchant)/dashboard/page.tsx", "utf8"),
+  ]);
+
+  assert.match(ownerStore, /\/shipping/);
+  assert.match(managerDashboard, /\/shipping/);
+});
+
+test("shipping management has English and Hebrew messages", async () => {
+  const [english, hebrew] = await Promise.all([
+    readFile("src/messages/en.json", "utf8"),
+    readFile("src/messages/he.json", "utf8"),
+  ]);
+
+  assert.match(english, /"StoreShippingManagement"/);
+  assert.match(hebrew, /"StoreShippingManagement"/);
+});
+
+test("shipping ordering stays server-side", async () => {
+  const page = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/shipping/page.tsx",
+    "utf8"
+  );
+
+  assert.match(page, /reorderManagedShippingMethods/);
+  assert.match(page, /name="direction"/);
+  assert.doesNotMatch(page, /["']use client["']/);
+});
+
+test("shipping price parser does not coerce an empty value to zero", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/_actions/shipping.ts",
+    "utf8"
+  );
+
+  assert.match(source, /z\.preprocess/);
+  assert.match(source, /trim\(\)\s*===\s*""/);
+});

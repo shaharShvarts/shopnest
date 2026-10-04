@@ -639,7 +639,8 @@
     "provisioning": "Provisioning",
     "provisioning_failed": "Provisioning failed",
     "manageDomain": "Manage custom domain",
-    "manageTeam": "Manage managers"
+    "manageTeam": "Manage managers",
+    "manageShipping": "Manage shipping"
   },
   "MerchantDashboard": {
     "workspace": "Merchant workspace",
@@ -652,7 +653,8 @@
     "managerDetail": "Manage the stores assigned to you from one ShopNest workspace.",
     "assignedStores": "Assigned stores",
     "managerPhaseOneDetail": "Operational tools will appear here as they are migrated into the unified dashboard.",
-    "managerRole": "Manager"
+    "managerRole": "Manager",
+    "manageShipping": "Manage shipping"
   },
   "MerchantSubscription": {
     "plan": "Plan",
@@ -924,5 +926,25 @@
     "invalidTitle": "Invalid invitation",
     "invalidDetail": "This link is invalid or no longer available.",
     "goToLogin": "Go to sign in"
+  },
+  "StoreShippingManagement": {
+    "title": "Shipping methods",
+    "description": "Create and manage the delivery and collection options available to customers.",
+    "addMethod": "Add shipping method",
+    "empty": "No shipping methods have been created yet.",
+    "edit": "Edit",
+    "name": "Name",
+    "price": "Price (ILS)",
+    "requiresAddress": "Require shipping address",
+    "active": "Available at checkout",
+    "logo": "Logo (optional)",
+    "save": "Save shipping method",
+    "addressRequired": "Address required",
+    "addressNotRequired": "No address required",
+    "enable": "Enable",
+    "disable": "Disable",
+    "back": "Back to shipping methods",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   }
 }

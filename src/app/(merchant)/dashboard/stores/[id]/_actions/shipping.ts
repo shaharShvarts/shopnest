@@ -49,9 +49,17 @@ const optionalLogoSchema = z.preprocess(
   logoSchema.optional()
 );
 
+const wholeIlsPriceSchema = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim() === ""
+      ? undefined
+      : value,
+  z.coerce.number().int().nonnegative().safe()
+);
+
 const shippingMethodSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  price: z.coerce.number().int().nonnegative().safe(),
+  price: wholeIlsPriceSchema,
   requiresAddress: z.boolean(),
   isActive: z.boolean(),
   logo: optionalLogoSchema,

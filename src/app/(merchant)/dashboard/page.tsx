@@ -52,12 +52,20 @@ export default async function MerchantDashboardPage() {
                   {tStore(record.store.status)}
                 </p>
                 {record.store.status === "provisioned" ? (
-                  <Link
-                    href={`/dashboard/stores/${record.store.id}/products`}
-                    className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold"
-                  >
-                    {tCatalog("manageCatalog")}
-                  </Link>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={`/dashboard/stores/${record.store.id}/products`}
+                      className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold"
+                    >
+                      {tCatalog("manageCatalog")}
+                    </Link>
+                    <Link
+                      href={`/dashboard/stores/${record.store.id}/shipping`}
+                      className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold"
+                    >
+                      {tDashboard("manageShipping")}
+                    </Link>
+                  </div>
                 ) : null}
               </li>
             ))}

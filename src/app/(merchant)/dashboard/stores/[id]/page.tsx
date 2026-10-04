@@ -151,6 +151,11 @@ export default async function MerchantStoreDetailPage({
                   {tCatalog("manageCatalog")}
                 </Link>
               </Button>
+              <Button asChild variant="outline" size="management">
+                <Link href={"/dashboard/stores/" + store.id + "/shipping"}>
+                  {t("manageShipping")}
+                </Link>
+              </Button>
               {canManageDomain ? (
                 <Button asChild variant="outline" size="management">
                   <Link href={"/dashboard/stores/" + store.id + "/domain"}>
