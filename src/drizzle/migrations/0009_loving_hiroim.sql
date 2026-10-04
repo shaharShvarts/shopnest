@@ -10,4 +10,3 @@ ALTER TABLE "shipping_methods" DROP COLUMN "code";--> statement-breakpoint
 ALTER TABLE "shipping_methods" DROP COLUMN "type";--> statement-breakpoint
 ALTER TABLE "shipping_methods" DROP COLUMN "free_shipping_threshold";--> statement-breakpoint
 DROP TYPE "public"."shipping_method_type";
-DROP TYPE "shipping_method_type";
