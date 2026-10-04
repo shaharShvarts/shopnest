@@ -12,6 +12,7 @@ import sharp from "sharp";
 import * as validation from "../src/lib/media/validate-image.mjs";
 import { MAX_IMAGE_UPLOAD_BYTES } from "../src/lib/images/upload-limits.mjs";
 import { saveCatalogImage, readCatalogImage } from "../src/lib/media/local-media-store.mjs";
+import { createTenantMediaUrl, parseTenantMediaUrl } from "../src/lib/images/image-url.mjs";
 import { normalizeTenantSlug } from "../src/lib/tenant-validation.mjs";
 
 const mediaFixtureSlugs = new Set(["gift-shop"]);
@@ -35,6 +36,30 @@ async function withRoot(run) {
   try { await run(save, uploadsRoot); }
   finally { await rm(uploadsRoot, { recursive: true, force: true }); }
 }
+
+
+test("shipping is a tenant-scoped media kind", () => {
+  const imageUrl = createTenantMediaUrl(
+    "gift-shop",
+    "shipping",
+    "dhl.png",
+    resolveMediaFixtureTenant
+  );
+
+  assert.equal(imageUrl, "/gift-shop/media/shipping/dhl.png");
+  assert.deepEqual(
+    parseTenantMediaUrl(
+      imageUrl,
+      "gift-shop",
+      resolveMediaFixtureTenant
+    ),
+    {
+      tenantSlug: "gift-shop",
+      kind: "shipping",
+      filename: "dhl.png",
+    }
+  );
+});
 
 for (const format of ["jpeg", "png", "webp", "gif", "tiff", "avif"]) {
   test(`accepts real ${format} pixels regardless of filename and MIME`, async () => {
