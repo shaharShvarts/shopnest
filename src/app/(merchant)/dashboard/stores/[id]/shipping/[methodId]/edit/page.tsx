@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Button } from "@/components/ui/button";
 import { shippingMethods } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
-import { updateManagedShippingMethod } from "../../../_actions/shipping";
+import { updateManagedShippingMethodForm } from "../../../_actions/shipping";
 import { ShippingMethodForm } from "../../_components/ShippingMethodForm";
 
 export default async function EditManagedShippingMethodPage({
@@ -30,7 +29,7 @@ export default async function EditManagedShippingMethodPage({
     notFound();
   }
 
-  const [{ db, store }, t] = await Promise.all([
+  const [{ db, store, tenant }, t] = await Promise.all([
     requireStoreManagementDb(storeId, "shipping.manage"),
     getTranslations("StoreShippingManagement"),
   ]);
@@ -45,23 +44,22 @@ export default async function EditManagedShippingMethodPage({
     notFound();
   }
 
-  async function updateAction(formData: FormData) {
-    "use server";
+  const updateAction = updateManagedShippingMethodForm.bind(
+    null,
+    storeId,
+    methodId
+  );
 
-    const result = await updateManagedShippingMethod(
-      storeId,
-      methodId,
-      formData
-    );
-
-    if (result.ok) {
-      redirect(`/dashboard/stores/${storeId}/shipping`);
-    }
-  }
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
       <header className="mb-6">
+        <Link
+          href={`/dashboard/stores/${storeId}/shipping`}
+          className="mb-4 inline-block text-sm font-semibold text-blue-600 hover:underline"
+        >
+          {t("back")}
+        </Link>
         <p className="text-sm text-muted-foreground">
           {store.displayName}
         </p>
@@ -72,16 +70,10 @@ export default async function EditManagedShippingMethodPage({
 
       <ShippingMethodForm
         action={updateAction}
+        tenantSlug={tenant.slug}
         method={method}
       />
 
-      <div className="mx-auto mt-4 max-w-2xl">
-        <Button asChild variant="outline" size="management">
-          <Link href={`/dashboard/stores/${storeId}/shipping`}>
-            {t("back")}
-          </Link>
-        </Button>
-      </div>
     </main>
   );
 }

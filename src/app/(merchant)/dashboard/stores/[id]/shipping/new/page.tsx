@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Button } from "@/components/ui/button";
 import { parseStoreId } from "@/lib/merchant-stores/core";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
-import { createManagedShippingMethod } from "../../_actions/shipping";
+import { createManagedShippingMethodForm } from "../../_actions/shipping";
 import { ShippingMethodForm } from "../_components/ShippingMethodForm";
 
 export default async function NewManagedShippingMethodPage({
@@ -20,24 +19,26 @@ export default async function NewManagedShippingMethodPage({
     notFound();
   }
 
-  const [{ store }, t] = await Promise.all([
+  const [{ store, tenant }, t] = await Promise.all([
     requireStoreManagementDb(storeId, "shipping.manage"),
     getTranslations("StoreShippingManagement"),
   ]);
 
-  async function createAction(formData: FormData) {
-    "use server";
+  const createAction = createManagedShippingMethodForm.bind(
+    null,
+    storeId
+  );
 
-    const result = await createManagedShippingMethod(storeId, formData);
-
-    if (result.ok) {
-      redirect(`/dashboard/stores/${storeId}/shipping`);
-    }
-  }
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
       <header className="mb-6">
+        <Link
+          href={`/dashboard/stores/${storeId}/shipping`}
+          className="mb-4 inline-block text-sm font-semibold text-blue-600 hover:underline"
+        >
+          {t("back")}
+        </Link>
         <p className="text-sm text-muted-foreground">
           {store.displayName}
         </p>
@@ -46,15 +47,11 @@ export default async function NewManagedShippingMethodPage({
         </h1>
       </header>
 
-      <ShippingMethodForm action={createAction} />
+      <ShippingMethodForm
+        action={createAction}
+        tenantSlug={tenant.slug}
+      />
 
-      <div className="mx-auto mt-4 max-w-2xl">
-        <Button asChild variant="outline" size="management">
-          <Link href={`/dashboard/stores/${storeId}/shipping`}>
-            {t("back")}
-          </Link>
-        </Button>
-      </div>
     </main>
   );
 }

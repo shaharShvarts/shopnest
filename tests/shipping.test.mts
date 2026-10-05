@@ -287,5 +287,5 @@ test("45 shipping migration removes legacy model and adds flexible fields", asyn
   assert.match(sql, /DROP COLUMN "shipping_method_code"/);
   assert.match(sql, /DROP COLUMN "shipping_method_type"/);
   assert.match(sql, /DROP COLUMN "shipping_free_threshold_applied"/);
-  assert.match(sql, /DROP TYPE "shipping_method_type"/);
+  assert.match(sql, /DROP TYPE "public"\."shipping_method_type"/);
 });

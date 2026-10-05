@@ -27,6 +27,8 @@ const resolveTenantImageUrlWithResolver =
 type ManagedImageUploadProps = {
   tenantSlug: string;
   initialImage?: string | null;
+  required?: boolean;
+  name?: string;
 };
 
 function tenantResolver(tenantSlug: string) {
@@ -43,6 +45,8 @@ function tenantResolver(tenantSlug: string) {
 export function ManagedImageUpload({
   tenantSlug,
   initialImage,
+  required = true,
+  name = "image",
 }: ManagedImageUploadProps) {
   const t = useTranslations("StoreCatalogManagement");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,10 +116,10 @@ export function ManagedImageUpload({
         <input
           ref={fileInputRef}
           type="file"
-          name="image"
+          name={name}
           accept="image/*"
           aria-label={t("image")}
-          required={!existingImageUrl}
+          required={required && !existingImageUrl}
           className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
           onChange={(event) => {
             handleFileSelect(event.target.files?.[0] ?? null);

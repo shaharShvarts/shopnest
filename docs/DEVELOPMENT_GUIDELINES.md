@@ -651,3 +651,36 @@ effective commercial entitlement
 
 For example, a Store Owner may have `team.manage` permission but still be prevented from adding a Manager if the Store's effective Manager limit is zero or exhausted. A Store Manager without `team.manage` remains forbidden even if the Store's plan includes Manager seats.
 
+
+## 14. New feature / major-change conversation handoff
+
+A new ChatGPT conversation must be started before beginning:
+
+- a new feature
+- a new architectural subsystem
+- a substantial cross-cutting change
+- work that requires a new feature/fix branch
+- a major continuation that would otherwise depend on a long previous conversation
+
+Before implementation begins, prepare a short continuation prompt for the new conversation.
+
+The continuation prompt must include:
+
+1. The feature/change name and goal.
+2. The branch that must be used.
+3. The relevant project documents that must be read first.
+4. The existing implementation/files/modules that must be inspected before changes.
+5. Critical architectural invariants that must be preserved, including tenant isolation, server authority, authorization boundaries, and fail-closed behavior where relevant.
+6. Decisions already made that should not be rediscovered or silently changed.
+7. The exact point from which development should continue.
+8. The instruction to use one terminal command at a time and wait for output before the next command.
+9. The instruction not to claim tests, build, migration, or deployment success without fresh command output.
+10. The instruction never to merge a PR without explicit user approval.
+
+The prompt should be concise. It is a handoff/index into the repository and project documentation, not a replacement for those documents.
+
+The new conversation must read the referenced documents and inspect the current implementation before proposing or writing code.
+
+If the next feature depends on unfinished work from the current branch, finish or explicitly document that dependency before switching branches.
+
+This handoff step is part of the development workflow, not an optional convenience.

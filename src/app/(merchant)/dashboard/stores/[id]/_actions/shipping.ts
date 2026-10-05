@@ -2,6 +2,7 @@
 
 import { asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import z from "zod";
 import { shippingMethods } from "@/drizzle/schema";
 import {
@@ -61,7 +62,6 @@ const shippingMethodSchema = z.object({
   name: z.string().trim().min(1).max(120),
   price: wholeIlsPriceSchema,
   requiresAddress: z.boolean(),
-  isActive: z.boolean(),
   logo: optionalLogoSchema,
   removeLogo: z.boolean(),
 });
@@ -75,7 +75,6 @@ async function parseMethod(formData: FormData) {
     name: formData.get("name"),
     price: formData.get("price"),
     requiresAddress: formData.get("requiresAddress") === "on",
-    isActive: formData.get("isActive") === "on",
     logo: formData.get("logo"),
     removeLogo: formData.get("removeLogo") === "on",
   });
@@ -113,7 +112,7 @@ export async function createManagedShippingMethod(
     name: parsed.data.name,
     price: parsed.data.price,
     requiresAddress: parsed.data.requiresAddress,
-    isActive: parsed.data.isActive,
+    isActive: false,
   };
 
   const uploaded = logo
@@ -389,4 +388,43 @@ export async function reorderManagedShippingMethods(
 
   revalidateShipping(storeId, tenant.basePath);
   return { ok: true };
+}
+
+export async function createManagedShippingMethodForm(
+  storeId: number,
+  _previousState: { success: boolean; errors: Record<string, string[]> },
+  formData: FormData
+) {
+  const result = await createManagedShippingMethod(storeId, formData);
+
+  if (!result.ok) {
+    return {
+      success: false,
+      errors: {
+        _form: [result.code ?? "shipping_save_failed"],
+      },
+    };
+  }
+
+  redirect(`/dashboard/stores/${storeId}/shipping`);
+}
+
+export async function updateManagedShippingMethodForm(
+  storeId: number,
+  methodId: number,
+  _previousState: { success: boolean; errors: Record<string, string[]> },
+  formData: FormData
+) {
+  const result = await updateManagedShippingMethod(storeId, methodId, formData);
+
+  if (!result.ok) {
+    return {
+      success: false,
+      errors: {
+        _form: [result.code ?? "shipping_save_failed"],
+      },
+    };
+  }
+
+  redirect(`/dashboard/stores/${storeId}/shipping`);
 }

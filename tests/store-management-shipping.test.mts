@@ -65,24 +65,17 @@ test("shipping edit reads the persisted logo before replacing or removing it", a
   );
 });
 
-test("managed shipping pages are Store-scoped server components", async () => {
-  const [page, form] = await Promise.all([
-    readFile(
-      "src/app/(merchant)/dashboard/stores/[id]/shipping/page.tsx",
-      "utf8"
-    ),
-    readFile(
-      "src/app/(merchant)/dashboard/stores/[id]/shipping/_components/ShippingMethodForm.tsx",
-      "utf8"
-    ),
-  ]);
+test("managed shipping page remains Store-scoped server authority", async () => {
+  const page = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/shipping/page.tsx",
+    "utf8"
+  );
 
   assert.match(
     page,
     /requireStoreManagementDb\(\s*storeId,\s*"shipping\.manage"\s*\)/
   );
   assert.doesNotMatch(page, /["']use client["']/);
-  assert.doesNotMatch(form, /["']use client["']/);
 });
 
 test("managed shipping form uses shared controls and the flexible shipping model", async () => {
@@ -96,8 +89,8 @@ test("managed shipping form uses shared controls and the flexible shipping model
   assert.match(form, /name="name"/);
   assert.match(form, /name="price"/);
   assert.match(form, /name="requiresAddress"/);
-  assert.match(form, /name="isActive"/);
-  assert.match(form, /name="logo"/);
+  assert.match(form, /ManagedImageUpload/);
+  assert.doesNotMatch(form, /name="isActive"/);
 
   assert.doesNotMatch(form, /name="code"/);
   assert.doesNotMatch(form, /name="type"/);
@@ -124,17 +117,6 @@ test("shipping management has English and Hebrew messages", async () => {
   assert.match(hebrew, /"StoreShippingManagement"/);
 });
 
-test("shipping ordering stays server-side", async () => {
-  const page = await readFile(
-    "src/app/(merchant)/dashboard/stores/[id]/shipping/page.tsx",
-    "utf8"
-  );
-
-  assert.match(page, /reorderManagedShippingMethods/);
-  assert.match(page, /name="direction"/);
-  assert.doesNotMatch(page, /["']use client["']/);
-});
-
 test("shipping price parser does not coerce an empty value to zero", async () => {
   const source = await readFile(
     "src/app/(merchant)/dashboard/stores/[id]/_actions/shipping.ts",
@@ -153,4 +135,52 @@ test("checkout shipping options render the optional shipping logo", async () => 
 
   assert.match(source, /method\.logoUrl/);
   assert.match(source, /alt=\{method\.name\}/);
+});
+
+test("shipping list uses shared sortable drag-and-drop and management switch", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/shipping/page.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /ShippingMethodOrderList/);
+  assert.doesNotMatch(source, /name="direction"/);
+  assert.doesNotMatch(source, /moveUp|moveDown/);
+});
+
+test("shipping reorder interaction uses dnd-kit and autosaves through server mutation", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/shipping/_components/ShippingMethodOrderList.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /@dnd-kit\/core/);
+  assert.match(source, /@dnd-kit\/sortable/);
+  assert.match(source, /ManagementSwitch/);
+  assert.match(source, /reorderManagedShippingMethods/);
+  assert.match(source, /toggleManagedShippingMethod/);
+  assert.match(source, /toast/);
+  assert.match(source, /router\.refresh/);
+});
+
+test("shipping edit form reuses the established managed image upload pattern", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/shipping/_components/ShippingMethodForm.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /ManagedImageUpload/);
+  assert.doesNotMatch(source, /type="file"/);
+  assert.doesNotMatch(source, /name="isActive"/);
+  assert.doesNotMatch(source, /Available at checkout/);
+});
+
+test("ShopNest exposes a reusable management switch control", async () => {
+  const source = await readFile(
+    "src/components/management/ManagementSwitch.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /role="switch"/);
+  assert.match(source, /aria-checked/);
 });
