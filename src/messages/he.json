@@ -941,6 +941,14 @@
     "disable": "השבתה",
     "back": "חזרה לשיטות משלוח",
     "moveUp": "העלה",
-    "moveDown": "הורד"
+    "moveDown": "הורד",
+    "saving": "שומר…",
+    "saveFailed": "לא ניתן לשמור את שיטת המשלוח. בדקו את הנתונים ונסו שוב.",
+    "orderSaved": "סדר שיטות המשלוח נשמר.",
+    "reorderFailed": "לא ניתן לשמור את סדר שיטות המשלוח.",
+    "statusSaved": "מצב שיטת המשלוח נשמר.",
+    "statusSaveFailed": "לא ניתן לשמור את מצב שיטת המשלוח.",
+    "reorderMethod": "גרירת {name} לשינוי הסדר",
+    "availabilityFor": "זמינות בקופה עבור {name}"
   }
 }

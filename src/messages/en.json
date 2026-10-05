@@ -945,6 +945,14 @@
     "disable": "Disable",
     "back": "Back to shipping methods",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "saving": "Saving…",
+    "saveFailed": "Could not save the shipping method. Check the details and try again.",
+    "orderSaved": "Shipping method order saved.",
+    "reorderFailed": "Could not save the shipping method order.",
+    "statusSaved": "Shipping method status saved.",
+    "statusSaveFailed": "Could not save the shipping method status.",
+    "reorderMethod": "Drag {name} to change its position",
+    "availabilityFor": "Checkout availability for {name}"
   }
 }
