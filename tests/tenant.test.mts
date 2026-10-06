@@ -35,3 +35,17 @@ test("unknown tenant routes resolve to not-found", () => {
   assert.deepEqual(resolveTenantRoute("/test123"), { kind: "not-found" });
   assert.deepEqual(resolveTenantRoute("/abcdef"), { kind: "not-found" });
 });
+
+test("organization logo routes remain global instead of resolving as tenants", () => {
+  assert.deepEqual(
+    resolveTenantRoute(
+      "/organization-logos/1/example.png",
+      () => ({
+        slug: "organization-logos",
+        schema: "organization_logos",
+        basePath: "/organization-logos",
+      })
+    ),
+    { kind: "legacy" }
+  );
+});

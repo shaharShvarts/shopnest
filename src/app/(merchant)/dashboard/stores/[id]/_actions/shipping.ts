@@ -67,7 +67,8 @@ const shippingMethodSchema = z
     logo: optionalLogoSchema,
     logoAssetId: z.preprocess(
       (value) =>
-        typeof value === "string" && value.trim() === ""
+        value == null ||
+        (typeof value === "string" && value.trim() === "")
           ? undefined
           : value,
       z.coerce.number().int().positive().safe().optional()
