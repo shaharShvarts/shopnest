@@ -953,6 +953,12 @@
     "statusSaved": "Shipping method status saved.",
     "statusSaveFailed": "Could not save the shipping method status.",
     "reorderMethod": "Drag {name} to change its position",
-    "availabilityFor": "Checkout availability for {name}"
+    "availabilityFor": "Checkout availability for {name}",
+    "chooseExistingLogo": "Choose from logo library",
+    "uploadNewLogo": "Upload new logo",
+    "logoLibrary": "Logo library",
+    "logoLibraryEmpty": "No saved logos yet.",
+    "selectedLogo": "Selected logo",
+    "clearLogo": "Remove logo from this shipping method"
   }
 }

@@ -29,6 +29,7 @@ type ManagedImageUploadProps = {
   initialImage?: string | null;
   required?: boolean;
   name?: string;
+  logoAssets?: Array<{ id: number; url: string }>;
 };
 
 function tenantResolver(tenantSlug: string) {
@@ -47,10 +48,15 @@ export function ManagedImageUpload({
   initialImage,
   required = true,
   name = "image",
+  logoAssets = [],
 }: ManagedImageUploadProps) {
   const t = useTranslations("StoreCatalogManagement");
+  const shippingT = useTranslations("StoreShippingManagement");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [selectedLogoAssetId, setSelectedLogoAssetId] = useState<number | null>(
+    null
+  );
   const [previewFailed, setPreviewFailed] = useState(false);
 
   const existingImageUrl = useMemo(
@@ -63,7 +69,12 @@ export function ManagedImageUpload({
     [initialImage, tenantSlug]
   );
 
-  const previewUrl = objectUrl ?? existingImageUrl;
+  const selectedLogoAsset =
+    selectedLogoAssetId === null
+      ? null
+      : logoAssets.find((asset) => asset.id === selectedLogoAssetId) ?? null;
+
+  const previewUrl = objectUrl ?? selectedLogoAsset?.url ?? existingImageUrl;
 
   useEffect(() => {
     setPreviewFailed(false);
@@ -76,6 +87,7 @@ export function ManagedImageUpload({
   }, [objectUrl]);
 
   function handleFileSelect(file: File | null) {
+    setSelectedLogoAssetId(null);
     if (!file || !isValidImage(file)) {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return false;
@@ -103,7 +115,64 @@ export function ManagedImageUpload({
   });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {logoAssets.length > 0 ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">{shippingT("logoLibrary")}</p>
+            <span className="text-xs text-muted-foreground">
+              {shippingT("chooseExistingLogo")}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            {logoAssets.map((asset) => {
+              const selected = selectedLogoAssetId === asset.id;
+
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  aria-pressed={selected}
+                  className={
+                    "overflow-hidden rounded-xl border p-2 transition " +
+                    (selected
+                      ? "border-foreground ring-2 ring-foreground/20"
+                      : "border-border hover:bg-muted/40")
+                  }
+                  onClick={() => {
+                    setSelectedLogoAssetId(asset.id);
+                    setObjectUrl((current) => {
+                      if (current) URL.revokeObjectURL(current);
+                      return null;
+                    });
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={asset.url}
+                    alt={shippingT("selectedLogo")}
+                    className="aspect-square w-full object-contain"
+                  />
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedLogoAssetId !== null ? (
+            <input
+              type="hidden"
+              name="logoAssetId"
+              value={String(selectedLogoAssetId)}
+            />
+          ) : null}
+        </div>
+      ) : null}
+
+      <p className="text-sm font-semibold">
+        {shippingT("uploadNewLogo")}
+      </p>
       <div
         {...getRootProps()}
         className={

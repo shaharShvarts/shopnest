@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { parseStoreId } from "@/lib/merchant-stores/core";
+import {
+  listOrganizationLogosForStore,
+  organizationLogoPublicUrl,
+} from "@/lib/organization-logo-library/server";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
 import { createManagedShippingMethodForm } from "../../_actions/shipping";
 import { ShippingMethodForm } from "../_components/ShippingMethodForm";
@@ -19,9 +23,10 @@ export default async function NewManagedShippingMethodPage({
     notFound();
   }
 
-  const [{ store, tenant }, t] = await Promise.all([
+  const [{ store, tenant }, t, logoAssets] = await Promise.all([
     requireStoreManagementDb(storeId, "shipping.manage"),
     getTranslations("StoreShippingManagement"),
+    listOrganizationLogosForStore(storeId),
   ]);
 
   const createAction = createManagedShippingMethodForm.bind(
@@ -50,6 +55,10 @@ export default async function NewManagedShippingMethodPage({
       <ShippingMethodForm
         action={createAction}
         tenantSlug={tenant.slug}
+        logoAssets={logoAssets.map((asset) => ({
+          id: asset.id,
+          url: organizationLogoPublicUrl(asset),
+        }))}
       />
 
     </main>

@@ -17,12 +17,12 @@ test("shipping actions use Store Management shipping permission", async () => {
 test("shipping actions validate complete server-side payloads with Zod", async () => {
   const source = await readFile(actionsPath, "utf8");
 
-  assert.match(source, /z\.object\(/);
+  assert.match(source, /z\s*\.object\(/);
   assert.match(source, /name:/);
   assert.match(source, /price:/);
   assert.match(source, /requiresAddress:/);
   assert.match(source, /isActive:/);
-  assert.match(source, /\.parse\(|\.safeParse\(/);
+  assert.match(source, /\.(?:parse|safeParse|safeParseAsync)\(/);
 });
 
 test("shipping actions do not trust browser tenant or schema authority", async () => {
@@ -42,26 +42,27 @@ test("shipping actions use Drizzle CRUD and ordering lock", async () => {
   assert.match(source, /reorderShippingMethods/);
 });
 
-test("shipping logo storage is scoped to the authorized Store tenant", async () => {
+test("shipping logo storage uses the shared Organization logo library", async () => {
   const source = await readFile(actionsPath, "utf8");
 
-  assert.match(source, /saveCatalogImage/);
-  assert.match(source, /deleteCatalogImage/);
-  assert.match(source, /kind:\s*"shipping"/);
-  assert.match(source, /trustedMediaResolver/);
-  assert.match(source, /resolveTenant/);
-  assert.doesNotMatch(source, /resolveConfiguredTenant/);
+  assert.match(source, /saveOrganizationLogoForStore/);
+  assert.match(source, /organizationLogoPublicUrl/);
+  assert.doesNotMatch(source, /saveCatalogImage/);
+  assert.doesNotMatch(source, /deleteCatalogImage/);
+  assert.doesNotMatch(source, /kind:\s*"shipping"/);
+  assert.doesNotMatch(source, /trustedMediaResolver/);
 });
 
-test("shipping edit reads the persisted logo before replacing or removing it", async () => {
+test("shipping edit reads the persisted logo and detaches shared assets without deleting them", async () => {
   const source = await readFile(actionsPath, "utf8");
 
   assert.match(source, /logoUrl:\s*shippingMethods\.logoUrl/);
   assert.match(source, /removeLogo/);
-  assert.match(source, /deleteCatalogImage/);
+  assert.match(source, /logoUrl:\s*null/);
+  assert.doesNotMatch(source, /deleteCatalogImage/);
   assert.doesNotMatch(
     source,
-    /formData\.get\(["'](?:logoUrl|existingLogoUrl|imageUrl)["']\)/
+    /formData\.get\(["'](?:organizationId|logoUrl|existingLogoUrl|imageUrl)["']\)/
   );
 });
 
@@ -183,4 +184,17 @@ test("ShopNest exposes a reusable management switch control", async () => {
 
   assert.match(source, /role="switch"/);
   assert.match(source, /aria-checked/);
+});
+
+test("shipping logos use authorized Organization assets without browser authority", async () => {
+  const source = await readFile(actionsPath, "utf8");
+
+  assert.match(source, /saveOrganizationLogoForStore\(storeId, logo\)/);
+  assert.match(source, /organizationLogoPublicUrl\(uploaded\)/);
+  assert.doesNotMatch(source, /kind:\s*"shipping"/);
+  assert.doesNotMatch(source, /deleteCatalogImage/);
+  assert.doesNotMatch(
+    source,
+    /formData\.get\(["'](?:organizationId|logoUrl|existingLogoUrl|imageUrl)["']\)/
+  );
 });

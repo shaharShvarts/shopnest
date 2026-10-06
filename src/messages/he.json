@@ -949,6 +949,12 @@
     "statusSaved": "מצב שיטת המשלוח נשמר.",
     "statusSaveFailed": "לא ניתן לשמור את מצב שיטת המשלוח.",
     "reorderMethod": "גרירת {name} לשינוי הסדר",
-    "availabilityFor": "זמינות בקופה עבור {name}"
+    "availabilityFor": "זמינות בקופה עבור {name}",
+    "chooseExistingLogo": "בחירה מספריית הלוגואים",
+    "uploadNewLogo": "העלאת לוגו חדש",
+    "logoLibrary": "ספריית לוגואים",
+    "logoLibraryEmpty": "עדיין לא נשמרו לוגואים.",
+    "selectedLogo": "לוגו נבחר",
+    "clearLogo": "הסרת הלוגו משיטת השילוח הזו"
   }
 }

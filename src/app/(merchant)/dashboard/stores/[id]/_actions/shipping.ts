@@ -6,9 +6,10 @@ import { redirect } from "next/navigation";
 import z from "zod";
 import { shippingMethods } from "@/drizzle/schema";
 import {
-  deleteCatalogImage,
-  saveCatalogImage,
-} from "@/lib/media/catalog-media";
+  getOrganizationLogoForStore,
+  organizationLogoPublicUrl,
+  saveOrganizationLogoForStore,
+} from "@/lib/organization-logo-library/server";
 import {
   ImageValidationError,
   validateCatalogImage,
@@ -58,13 +59,36 @@ const wholeIlsPriceSchema = z.preprocess(
   z.coerce.number().int().nonnegative().safe()
 );
 
-const shippingMethodSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  price: wholeIlsPriceSchema,
-  requiresAddress: z.boolean(),
-  logo: optionalLogoSchema,
-  removeLogo: z.boolean(),
-});
+const shippingMethodSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    price: wholeIlsPriceSchema,
+    requiresAddress: z.boolean(),
+    logo: optionalLogoSchema,
+    logoAssetId: z.preprocess(
+      (value) =>
+        typeof value === "string" && value.trim() === ""
+          ? undefined
+          : value,
+      z.coerce.number().int().positive().safe().optional()
+    ),
+    removeLogo: z.boolean(),
+  })
+  .refine((value) => !(value.logo && value.logoAssetId), {
+    path: ["logo"],
+    message: "Choose either an uploaded logo or an existing logo asset.",
+  })
+  .refine(
+    (value) =>
+      !(
+        value.removeLogo &&
+        (value.logo !== undefined || value.logoAssetId !== undefined)
+      ),
+    {
+      path: ["removeLogo"],
+      message: "Cannot remove and replace a logo in the same request.",
+    }
+  );
 
 const reorderSchema = z
   .array(z.number().int().positive().safe())
@@ -76,17 +100,9 @@ async function parseMethod(formData: FormData) {
     price: formData.get("price"),
     requiresAddress: formData.get("requiresAddress") === "on",
     logo: formData.get("logo"),
+    logoAssetId: formData.get("logoAssetId"),
     removeLogo: formData.get("removeLogo") === "on",
   });
-}
-
-function trustedMediaResolver(tenant: {
-  slug: string;
-  schema: string;
-  basePath: string;
-}) {
-  return (value: unknown) =>
-    typeof value === "string" && value === tenant.slug ? tenant : null;
 }
 
 function revalidateShipping(storeId: number, tenantBasePath: string) {
@@ -106,8 +122,7 @@ export async function createManagedShippingMethod(
   const parsed = await parseMethod(formData);
   if (!parsed.success) return { ok: false, code: "invalid_input" };
 
-  const resolveTenant = trustedMediaResolver(tenant);
-  const { logo } = parsed.data;
+  const { logo, logoAssetId } = parsed.data;
   const method = {
     name: parsed.data.name,
     price: parsed.data.price,
@@ -116,50 +131,48 @@ export async function createManagedShippingMethod(
   };
 
   const uploaded = logo
-    ? await saveCatalogImage({
-        tenantSlug: tenant.slug,
-        kind: "shipping",
-        file: logo,
-        resolveTenant,
-      })
+    ? await saveOrganizationLogoForStore(storeId, logo)
     : null;
 
-  try {
-    await db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(current_schema() || ':shipping_methods_order', 0))`
-      );
+  const selectedAsset =
+    !uploaded && logoAssetId
+      ? await getOrganizationLogoForStore(storeId, logoAssetId)
+      : null;
 
-      const existing = await tx
-        .select({
-          id: shippingMethods.id,
-          sortOrder: shippingMethods.sortOrder,
-        })
-        .from(shippingMethods)
-        .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.id))
-        .for("update");
-
-      const sortOrder = getNextShippingSortOrder(
-        existing.map((candidate) => candidate.sortOrder)
-      );
-
-      await tx.insert(shippingMethods).values({
-        ...method,
-        logoUrl: uploaded?.imageUrl ?? null,
-        sortOrder,
-      });
-    });
-  } catch (error) {
-    if (uploaded) {
-      await deleteCatalogImage({
-        tenantSlug: tenant.slug,
-        imageUrl: uploaded.imageUrl,
-        resolveTenant,
-      });
-    }
-
-    throw error;
+  if (!uploaded && logoAssetId && !selectedAsset) {
+    return { ok: false, code: "invalid_logo" };
   }
+
+  const logoUrl = uploaded
+    ? organizationLogoPublicUrl(uploaded)
+    : selectedAsset
+      ? organizationLogoPublicUrl(selectedAsset)
+      : null;
+
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(current_schema() || ':shipping_methods_order', 0))`
+    );
+
+    const existing = await tx
+      .select({
+        id: shippingMethods.id,
+        sortOrder: shippingMethods.sortOrder,
+      })
+      .from(shippingMethods)
+      .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.id))
+      .for("update");
+
+    const sortOrder = getNextShippingSortOrder(
+      existing.map((candidate) => candidate.sortOrder)
+    );
+
+    await tx.insert(shippingMethods).values({
+      ...method,
+      logoUrl,
+      sortOrder,
+    });
+  });
 
   revalidateShipping(storeId, tenant.basePath);
   return { ok: true };
@@ -195,63 +208,40 @@ export async function updateManagedShippingMethod(
     return { ok: false, code: "invalid_method" };
   }
 
-  const resolveTenant = trustedMediaResolver(tenant);
-  const { logo, removeLogo, ...method } = parsed.data;
+  const { logo, logoAssetId, removeLogo, ...method } = parsed.data;
 
   const uploaded = logo
-    ? await saveCatalogImage({
-        tenantSlug: tenant.slug,
-        kind: "shipping",
-        file: logo,
-        resolveTenant,
-      })
+    ? await saveOrganizationLogoForStore(storeId, logo)
     : null;
 
-  const logoUrl = uploaded
-    ? uploaded.imageUrl
-    : removeLogo
-      ? null
-      : existing.logoUrl;
+  const selectedAsset =
+    !uploaded && logoAssetId
+      ? await getOrganizationLogoForStore(storeId, logoAssetId)
+      : null;
 
-  try {
-    const updated = await db
-      .update(shippingMethods)
-      .set({
-        ...method,
-        logoUrl,
-      })
-      .where(eq(shippingMethods.id, methodId))
-      .returning({ id: shippingMethods.id });
-
-    if (updated.length !== 1) {
-      if (uploaded) {
-        await deleteCatalogImage({
-          tenantSlug: tenant.slug,
-          imageUrl: uploaded.imageUrl,
-          resolveTenant,
-        });
-      }
-
-      return { ok: false, code: "invalid_method" };
-    }
-  } catch (error) {
-    if (uploaded) {
-      await deleteCatalogImage({
-        tenantSlug: tenant.slug,
-        imageUrl: uploaded.imageUrl,
-        resolveTenant,
-      });
-    }
-
-    throw error;
+  if (!uploaded && logoAssetId && !selectedAsset) {
+    return { ok: false, code: "invalid_logo" };
   }
 
-  if ((uploaded || removeLogo) && existing.logoUrl) {
-    await deleteCatalogImage({
-      tenantSlug: tenant.slug,
-      imageUrl: existing.logoUrl,
-      resolveTenant,
-    });
+  const logoUrl = uploaded
+    ? organizationLogoPublicUrl(uploaded)
+    : selectedAsset
+      ? organizationLogoPublicUrl(selectedAsset)
+      : removeLogo
+        ? null
+        : existing.logoUrl;
+
+  const updated = await db
+    .update(shippingMethods)
+    .set({
+      ...method,
+      logoUrl,
+    })
+    .where(eq(shippingMethods.id, methodId))
+    .returning({ id: shippingMethods.id });
+
+  if (updated.length !== 1) {
+    return { ok: false, code: "invalid_method" };
   }
 
   revalidateShipping(storeId, tenant.basePath);
@@ -271,30 +261,14 @@ export async function removeManagedShippingLogo(
     return { ok: false, code: "invalid_method" };
   }
 
-  const [existing] = await db
-    .select({
-      id: shippingMethods.id,
-      logoUrl: shippingMethods.logoUrl,
-    })
-    .from(shippingMethods)
-    .where(eq(shippingMethods.id, methodId))
-    .limit(1);
-
-  if (!existing) {
-    return { ok: false, code: "invalid_method" };
-  }
-
-  await db
+  const updated = await db
     .update(shippingMethods)
     .set({ logoUrl: null })
-    .where(eq(shippingMethods.id, methodId));
+    .where(eq(shippingMethods.id, methodId))
+    .returning({ id: shippingMethods.id });
 
-  if (existing.logoUrl) {
-    await deleteCatalogImage({
-      tenantSlug: tenant.slug,
-      imageUrl: existing.logoUrl,
-      resolveTenant: trustedMediaResolver(tenant),
-    });
+  if (updated.length !== 1) {
+    return { ok: false, code: "invalid_method" };
   }
 
   revalidateShipping(storeId, tenant.basePath);
