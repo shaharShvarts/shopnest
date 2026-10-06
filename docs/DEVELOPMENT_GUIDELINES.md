@@ -486,6 +486,19 @@ New management controls must reuse approved shared components and patterns where
 
 When a repeated management pattern requires local CSS in more than one place, prefer extracting or extending a shared component instead of copying styles.
 
+Management Delete actions must follow the ShopNest Delete + Undo standard defined in `docs/ADMIN_UI_STANDARDS.md`.
+
+For normal management deletion:
+
+- do not introduce `window.confirm` or browser-native confirmation dialogs
+- use the shared ShopNest toast/Undo interaction
+- default to the established 10-second Undo window
+- keep deletion and restoration server-authoritative
+- prefer reversible/soft-delete semantics when the domain permits them
+- preserve tenant isolation, authorization, concurrency safety, and shared-asset ownership rules
+
+A new management module that supports deletion is incomplete until its Delete + Undo behavior has been reviewed against this standard.
+
 ## 15. Documentation Rules
 
 - Project-wide rules belong in this document.

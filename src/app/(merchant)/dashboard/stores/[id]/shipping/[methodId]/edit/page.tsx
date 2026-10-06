@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { shippingMethods } from "@/drizzle/schema";
@@ -42,7 +42,12 @@ export default async function EditManagedShippingMethodPage({
   const [method] = await db
     .select()
     .from(shippingMethods)
-    .where(eq(shippingMethods.id, methodId))
+    .where(
+      and(
+        eq(shippingMethods.id, methodId),
+        isNull(shippingMethods.deletedAt)
+      )
+    )
     .limit(1);
 
   if (!method) {

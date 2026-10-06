@@ -7,7 +7,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { createdAt, updatedAt } from "../schemaHelpers";
+import { createdAt, deletedAt, updatedAt } from "../schemaHelpers";
 
 export const shippingMethods = pgTable(
   "shipping_methods",
@@ -19,6 +19,7 @@ export const shippingMethods = pgTable(
     isActive: boolean("is_active").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     logoUrl: varchar("logo_url", { length: 512 }),
+    deletedAt,
     createdAt,
     updatedAt,
   },

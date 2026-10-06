@@ -226,6 +226,36 @@ The rule is not "never redirect"; the rule is **never navigate away and back to 
 
 Destructive actions that already have a reversible/undo interaction must preserve it when migrated to the shared management UI. Do not replace an existing undo flow with an irreversible one-step delete merely for UI consistency.
 
+### 10.2 Delete + Undo is the default management deletion pattern
+
+All standard Delete actions in ShopNest management surfaces MUST use the shared ShopNest Delete + Undo interaction.
+
+This applies to:
+
+- ShopNest Control Plane
+- Merchant / Store Owner dashboard
+- Store Manager management screens
+- new management modules and screens
+
+Required behavior:
+
+- Do not use `window.confirm`, browser-native confirmation dialogs, or a second confirmation click for normal management Delete actions.
+- The item should disappear from the current workspace immediately after the Delete action succeeds.
+- Show the existing ShopNest `react-toastify` Undo toast.
+- The standard Undo window is **10 seconds** unless an approved feature-specific requirement explicitly defines another duration.
+- If the user does nothing, the deletion remains in effect automatically.
+- The user should only need to act when the original Delete click was a mistake.
+- Undo must be performed through a server-authoritative action.
+- Prefer soft delete plus a server-issued version/token such as `undoVersion` when the record can be restored safely.
+- Delete/Undo must preserve tenant isolation, authorization, concurrency safety, and fail-closed behavior.
+- Deleting a record must not automatically delete shared/reusable assets referenced by that record unless explicit ownership/reference rules require it.
+- Do not create a page-specific Delete confirmation UX when the established ShopNest Delete + Undo pattern can be reused or extracted into a shared component.
+- If a new entity cannot safely support Undo, document the exception before implementing a different destructive interaction.
+
+Current reference implementations include managed Product deletion and Store deletion.
+
+When implementing a new management module, Delete + Undo is part of the default feature checklist, not an optional enhancement.
+
 ## 11. Tables and dense lists
 
 For dense management data:

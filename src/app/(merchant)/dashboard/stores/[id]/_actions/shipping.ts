@@ -1,6 +1,6 @@
 "use server";
 
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import z from "zod";
@@ -161,6 +161,7 @@ export async function createManagedShippingMethod(
         sortOrder: shippingMethods.sortOrder,
       })
       .from(shippingMethods)
+      .where(isNull(shippingMethods.deletedAt))
       .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.id))
       .for("update");
 
@@ -202,7 +203,12 @@ export async function updateManagedShippingMethod(
       logoUrl: shippingMethods.logoUrl,
     })
     .from(shippingMethods)
-    .where(eq(shippingMethods.id, methodId))
+    .where(
+      and(
+        eq(shippingMethods.id, methodId),
+        isNull(shippingMethods.deletedAt)
+      )
+    )
     .limit(1);
 
   if (!existing) {
@@ -238,7 +244,12 @@ export async function updateManagedShippingMethod(
       ...method,
       logoUrl,
     })
-    .where(eq(shippingMethods.id, methodId))
+    .where(
+      and(
+        eq(shippingMethods.id, methodId),
+        isNull(shippingMethods.deletedAt)
+      )
+    )
     .returning({ id: shippingMethods.id });
 
   if (updated.length !== 1) {
@@ -265,11 +276,89 @@ export async function removeManagedShippingLogo(
   const updated = await db
     .update(shippingMethods)
     .set({ logoUrl: null })
-    .where(eq(shippingMethods.id, methodId))
+    .where(
+      and(
+        eq(shippingMethods.id, methodId),
+        isNull(shippingMethods.deletedAt)
+      )
+    )
     .returning({ id: shippingMethods.id });
 
   if (updated.length !== 1) {
     return { ok: false, code: "invalid_method" };
+  }
+
+  revalidateShipping(storeId, tenant.basePath);
+  return { ok: true };
+}
+
+export async function deleteManagedShippingMethod(
+  storeId: number,
+  methodId: number
+): Promise<
+  { ok: true; undoVersion: string } | { ok: false; code: string }
+> {
+  const { db, tenant } = await requireStoreManagementDb(
+    storeId,
+    "shipping.manage"
+  );
+
+  if (!Number.isSafeInteger(methodId) || methodId <= 0) {
+    return { ok: false, code: "invalid_method" };
+  }
+
+  const deletedAt = new Date();
+  const [deleted] = await db
+    .update(shippingMethods)
+    .set({ deletedAt })
+    .where(
+      and(
+        eq(shippingMethods.id, methodId),
+        isNull(shippingMethods.deletedAt)
+      )
+    )
+    .returning({ id: shippingMethods.id });
+
+  if (!deleted) {
+    return { ok: false, code: "invalid_method" };
+  }
+
+  revalidateShipping(storeId, tenant.basePath);
+  return { ok: true, undoVersion: deletedAt.toISOString() };
+}
+
+export async function undoManagedShippingMethodDelete(
+  storeId: number,
+  methodId: number,
+  undoVersion: string
+): Promise<ShippingMutationResult> {
+  const { db, tenant } = await requireStoreManagementDb(
+    storeId,
+    "shipping.manage"
+  );
+
+  if (!Number.isSafeInteger(methodId) || methodId <= 0) {
+    return { ok: false, code: "invalid_method" };
+  }
+
+  const deletedAt = new Date(undoVersion);
+  if (Number.isNaN(deletedAt.getTime())) {
+    return { ok: false, code: "undo_failed" };
+  }
+
+  const [restored] = await db
+    .update(shippingMethods)
+    .set({ deletedAt: null })
+    .where(
+      and(
+        eq(shippingMethods.id, methodId),
+        eq(shippingMethods.deletedAt, deletedAt)
+      )
+    )
+    .returning({ id: shippingMethods.id });
+
+  if (!restored) {
+    return { ok: false, code: "undo_failed" };
   }
 
   revalidateShipping(storeId, tenant.basePath);
@@ -297,7 +386,12 @@ export async function toggleManagedShippingMethod(
   const updated = await db
     .update(shippingMethods)
     .set({ isActive: active })
-    .where(eq(shippingMethods.id, methodId))
+    .where(
+      and(
+        eq(shippingMethods.id, methodId),
+        isNull(shippingMethods.deletedAt)
+      )
+    )
     .returning({ id: shippingMethods.id });
 
   if (updated.length !== 1) {
@@ -332,6 +426,7 @@ export async function reorderManagedShippingMethods(
             const rows = await tx
               .select({ id: shippingMethods.id })
               .from(shippingMethods)
+              .where(isNull(shippingMethods.deletedAt))
               .orderBy(
                 asc(shippingMethods.sortOrder),
                 asc(shippingMethods.id)
@@ -346,7 +441,12 @@ export async function reorderManagedShippingMethods(
               await tx
                 .update(shippingMethods)
                 .set({ sortOrder: update.sortOrder })
-                .where(eq(shippingMethods.id, update.id));
+                .where(
+                  and(
+                    eq(shippingMethods.id, update.id),
+                    isNull(shippingMethods.deletedAt)
+                  )
+                );
             }
           },
         },

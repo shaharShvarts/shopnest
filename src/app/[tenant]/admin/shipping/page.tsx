@@ -1,4 +1,4 @@
-import { asc } from "drizzle-orm";
+import { asc, isNull } from "drizzle-orm";
 import { shippingMethods } from "@/drizzle/schema";
 import { requireTenantAdminDb } from "@/lib/admin-auth/server";
 import { TenantLink } from "@/components/TenantLink";
@@ -16,7 +16,9 @@ export default async function AdminShippingPage() {
     requiresAddress: shippingMethods.requiresAddress,
     sortOrder: shippingMethods.sortOrder,
     logoUrl: shippingMethods.logoUrl,
-  }).from(shippingMethods).orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.name));
+  }).from(shippingMethods)
+  .where(isNull(shippingMethods.deletedAt))
+  .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.name));
   return <div className="space-y-6">
     <div className="flex items-center justify-between gap-4"><PageHeader>Shipping</PageHeader><Button asChild><TenantLink href="/admin/shipping/new">Add method</TenantLink></Button></div>
     {!methods.length ? <p className="rounded-xl border p-6 text-muted-foreground">No shipping methods configured. Checkout remains safely unavailable until one is activated.</p> : <ShippingMethodOrderList methods={methods} />}

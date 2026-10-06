@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { getDbForTenant } from "@/drizzle/db";
 import { shippingMethods } from "@/drizzle/schema";
 import type { ShippingMethodStore } from "./core";
@@ -25,7 +25,12 @@ export class DrizzleShippingMethodStore implements ShippingMethodStore {
     return this.database
       .select(selection)
       .from(shippingMethods)
-      .where(eq(shippingMethods.isActive, true))
+      .where(
+        and(
+          eq(shippingMethods.isActive, true),
+          isNull(shippingMethods.deletedAt)
+        )
+      )
       .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.name));
   }
 
@@ -34,7 +39,11 @@ export class DrizzleShippingMethodStore implements ShippingMethodStore {
       .select(selection)
       .from(shippingMethods)
       .where(
-        and(eq(shippingMethods.id, id), eq(shippingMethods.isActive, true))
+        and(
+          eq(shippingMethods.id, id),
+          eq(shippingMethods.isActive, true),
+          isNull(shippingMethods.deletedAt)
+        )
       )
       .limit(1);
     return method ?? null;

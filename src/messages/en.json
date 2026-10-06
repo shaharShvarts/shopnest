@@ -959,6 +959,11 @@
     "logoLibrary": "Logo library",
     "logoLibraryEmpty": "No saved logos yet.",
     "selectedLogo": "Selected logo",
-    "clearLogo": "Remove logo from this shipping method"
+    "clearLogo": "Remove logo from this shipping method",
+    "deleteMethod": "Delete",
+    "deleteSuccess": "Shipping method deleted.",
+    "deleteFailed": "Could not delete the shipping method.",
+    "undo": "Undo",
+    "undoFailed": "Could not restore the shipping method."
   }
 }
