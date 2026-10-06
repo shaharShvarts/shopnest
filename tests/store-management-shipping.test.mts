@@ -198,3 +198,47 @@ test("shipping logos use authorized Organization assets without browser authorit
     /formData\.get\(["'](?:organizationId|logoUrl|existingLogoUrl|imageUrl)["']\)/
   );
 });
+
+test("shipping method deletion is reversible, Store-scoped, and preserves shared logo assets", async () => {
+  const source = await readFile(actionsPath, "utf8");
+  const schema = await readFile(
+    "src/drizzle/schema/shippingMethod.ts",
+    "utf8"
+  );
+
+  assert.match(source, /deleteManagedShippingMethod/);
+  assert.match(source, /undoManagedShippingMethodDelete/);
+  assert.match(
+    source,
+    /requireStoreManagementDb\(\s*storeId,\s*"shipping\.manage"\s*\)/
+  );
+  assert.match(source, /deletedAt/);
+  assert.doesNotMatch(source, /\.delete\(shippingMethods\)/);
+  assert.doesNotMatch(source, /archiveOrganizationLogoForStore/);
+  assert.doesNotMatch(source, /deleteCatalogImage/);
+  assert.match(schema, /deletedAt/);
+});
+
+test("orders keep shipping snapshots when the shipping method is deleted", async () => {
+  const orderSchema = await readFile("src/drizzle/schema/order.ts", "utf8");
+
+  assert.match(orderSchema, /shippingMethodName:/);
+  assert.match(orderSchema, /shippingPrice:/);
+  assert.match(
+    orderSchema,
+    /shippingMethodId:[\s\S]*?onDelete:\s*"set null"/
+  );
+});
+
+test("shipping list uses the ShopNest Delete + Undo toast pattern", async () => {
+  const source = await readFile(
+    "src/app/(merchant)/dashboard/stores/[id]/shipping/_components/ShippingMethodOrderList.tsx",
+    "utf8"
+  );
+
+  assert.match(source, /deleteManagedShippingMethod/);
+  assert.match(source, /undoManagedShippingMethodDelete/);
+  assert.match(source, /autoClose:\s*10_000/);
+  assert.match(source, /undoVersion/);
+  assert.doesNotMatch(source, /window\.confirm|confirm\(/);
+});

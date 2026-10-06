@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { asc } from "drizzle-orm";
+import { asc, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ export default async function ManagedShippingPage({
   const methods = await db
     .select()
     .from(shippingMethods)
+    .where(isNull(shippingMethods.deletedAt))
     .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.name));
 
   return (

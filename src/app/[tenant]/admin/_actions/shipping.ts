@@ -1,6 +1,6 @@
 "use server";
 
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { fulfillmentStatuses, orders, shippingMethods } from "@/drizzle/schema";
@@ -37,6 +37,7 @@ export async function createShippingMethod(formData: FormData) {
     const existing = await tx
       .select({ id: shippingMethods.id, sortOrder: shippingMethods.sortOrder })
       .from(shippingMethods)
+      .where(isNull(shippingMethods.deletedAt))
       .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.id))
       .for("update");
     let sortOrder = getNextShippingSortOrder(
@@ -65,7 +66,12 @@ export async function updateShippingMethod(id: number, formData: FormData) {
   const updated = await db
     .update(shippingMethods)
     .set(parseMethod(formData))
-    .where(eq(shippingMethods.id, id))
+    .where(
+      and(
+        eq(shippingMethods.id, id),
+        isNull(shippingMethods.deletedAt)
+      )
+    )
     .returning({ id: shippingMethods.id });
   if (!updated.length) notFound();
   await revalidateTenantPath("/admin/shipping");
@@ -74,7 +80,15 @@ export async function updateShippingMethod(id: number, formData: FormData) {
 
 export async function toggleShippingMethod(id: number, active: boolean) {
   const { db } = await requireTenantAdminDb();
-  await db.update(shippingMethods).set({ isActive: active }).where(eq(shippingMethods.id, id));
+  await db
+    .update(shippingMethods)
+    .set({ isActive: active })
+    .where(
+      and(
+        eq(shippingMethods.id, id),
+        isNull(shippingMethods.deletedAt)
+      )
+    );
   await revalidateTenantPath("/admin/shipping");
   await revalidateTenantPath("/checkout");
 }
@@ -108,6 +122,7 @@ export async function reorderShippingMethodAction(
             const rows = await tx
               .select({ id: shippingMethods.id })
               .from(shippingMethods)
+              .where(isNull(shippingMethods.deletedAt))
               .orderBy(asc(shippingMethods.sortOrder), asc(shippingMethods.id))
               .for("update");
             return rows.map((method) => method.id);
@@ -117,7 +132,12 @@ export async function reorderShippingMethodAction(
               await tx
                 .update(shippingMethods)
                 .set({ sortOrder: update.sortOrder })
-                .where(eq(shippingMethods.id, update.id));
+                .where(
+                  and(
+                    eq(shippingMethods.id, update.id),
+                    isNull(shippingMethods.deletedAt)
+                  )
+                );
             }
           },
         },

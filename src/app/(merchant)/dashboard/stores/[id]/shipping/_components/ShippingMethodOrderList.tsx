@@ -21,13 +21,15 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast, type Id } from "react-toastify";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ManagementSwitch } from "@/components/management/ManagementSwitch";
 import {
+  deleteManagedShippingMethod,
   reorderManagedShippingMethods,
   toggleManagedShippingMethod,
+  undoManagedShippingMethodDelete,
 } from "../../_actions/shipping";
 
 type ShippingMethodListItem = {
@@ -94,6 +96,71 @@ export function ShippingMethodOrderList({
     });
   }
 
+  function deleteMethod(methodId: number) {
+    if (pending) return;
+
+    const previous = methods;
+    setMethods((current) =>
+      current.filter((method) => method.id !== methodId)
+    );
+
+    startTransition(async () => {
+      try {
+        const result = await deleteManagedShippingMethod(storeId, methodId);
+
+        if (!result.ok) {
+          setMethods(previous);
+          toast.error(t("deleteFailed"));
+          return;
+        }
+
+        const toastId: Id = toast.info(
+          <span className="flex items-center gap-3">
+            <span>{t("deleteSuccess")}</span>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 font-semibold"
+              onClick={() => {
+                startTransition(async () => {
+                  const undoResult =
+                    await undoManagedShippingMethodDelete(
+                      storeId,
+                      methodId,
+                      result.undoVersion
+                    );
+
+                  toast.dismiss(toastId);
+
+                  if (!undoResult.ok) {
+                    toast.error(t("undoFailed"));
+                    router.refresh();
+                    return;
+                  }
+
+                  setMethods(previous);
+                  router.refresh();
+                });
+              }}
+            >
+              {t("undo")}
+            </Button>
+          </span>,
+          {
+            autoClose: 10_000,
+            closeOnClick: false,
+            closeButton: false,
+          }
+        );
+
+        router.refresh();
+      } catch {
+        setMethods(previous);
+        toast.error(t("deleteFailed"));
+      }
+    });
+  }
+
   function toggleMethod(methodId: number, active: boolean) {
     if (pending) return;
 
@@ -145,6 +212,7 @@ export function ShippingMethodOrderList({
               method={method}
               pending={pending}
               onToggle={toggleMethod}
+              onDelete={deleteMethod}
             />
           ))}
         </ul>
@@ -158,11 +226,13 @@ function SortableShippingMethodRow({
   method,
   pending,
   onToggle,
+  onDelete,
 }: {
   storeId: number;
   method: ShippingMethodListItem;
   pending: boolean;
   onToggle: (methodId: number, active: boolean) => void;
+  onDelete: (methodId: number) => void;
 }) {
   const t = useTranslations("StoreShippingManagement");
   const {
@@ -235,6 +305,16 @@ function SortableShippingMethodRow({
         <Link href={`/dashboard/stores/${storeId}/shipping/${method.id}/edit`}>
           {t("edit")}
         </Link>
+      </Button>
+
+      <Button
+        type="button"
+        variant="destructive"
+        size="management"
+        disabled={pending}
+        onClick={() => onDelete(method.id)}
+      >
+        {t("deleteMethod")}
       </Button>
     </li>
   );
