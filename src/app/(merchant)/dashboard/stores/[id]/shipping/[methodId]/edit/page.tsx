@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { shippingMethods } from "@/drizzle/schema";
 import { parseStoreId } from "@/lib/merchant-stores/core";
+import {
+  listOrganizationLogosForStore,
+  organizationLogoPublicUrl,
+} from "@/lib/organization-logo-library/server";
 import { requireStoreManagementDb } from "@/lib/store-management/server";
 import { updateManagedShippingMethodForm } from "../../../_actions/shipping";
 import { ShippingMethodForm } from "../../_components/ShippingMethodForm";
@@ -29,9 +33,10 @@ export default async function EditManagedShippingMethodPage({
     notFound();
   }
 
-  const [{ db, store, tenant }, t] = await Promise.all([
+  const [{ db, store, tenant }, t, logoAssets] = await Promise.all([
     requireStoreManagementDb(storeId, "shipping.manage"),
     getTranslations("StoreShippingManagement"),
+    listOrganizationLogosForStore(storeId),
   ]);
 
   const [method] = await db
@@ -72,6 +77,10 @@ export default async function EditManagedShippingMethodPage({
         action={updateAction}
         tenantSlug={tenant.slug}
         method={method}
+        logoAssets={logoAssets.map((asset) => ({
+          id: asset.id,
+          url: organizationLogoPublicUrl(asset),
+        }))}
       />
 
     </main>

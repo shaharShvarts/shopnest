@@ -183,6 +183,13 @@
       "when": 1791000000000,
       "tag": "0025_store_manager_invitations",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791299509930,
+      "tag": "0026_organization_logo_assets",
+      "breakpoints": true
     }
   ]
 }

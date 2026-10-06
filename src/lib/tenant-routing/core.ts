@@ -27,6 +27,7 @@ export const STORE_RESERVED_ROUTE_SEGMENTS = new Set<string>([
   ...GLOBAL_PAGE_ROUTE_SEGMENTS,
   "api",
   "media",
+  "organization-logos",
   "static",
   "_next",
 ]);
@@ -92,6 +93,7 @@ export function resolveTenantRoute(
   if (
     !firstSegment ||
     LEGACY_ROUTE_SEGMENTS.has(firstSegment) ||
+    STORE_RESERVED_ROUTE_SEGMENTS.has(firstSegment) ||
     isGlobalApiPath(pathname)
   ) {
     return { kind: "legacy" };
@@ -121,6 +123,7 @@ export async function resolveTenantRouteAsync(
   if (
     !firstSegment ||
     LEGACY_ROUTE_SEGMENTS.has(firstSegment) ||
+    STORE_RESERVED_ROUTE_SEGMENTS.has(firstSegment) ||
     isGlobalApiPath(pathname)
   ) {
     return { kind: "legacy" };

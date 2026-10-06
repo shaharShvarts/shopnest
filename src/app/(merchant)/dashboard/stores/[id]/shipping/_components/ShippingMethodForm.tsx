@@ -13,6 +13,7 @@ export function ShippingMethodForm({
   action,
   tenantSlug,
   method,
+  logoAssets,
 }: {
   action: (
     previousState: typeof initialState,
@@ -20,6 +21,7 @@ export function ShippingMethodForm({
   ) => Promise<typeof initialState>;
   tenantSlug: string;
   method?: ShippingMethod;
+  logoAssets: Array<{ id: number; url: string }>;
 }) {
   const t = useTranslations("StoreShippingManagement");
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -104,6 +106,7 @@ export function ShippingMethodForm({
             initialImage={method?.logoUrl}
             name="logo"
             required={false}
+            logoAssets={logoAssets}
           />
           {state.errors?.logo?.map((message) => (
             <p key={message} className="text-sm text-destructive">
