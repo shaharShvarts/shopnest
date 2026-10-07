@@ -129,3 +129,41 @@ test("platform billing repository derives ownership, subscription and price from
     /getDbForTenant|payment_provider_settings|payment_transactions|TENANT_SCHEMA_HEADER|search_path/
   );
 });
+
+
+test("platform billing allows only one in-flight attempt per subscription even if price or interval changes", async () => {
+  const schema = await readFile(
+    "src/drizzle/control-schema/platformBillingAttempt.ts",
+    "utf8"
+  );
+  const migration = await readFile(
+    "src/drizzle/control-migrations/0027_platform_billing_foundation.sql",
+    "utf8"
+  );
+  const repository = await readFile(
+    "src/lib/platform-billing/drizzle-repository.ts",
+    "utf8"
+  );
+
+  assert.match(
+    schema,
+    /platform_billing_attempts_subscription_inflight_unique/
+  );
+  assert.match(
+    migration,
+    /platform_billing_attempts_subscription_inflight_unique/
+  );
+  assert.match(migration, /WHERE "status" IN \('created', 'pending'\)/);
+
+  const existingAttemptBlock = repository.match(
+    /const \[existing\][\s\S]*?if \(existing\) return mapAttempt\(existing\);/
+  )?.[0];
+
+  assert.ok(existingAttemptBlock);
+  assert.match(existingAttemptBlock, /subscriptionId/);
+  assert.match(existingAttemptBlock, /\["created", "pending"\]/);
+  assert.doesNotMatch(
+    existingAttemptBlock,
+    /planId|billingInterval|currency|amountMinor/
+  );
+});
