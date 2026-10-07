@@ -73,6 +73,9 @@ Store readiness is also control-plane only. The merchant Store detail computes a
 | `/dashboard/stores/[id]/products/new` | Platform | Authorized Store Management context with catalog permission | 200 new-product form for the selected Store; cross-Store access fails closed |
 | `/dashboard/stores/[id]/products/[productId]/edit` | Platform | Authorized Store Management context with catalog permission | 200 product edit form for the selected Store; cross-Store access fails closed |
 | `/dashboard/stores/[id]/team` | Platform | Authorized Store Management context with team-management permission | 200 Store team management; unauthorized Manager/team access fails closed |
+| `/dashboard/stores/[id]/shipping` | Platform | Authorized Store Management context with shipping-management permission | 200 shipping-method list for the selected Store; cross-Store access fails closed |
+| `/dashboard/stores/[id]/shipping/new` | Platform | Authorized Store Management context with shipping-management permission | 200 new shipping-method form; mutations remain server-authoritative and Store-bound |
+| `/dashboard/stores/[id]/shipping/[methodId]/edit` | Platform | Authorized Store Management context with shipping-management permission | 200 owned shipping-method edit form; invalid or cross-Store method access fails closed |
 | `/admin` | Platform | Active super admin | 200; anonymous redirects to `/admin/login`; wrong role 403 |
 | `/admin/login` | Platform | None | 200 global sign-in; successful super-admin action redirects to `/admin` |
 | `/admin/stores` | Platform | Active super admin | 200 registry; anonymous redirect / wrong role 403 |
@@ -122,6 +125,7 @@ Store readiness is also control-plane only. The merchant Store detail computes a
 | `/<tenant>/media/[kind]/[filename]` (GET) | API | Known tenant; no login | 200 typed tenant file; invalid kind/name or missing file 404; no arbitrary schema/path selection |
 | `/api/customer-auth/google/callback` (GET) | API (global) | One-use OAuth state and browser binding | Redirect to state-bound tenant callback/login; invalid state redirects to platform `/`; forged tenant headers are discarded |
 | `/api/iCount/payment` (POST) | API (global, retired) | None | 410; never invokes a payment provider |
+| `/organization-logos/[assetId]/[filename]` (GET) | Platform asset | None | 200 only for a registered control-plane organization logo asset; invalid IDs, filename mismatches, or missing storage return 404 |
 
 Framework `/_next/*`, favicon and root public assets are not application pages.
 Root commerce aliases (`/categories`, `/carts`, `/checkout`, `/products`, `/account`,

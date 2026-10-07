@@ -7,7 +7,6 @@ import test from "node:test";
 import { createRequire } from "node:module";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SHIPPING_CODE_HTML_PATTERN } from "../src/lib/shipping/core.ts";
 
 test("development output is isolated from production build and start", async () => {
   const require = createRequire(import.meta.url);
@@ -393,11 +392,12 @@ test("admin create and edit pages retain deterministic tenant-aware Back links",
   }
 });
 
-test("shipping create and edit share a browser-safe code pattern", async () => {
-  const [form, createPage, editPage, english, hebrew] = await Promise.all([
+test("shipping create and edit share the simplified server-authoritative method form", async () => {
+  const [form, createPage, editPage, actions, english, hebrew] = await Promise.all([
     readFile("src/app/[tenant]/admin/shipping/_components/ShippingMethodForm.tsx", "utf8"),
     readFile("src/app/[tenant]/admin/shipping/new/page.tsx", "utf8"),
     readFile("src/app/[tenant]/admin/shipping/[id]/edit/page.tsx", "utf8"),
+    readFile("src/app/[tenant]/admin/_actions/shipping.ts", "utf8"),
     readFile("src/messages/en.json", "utf8").then(JSON.parse),
     readFile("src/messages/he.json", "utf8").then(JSON.parse),
   ]);
@@ -405,23 +405,18 @@ test("shipping create and edit share a browser-safe code pattern", async () => {
   assert.match(createPage, /ShippingMethodForm/);
   assert.match(editPage, /ShippingMethodForm/);
   assert.match(form, /getTranslations\("Shipping"\)/);
-  assert.match(form, /aria-describedby="shipping-code-help"/);
-  assert.match(form, /text-xs text-muted-foreground/);
   assert.match(form, /aria-describedby="shipping-name-help"/);
-  assert.doesNotMatch(form, /name="sortOrder"|>Sort order</);
-  assert.doesNotMatch(form, /\[a-z0-9\]\+\(\[_-\]\[a-z0-9\]\+\)\*/);
-  assert.match(form, /pattern=\{SHIPPING_CODE_HTML_PATTERN\}/);
-  assert.equal(
-    SHIPPING_CODE_HTML_PATTERN,
-    "[a-z0-9]+(?:[_\\-][a-z0-9]+)*"
+  assert.match(form, /text-xs text-muted-foreground/);
+  assert.match(form, /name="price"/);
+  assert.match(form, /name="requiresAddress"/);
+  assert.match(form, /name="isActive"/);
+  assert.doesNotMatch(
+    form,
+    /name="code"|name="type"|name="freeShippingThreshold"|name="sortOrder"/
   );
-  assert.doesNotThrow(() => new RegExp(SHIPPING_CODE_HTML_PATTERN, "v"));
-  const renderedCodeInput = renderToStaticMarkup(
-    createElement("input", { pattern: SHIPPING_CODE_HTML_PATTERN })
-  );
-  assert.ok(
-    renderedCodeInput.includes(`pattern="${SHIPPING_CODE_HTML_PATTERN}"`),
-    `Rendered input did not preserve the escaped hyphen: ${renderedCodeInput}`
+  assert.doesNotMatch(
+    actions,
+    /formData\.get\(["'](?:code|type|freeShippingThreshold|sortOrder)["']\)/
   );
   assert.equal(
     english.Shipping.nameHelp,
@@ -430,14 +425,6 @@ test("shipping create and edit share a browser-safe code pattern", async () => {
   assert.equal(
     hebrew.Shipping.nameHelp,
     "השם שיופיע ללקוח בדף הקניה"
-  );
-  assert.equal(
-    english.Shipping.codeHelp,
-    "Internal identifier, e.g. home_delivery. Avoid changing it after the method has been used in orders."
-  );
-  assert.equal(
-    hebrew.Shipping.codeHelp,
-    "מזהה פנימי, לדוגמה home_delivery. מומלץ לא לשנות אותו לאחר שנעשה בו שימוש בהזמנות."
   );
 });
 
