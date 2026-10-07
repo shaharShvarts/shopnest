@@ -73,4 +73,5 @@ jobs:
           npm run cloudflare-saas:test
 
       - name: Build production application
+        if: always()
         run: npm run build
