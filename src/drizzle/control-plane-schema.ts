@@ -30,3 +30,5 @@ export * from "@/drizzle/control-schema/entitlement";
 export * from "@/drizzle/control-schema/planPrice";
 
 export * from "@/drizzle/control-schema/organizationLogoAsset";
+
+export * from "@/drizzle/control-schema/platformBillingAttempt";
