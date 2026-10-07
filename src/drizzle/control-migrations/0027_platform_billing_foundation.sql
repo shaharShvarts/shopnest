@@ -32,6 +32,8 @@ ALTER TABLE "platform_billing_attempts" ADD CONSTRAINT "platform_billing_attempt
 --> statement-breakpoint
 CREATE UNIQUE INDEX "platform_billing_attempts_external_reference_unique" ON "platform_billing_attempts" USING btree ("external_reference");
 --> statement-breakpoint
+CREATE UNIQUE INDEX "platform_billing_attempts_subscription_inflight_unique" ON "platform_billing_attempts" USING btree ("subscription_id") WHERE "status" IN ('created', 'pending');
+--> statement-breakpoint
 CREATE INDEX "platform_billing_attempts_subscription_id_idx" ON "platform_billing_attempts" USING btree ("subscription_id");
 --> statement-breakpoint
 CREATE INDEX "platform_billing_attempts_store_id_idx" ON "platform_billing_attempts" USING btree ("store_id");
