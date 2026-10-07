@@ -119,7 +119,7 @@ test("iCount checkout rejects a redirect URL outside the hosted iCount origin", 
   );
 });
 
-test("iCount network timeout fails closed with no retry", async () => {
+test("iCount ambiguous checkout timeout is outcome-unknown and never retried", async () => {
   let calls = 0;
   const provider = new IcountPlatformBillingProvider(
     { apiToken: "test-api-token", paypageId: 16, timeoutMs: 5 },
@@ -137,9 +137,51 @@ test("iCount network timeout fails closed with no retry", async () => {
     provider.createCheckout(checkoutInput),
     (error: unknown) =>
       error instanceof IcountPlatformBillingError &&
-      error.code === "PROVIDER_UNAVAILABLE"
+      error.code === "OUTCOME_UNKNOWN" &&
+      error.outcomeUnknown === true
   );
   assert.equal(calls, 1);
+});
+
+test("iCount checkout treats provider 5xx as outcome-unknown", async () => {
+  let calls = 0;
+  const provider = new IcountPlatformBillingProvider(
+    { apiToken: "test-api-token", paypageId: 16, timeoutMs: 100 },
+    async () => {
+      calls += 1;
+      return jsonResponse({ status: false, reason: "server error" }, 503);
+    }
+  );
+
+  await assert.rejects(
+    provider.createCheckout(checkoutInput),
+    (error: unknown) =>
+      error instanceof IcountPlatformBillingError &&
+      error.code === "OUTCOME_UNKNOWN" &&
+      error.outcomeUnknown === true
+  );
+  assert.equal(calls, 1);
+});
+
+test("iCount checkout rejects a response for another PayPage", async () => {
+  const provider = new IcountPlatformBillingProvider(
+    { apiToken: "test-api-token", paypageId: 16, timeoutMs: 100 },
+    async () =>
+      jsonResponse({
+        status: true,
+        reason: "OK",
+        paypage_id: "99",
+        sale_uniqid: "sale-123",
+        sale_url: "https://app.icount.co.il/m/gen/checkout-token",
+      })
+  );
+
+  await assert.rejects(
+    provider.createCheckout(checkoutInput),
+    (error: unknown) =>
+      error instanceof IcountPlatformBillingError &&
+      error.code === "INVALID_RESPONSE"
+  );
 });
 
 test("iCount IPN data is used only to correlate a sale to a document reference", () => {
