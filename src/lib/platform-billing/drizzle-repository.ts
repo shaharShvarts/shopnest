@@ -109,6 +109,20 @@ export class DrizzlePlatformBillingRepository
         sql`select pg_advisory_xact_lock(${subscription.id}::bigint)`
       );
 
+      const [existing] = await tx
+        .select()
+        .from(platformBillingAttempts)
+        .where(
+          and(
+            eq(platformBillingAttempts.subscriptionId, subscription.id),
+            inArray(platformBillingAttempts.status, ["created", "pending"])
+          )
+        )
+        .orderBy(desc(platformBillingAttempts.id))
+        .limit(1);
+
+      if (existing) return mapAttempt(existing);
+
       const [pricedPlan] = await tx
         .select({
           planId: plans.id,
@@ -135,29 +149,6 @@ export class DrizzlePlatformBillingRepository
           "No authoritative price is configured for this subscription"
         );
       }
-
-      const [existing] = await tx
-        .select()
-        .from(platformBillingAttempts)
-        .where(
-          and(
-            eq(platformBillingAttempts.subscriptionId, subscription.id),
-            eq(platformBillingAttempts.organizationId, store.organizationId),
-            eq(platformBillingAttempts.storeId, store.id),
-            eq(platformBillingAttempts.planId, pricedPlan.planId),
-            eq(
-              platformBillingAttempts.billingInterval,
-              selection.billingInterval
-            ),
-            eq(platformBillingAttempts.currency, pricedPlan.currency),
-            eq(platformBillingAttempts.amountMinor, pricedPlan.amountMinor),
-            inArray(platformBillingAttempts.status, ["created", "pending"])
-          )
-        )
-        .orderBy(desc(platformBillingAttempts.id))
-        .limit(1);
-
-      if (existing) return mapAttempt(existing);
 
       const [created] = await tx
         .insert(platformBillingAttempts)
