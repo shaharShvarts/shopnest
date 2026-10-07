@@ -293,6 +293,7 @@ test("Managed catalog edit keeps the existing image unless a replacement is sele
   assert.match(upload, /resolveTenantImageUrl/);
   assert.match(upload, /URL\.createObjectURL/);
   assert.match(upload, /URL\.revokeObjectURL/);
+  // Catalog images stay required by default; an existing image makes replacement optional.
   assert.match(upload, /required = true/);
   assert.match(upload, /required=\{required && !existingImageUrl\}/);
   assert.match(upload, /initialImage/);
