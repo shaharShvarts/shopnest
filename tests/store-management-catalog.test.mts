@@ -293,9 +293,11 @@ test("Managed catalog edit keeps the existing image unless a replacement is sele
   assert.match(upload, /resolveTenantImageUrl/);
   assert.match(upload, /URL\.createObjectURL/);
   assert.match(upload, /URL\.revokeObjectURL/);
-  assert.match(upload, /required=\{!existingImageUrl\}/);
+  assert.match(upload, /required = true/);
+  assert.match(upload, /required=\{required && !existingImageUrl\}/);
   assert.match(upload, /initialImage/);
   assert.match(categoryForm, /ManagedImageUpload/);
+  assert.doesNotMatch(categoryForm, /required=\{false\}/);
   assert.match(categoryForm, /initialImage=\{category\?\.imageUrl\}/);
   assert.match(editPage, /max-w-6xl/);
   assert.match(editPage, /tenantSlug=\{tenant\.slug\}/);
