@@ -66,3 +66,49 @@ export interface PlatformBillingProvider {
     input: PlatformBillingVerifyInput
   ): Promise<PlatformBillingVerifyResult>;
 }
+
+
+export type PlatformBillingAttempt = {
+  id: number;
+  subscriptionId: number;
+  organizationId: number;
+  storeId: number;
+  planId: number;
+  planCodeSnapshot: string;
+  planNameSnapshot: string;
+  billingInterval: BillingInterval;
+  currency: string;
+  amountMinor: number;
+  status: PlatformBillingStatus;
+  provider: string | null;
+  providerReference: string | null;
+  externalReference: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type PlatformBillingErrorCode =
+  | "STORE_NOT_FOUND"
+  | "SUBSCRIPTION_NOT_FOUND"
+  | "SUBSCRIPTION_NOT_BILLABLE"
+  | "PRICE_NOT_CONFIGURED"
+  | "OWNERSHIP_MISMATCH";
+
+export class PlatformBillingError extends Error {
+  readonly code: PlatformBillingErrorCode;
+
+  constructor(code: PlatformBillingErrorCode, message: string) {
+    super(message);
+    this.name = "PlatformBillingError";
+    this.code = code;
+  }
+}
+
+export interface PlatformBillingRepository {
+  createOrReuseAttemptForOwnedStore(
+    merchantId: number,
+    storeId: number,
+    selection: PlatformBillingSelection,
+    now?: Date
+  ): Promise<PlatformBillingAttempt>;
+}
