@@ -63,6 +63,9 @@ export const platformBillingAttempts = pgTable(
     uniqueIndex("platform_billing_attempts_external_reference_unique").on(
       table.externalReference
     ),
+    uniqueIndex("platform_billing_attempts_subscription_inflight_unique")
+      .on(table.subscriptionId)
+      .where(sql`${table.status} IN ('created', 'pending')`),
     index("platform_billing_attempts_subscription_id_idx").on(
       table.subscriptionId
     ),
