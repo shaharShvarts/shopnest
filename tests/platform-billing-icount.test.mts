@@ -239,7 +239,7 @@ test("iCount verification keeps an uncorrelated hosted sale pending without trus
   assert.equal(calls, 0);
 });
 
-test("iCount verification marks paid only from matching server-to-server document evidence", async () => {
+test("iCount verification keeps apparently successful document evidence in review until the official paid contract is verified", async () => {
   let capturedBody: unknown;
   const provider = new IcountPlatformBillingProvider(
     { apiToken: "test-api-token", paypageId: 16, timeoutMs: 100 },
@@ -277,7 +277,7 @@ test("iCount verification marks paid only from matching server-to-server documen
   });
   assert.deepEqual(result, {
     providerReference: "doc:sale-123:invrec:1001",
-    status: "paid",
+    status: "review_required",
     amountMinor: 12345,
     currency: "ILS",
   });
