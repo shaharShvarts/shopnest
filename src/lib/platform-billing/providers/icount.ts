@@ -217,11 +217,6 @@ function parseDocumentReference(reference: string) {
   };
 }
 
-function hasConfirmation(value: string | number | null | undefined): boolean {
-  if (typeof value === "number") return Number.isFinite(value);
-  return typeof value === "string" && value.trim().length > 0;
-}
-
 export function icountDocumentReferenceFromNotification(
   expectedSaleReference: string,
   input: unknown
@@ -450,9 +445,9 @@ export class IcountPlatformBillingProvider implements PlatformBillingProvider {
     let normalizedStatus: PlatformBillingVerifyResult["status"];
 
     if (status === "closed") {
-      normalizedStatus = hasConfirmation(response.data.doc.cc_confirmation)
-        ? "paid"
-        : "review_required";
+      // Fail closed until iCount's authoritative paid/confirmation semantics are
+      // verified against current official provider documentation and sandbox evidence.
+      normalizedStatus = "review_required";
     } else if (status === "cancelled" || status === "canceled") {
       normalizedStatus = "cancelled";
     } else if (
