@@ -23,16 +23,19 @@ export type IcountPlatformBillingErrorCode =
   | "NOT_CONFIGURED"
   | "INVALID_REQUEST"
   | "PROVIDER_UNAVAILABLE"
+  | "OUTCOME_UNKNOWN"
   | "INVALID_RESPONSE"
   | "INVALID_NOTIFICATION";
 
 export class IcountPlatformBillingError extends Error {
   readonly code: IcountPlatformBillingErrorCode;
+  readonly outcomeUnknown: boolean;
 
   constructor(code: IcountPlatformBillingErrorCode, message: string) {
     super(message);
     this.name = "IcountPlatformBillingError";
     this.code = code;
+    this.outcomeUnknown = code === "OUTCOME_UNKNOWN";
   }
 }
 
@@ -45,6 +48,9 @@ export type IcountPlatformBillingConfig = {
 const generateSaleResponseSchema = z
   .object({
     status: z.literal(true),
+    paypage_id: z
+      .union([z.number().int().positive(), z.string().regex(/^[1-9][0-9]*$/)])
+      .optional(),
     sale_uniqid: z.string().trim().min(1).max(128),
     sale_sid: z.string().trim().min(1).max(255).optional(),
     sale_url: z.string().url().max(2048),
@@ -293,7 +299,11 @@ export class IcountPlatformBillingProvider implements PlatformBillingProvider {
     this.network = network;
   }
 
-  private async request(path: string, body: Record<string, unknown>): Promise<unknown> {
+  private async request(
+    path: string,
+    body: Record<string, unknown>,
+    options: { mutating?: boolean } = {}
+  ): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -311,12 +321,24 @@ export class IcountPlatformBillingProvider implements PlatformBillingProvider {
         body: JSON.stringify(body),
       });
 
+      if (!response.ok) {
+        if (options.mutating && response.status >= 500) {
+          throw new IcountPlatformBillingError(
+            "OUTCOME_UNKNOWN",
+            "iCount checkout outcome is unknown and must not be retried"
+          );
+        }
+        invalidResponse("iCount returned a non-success HTTP status");
+      }
+
       return await readBoundedJson(response);
     } catch (error) {
       if (error instanceof IcountPlatformBillingError) throw error;
       throw new IcountPlatformBillingError(
-        "PROVIDER_UNAVAILABLE",
-        "iCount request could not be completed safely"
+        options.mutating ? "OUTCOME_UNKNOWN" : "PROVIDER_UNAVAILABLE",
+        options.mutating
+          ? "iCount checkout outcome is unknown and must not be retried"
+          : "iCount request could not be completed safely"
       );
     } finally {
       clearTimeout(timer);
@@ -347,10 +369,19 @@ export class IcountPlatformBillingProvider implements PlatformBillingProvider {
         description: `ShopNest platform billing ${input.externalReference}`,
         currency_code: "ILS",
         max_payments: 1,
+      }, {
+        mutating: true,
       })
     );
 
     if (!response.success) invalidResponse();
+
+    if (
+      response.data.paypage_id !== undefined &&
+      Number(response.data.paypage_id) !== this.paypageId
+    ) {
+      invalidResponse("iCount PayPage reference mismatch");
+    }
 
     return {
       providerReference: `sale:${response.data.sale_uniqid}`,
