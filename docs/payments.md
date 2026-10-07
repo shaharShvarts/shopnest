@@ -95,7 +95,7 @@ An iCount notification is **not payment authority**. The provider helper accepts
 
 Until such a trusted correlation is available, `verifyResult` keeps a hosted sale in `pending` without making browser return data authoritative. Once the attempt carries the correlated document reference, verification performs a fresh server-to-server `POST /doc/info` and validates the returned document reference, amount, currency, status and credit-card confirmation evidence.
 
-A document becomes `paid` only when iCount reports a matching document as `closed`, includes confirmation evidence, and the provider-reported amount/currency exactly match the immutable ShopNest billing snapshot. Amount or currency mismatch becomes `review_required`; unknown terminal evidence also fails into review rather than silently granting a paid subscription. Provider-reported cancellation can normalize to `cancelled` only after the server-side document lookup.
+The adapter does **not** currently promote any iCount document to `paid`. The public API V3 documentation available to this integration confirms token authentication and JSON POST conventions, but it does not expose enough authoritative detail to prove the exact successful-card-payment semantics of `doc/info` / confirmation fields. A matching `closed` document therefore remains `review_required` until that provider contract is verified against current official documentation and sandbox evidence. Amount or currency mismatch also becomes `review_required`; provider-reported cancellation can normalize to `cancelled` only after the server-side document lookup.
 
 ### Deferred work
 
