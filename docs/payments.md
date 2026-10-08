@@ -66,6 +66,41 @@ The old `/api/iCount/payment` prototype accepted a client amount and used platfo
 
 Decision C: explicitly deprecate, preserving the route with `410 Gone` and a generic message directing clients to tenant checkout. It no longer accesses credentials or makes network calls. The prototype component links to checkout; the shipping action retains address-cookie behavior and redirects to tenant checkout. No silent deletion or compatibility route can bypass order/payment invariants. Historical iCount credentials are not migrated or reused.
 
+## ShopNest platform billing — iCount provider adapter
+
+This section is separate from the tenant-local merchant payment framework above. It covers **ShopNest charging a Store/Organization for its ShopNest subscription** through the control-plane `platform_billing_attempts` foundation. It does not revive or reuse the retired `/api/iCount/payment` prototype and does not access tenant payment tables.
+
+The first iCount adapter implements the provider contract only. It is **not wired to a checkout route, return route, IPN route, renewal scheduler, or production billing switch in this PR**, so merging the adapter alone cannot start a real ShopNest subscription charge. No real iCount credential or provider transaction is exercised by automated tests; network behavior is tested through an injected transport.
+
+### Configuration and credential boundary
+
+The adapter uses two server-only environment values:
+
+- `PLATFORM_BILLING_ICOUNT_API_TOKEN` — iCount API token sent only as an HTTPS `Authorization: Bearer ...` header.
+- `PLATFORM_BILLING_ICOUNT_PAYPAGE_ID` — positive numeric ID of the preconfigured hosted iCount PayPage.
+
+Neither value is accepted from the browser. The token is not stored in PostgreSQL, returned to React, included in request bodies/URLs, or logged by the adapter. There is no username/password fallback and no configurable API hostname. The provider calls the fixed iCount API origin only.
+
+### Hosted checkout
+
+`createCheckout` accepts only the server-authoritative billing-attempt snapshot produced by the platform billing foundation. The adapter currently supports positive **ILS** charges only. It converts integer minor units to a two-decimal major-unit value only at the iCount wire boundary and sends a fixed JSON POST to `/paypage/generate_sale` with the configured `paypage_id`, amount, ShopNest external reference description, `currency_code=ILS`, and one payment.
+
+The returned hosted URL is accepted only on the fixed `https://app.icount.co.il` origin under the hosted-payment path. The durable provider reference initially stores only the provider's `sale_uniqid`; browser return/success navigation does not change payment state.
+
+The transport has a bounded deadline, no retries, redirects disabled, a 256 KiB response limit, strict JSON/response validation, and generic normalized failures. A timeout or malformed creation response remains fail-closed; the existing one-in-flight-attempt invariant prevents blindly creating another charge attempt after an ambiguous network outcome.
+
+### Notification correlation and authoritative verification
+
+An iCount notification is **not payment authority**. The provider helper accepts notification data only to correlate the already stored `sale_uniqid` with an iCount `doctype` + `docnum`. Notification fields such as status, amount, currency and confirmation code are deliberately ignored for the payment decision. A mismatched sale reference is rejected.
+
+Until such a trusted correlation is available, `verifyResult` keeps a hosted sale in `pending` without making browser return data authoritative. Once the attempt carries the correlated document reference, verification performs a fresh server-to-server `POST /doc/info` and validates the returned document reference, amount, currency, status and credit-card confirmation evidence.
+
+The adapter does **not** currently promote any iCount document to `paid`. The public API V3 documentation available to this integration confirms token authentication and JSON POST conventions, but it does not expose enough authoritative detail to prove the exact successful-card-payment semantics of `doc/info` / confirmation fields. A matching `closed` document therefore remains `review_required` until that provider contract is verified against current official documentation and sandbox evidence. Amount or currency mismatch also becomes `review_required`; provider-reported cancellation can normalize to `cancelled` only after the server-side document lookup.
+
+### Deferred work
+
+A later PR must provide the authenticated ShopNest orchestration around this adapter: creation/service state transitions, public return UX, the correlation/IPN route, persistence of provider-reference transitions, subscription activation, and environment acceptance. Refunds, recurring renewal scheduling, stored-card charging/tokenization, invoice/receipt workflow policy, and production enablement remain outside this adapter PR.
+
 ## Cardcom payments — PLANNED
 
 Official material reviewed:
